@@ -24,7 +24,7 @@ const requestAdmission = async (req: ExtendedRequest) => {
 			throw {
 				code: 500,
 				message: 'Internal server Error',
-				cause: "Wasn't to happend that way"
+				cause: "Wasn't to happen that way"
 			};
 		}
 		let requestingLearners = req.body as CaptureRequestingLearner[];
@@ -102,9 +102,9 @@ const requestAdmission = async (req: ExtendedRequest) => {
 const getRequestedLearner = async (req: ExtendedRequest) => {
 	try {
 		if (req.queryParams?.approved) {
-			req.response.respond(await req.nemis.getRequestedJoiningLearners());
-		} else {
 			req.response.respond(await req.nemis.getApprovedJoiningLearners());
+		} else {
+			req.response.respond(await req.nemis.getRequestedJoiningLearners());
 		}
 	} catch (err) {
 		req.response.error(

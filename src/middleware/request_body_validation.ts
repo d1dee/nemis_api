@@ -28,7 +28,7 @@ export default async (req: ExtendedRequest, res: Response, next: NextFunction) =
 			throw {code: 400, message: 'request.body is not an Array of objects'};
 		if ('/api/learner/continuing' === req.path) {
 			// validate request learners
-			req.body = validateRequestingLearner(req.body) as RequestingLearner;
+			req.body = <RequestingLearner[]>validateRequestingLearner(req.body);
 			return next();
 		}
 		// Parse req.body to make sure it is compliant. Each path has expected data type

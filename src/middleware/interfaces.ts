@@ -41,6 +41,7 @@ export interface QueryParams {
 	grade?: Grades;
 	approved?: boolean;
 	indexNo?: string[];
+	await?: boolean;
 }
 
 export interface SetCookie {

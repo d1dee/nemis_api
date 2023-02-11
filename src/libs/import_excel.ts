@@ -2,7 +2,6 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import {Temporal} from '@js-temporal/polyfill';
 import {accessSync, constants} from 'fs';
 import {Error} from 'mongoose';
 import Validator from 'validatorjs';
@@ -49,7 +48,7 @@ export default (
 	}
 };
 
-export function validateRequestingLearner(requestingLearners: unknown[]): RequestingLearner {
+export function validateRequestingLearner(requestingLearners: unknown[]): RequestingLearner[] {
 	try {
 		if (!Array.isArray(requestingLearners)) {
 			throw new Error(
@@ -104,7 +103,7 @@ export function validateRequestingLearner(requestingLearners: unknown[]): Reques
 				cause: validationError
 			};
 		}
-		return validatedLearners as unknown as RequestingLearner;
+		return <RequestingLearner[]>validatedLearners;
 	} catch (err) {
 		throw err;
 	}
@@ -292,38 +291,16 @@ export function validateLearnerJson(sheetData: any[]): {
 			}
 		} else {
 			if (dataObject.dob) {
-				try {
-					// Create a Temporal date instead of normal js date Object
-					if (dataObject.dob instanceof Date && !isNaN(dataObject.dob)) {
-						dataObject.dob = Temporal.PlainDate.from({
-							year: dataObject.dob?.getFullYear(),
-							month: dataObject.dob?.getMonth() + 1,
-							day: dataObject.dob?.getDate()
-						});
-					} else {
-						let date = dataObject.dob.split(/[\/.,\-]/);
-						if (date.length != 3) throw undefined;
-						if (!Number(date[0]) || !Number(date[1]) || !Number(date[1]))
-							throw undefined;
-						if (Number(date[1]) > 12) throw 'Month is out of range';
-						if (Number(date[0]) > 31) throw 'Day is out of range';
-						dataObject.dob = Temporal.PlainDate.from({
-							year: Number(date[2]),
-							month: Number(date[1]),
-							day: Number(date[0])
-						});
-					}
+				if (dataObject.dob instanceof Date && !isNaN(dataObject.dob))
 					validDataObject.push(dataObject);
-				} catch (err) {
+				else
 					invalidDataObject.push({
 						...dataObject,
 						errors: {
 							validationErrors:
-								err?.message ||
 								'Invalid date, dob should be in form' + ' of Day/Month/year.'
 						}
 					});
-				}
 			} else {
 				invalidDataObject.push({
 					...dataObject,

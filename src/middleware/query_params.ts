@@ -31,7 +31,8 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 			'upi',
 			'nhif',
 			'index',
-			'await'
+			'await',
+			'approved'
 		];
 		const queryKeys = Object.keys(req.query);
 		const invalidParams = queryKeys.filter(param => !allowedParams.includes(param));
@@ -147,6 +148,7 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 				case 'admitted':
 				case 'nhif':
 				case 'await':
+				case 'approved':
 					let keyValue = req.query[queryKeys[key]];
 					if (!keyValue) {
 						break;

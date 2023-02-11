@@ -53,7 +53,7 @@ export interface NemisLearner extends BasicLearner, Contacts, Counties {
 export interface NemisLearnerFromDb extends NemisLearner {
 	nemisApiResultsId: string | ObjectId;
 	_id: string | ObjectId;
-	__v: number;
+	__v?: number;
 	institutionId?: ObjectId | string;
 	admitted?: boolean;
 	reported?: boolean;

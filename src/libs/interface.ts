@@ -2,6 +2,8 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
+import {Grades} from '../interfaces';
+
 export interface ListLearner {
 	upi: string;
 	name: string;
@@ -13,7 +15,7 @@ export interface ListLearner {
 	medicalCondition: string;
 	nhifNo: number;
 	doPostback: string;
-	grade: string;
+	grade: Grades;
 }
 
 export interface SelectedLearner {
@@ -211,4 +213,50 @@ export interface AdmitApiCall {
 			second: string;
 		};
 	};
+}
+
+export interface AdmittedJoiningLearners {
+	postback: 'ctl00$ContentPlaceHolder1$grdLearners';
+	actions: {
+		captureWithBirthCertificate: string;
+		captureWithoutBirthCertificate: string;
+		resetBiodataCapture: string;
+		undoAdmission: string;
+	};
+	no: number;
+	indexNo: string;
+	name: string;
+	gender: string;
+	yob: number;
+	marks: number;
+	subCounty: string;
+	upi: string;
+}
+
+export type RequestedJoiningLearner = ApprovedLearner;
+
+export interface SchoolSelected {
+	originalString?: string;
+	code: string;
+	name: string;
+	type: string;
+	category: string;
+}
+
+export interface ApprovedLearner {
+	no: string;
+	indexNo: string;
+	name: string;
+	gender: string;
+	marks: string;
+	schoolSelected: SchoolSelected;
+	requestedBy: string;
+	parentId: string;
+	parentTel: string;
+	dateCaptured: string;
+	approved: {
+		by: string;
+		on: string;
+	};
+	status: string;
 }

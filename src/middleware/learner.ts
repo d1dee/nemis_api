@@ -84,7 +84,7 @@ const addCompleteLearner = async (
 		)
 			.map(x => {
 				if (x.status === 'fulfilled') {
-					insertedDocs = x.value as unknown as NemisLearnerFromDb[];
+					insertedDocs = <NemisLearnerFromDb[]>(<unknown>x.value);
 					return;
 				}
 				insertedDocs = x.reason?.insertedDocs;

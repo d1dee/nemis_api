@@ -5,7 +5,6 @@
 import {ExtendedRequest} from '../../interfaces';
 
 const submitNhif = async (req: ExtendedRequest) => {
-	const response = req.response;
 	try {
 		const queryParams = req.queryParams;
 		if (!queryParams.grade)
@@ -16,7 +15,7 @@ const submitNhif = async (req: ExtendedRequest) => {
 			};
 		const nemis = req.nemis;
 		if (req.queryParams['await']) {
-			return response.respond(
+			return req.response.respond(
 				await nemis.submitToNhif(queryParams.grade),
 				'Below learners have been successfully submitted to NHIF'
 			);
@@ -24,11 +23,12 @@ const submitNhif = async (req: ExtendedRequest) => {
 		let learnersWithoutNhif = (await nemis.listLearners(queryParams.grade)).filter(
 			learner => !learner.nhifNo
 		);
-		response.respond(
+		req.response.respond(
 			learnersWithoutNhif,
 			'Below learners will be submitted to NHIF in the background.'
 		);
-		await nemis.submitToNhif(queryParams.grade);
+		let k = await nemis.submitToNhif(queryParams.grade);
+		console.log(k);
 	} catch (err) {
 		req.response.error(
 			err.code || 500,
@@ -38,7 +38,6 @@ const submitNhif = async (req: ExtendedRequest) => {
 	}
 };
 const getNhif = async (req: ExtendedRequest) => {
-	const response = req.response;
 	try {
 		const queryParams = req.queryParams;
 		if (!queryParams.grade)
@@ -69,7 +68,7 @@ const getNhif = async (req: ExtendedRequest) => {
 					);
 			}
 		});
-		response.respond(returnResults);
+		req.response.respond(returnResults);
 	} catch (err) {
 		req.response.error(
 			err.code || 500,

@@ -474,7 +474,7 @@ export const countyToNo = (
 				case /^mw.*/gi.test(subCounty):
 					subCountyNo = 1156;
 					break;
-				case /^v.*/gi.test(subCounty):
+				case /^y.*/gi.test(subCounty):
 					subCountyNo = 1157;
 					break;
 				case /^kal.*/gi.test(subCounty):
@@ -1577,7 +1577,7 @@ export const form = (grade: Grades): number => {
 export const splitNames = (name: string): BasicName => {
 	try {
 		let nameArray: string[] = name?.split(' ');
-		if (nameArray.length < 2) throw new Error('Invalid name length');
+		if (nameArray.length < 2) throw {message: 'Invalid name length'};
 		switch (nameArray.length) {
 			case 3:
 				return {
@@ -1635,68 +1635,84 @@ export function parseLearner(
 	institutionId?: ObjectId | string,
 	extraData?: {}
 ): NemisLearnerFromDb[] {
-	let cleanLearner = [];
-	learnerJsonArray.forEach(learner => {
-		let pushLearner = {
-			mother: {},
-			father: {},
-			guardian: {}
-		} as NemisLearnerFromDb;
-		// refactor contacts
-		Object.keys(learner).forEach(key => {
-			switch (key) {
-				case 'dob':
-					if (!learner[key]) break;
-					learner.dob = learner.dob.toString();
-					break;
-				case 'fatherName':
-				case 'fatherId':
-				case 'fatherTel':
-					if (!learner[key]) break;
-					Object.assign(pushLearner.father, {
-						[key.replace('father', '')?.toLowerCase()]: learner[key]
-					});
-					delete learner[key];
-					break;
-				case 'motherName':
-				case 'motherId':
-				case 'motherTel':
-					if (!learner[key]) break;
-					Object.assign(pushLearner.mother, {
-						[key.replace('mother', '')?.toLowerCase()]: learner[key]
-					});
-					delete learner[key];
-					break;
-				case 'guardianName':
-				case 'guardianId':
-				case 'guardianTel':
-					if (!learner[key]) break;
-					Object.assign(pushLearner.guardian, {
-						[key.replace('guardian', '')?.toLowerCase()]: learner[key]
-					});
-					delete learner[key];
-					break;
-				case 'county':
-				case 'subCounty':
-					if (!learner[key]) break;
-					let countyNo: {countyNo; subCountyNo} = countyToNo(
-						learner.county,
-						learner.subCounty
-					);
-					pushLearner.countyNo = countyNo.countyNo;
-					pushLearner.subCountyNo = countyNo.subCountyNo;
-			}
-		});
-		pushLearner.institutionId = institutionId.toString();
-		if (extraData && Object.keys(extraData).length > 0) {
-			Object.entries(extraData).forEach(x => {
-				pushLearner[x[0]] = x[1];
+	try {
+		let cleanLearner = [];
+		learnerJsonArray.forEach(learner => {
+			let pushLearner = {
+				mother: {},
+				father: {},
+				guardian: {}
+			} as NemisLearnerFromDb;
+			// refactor contacts
+			Object.keys(learner).forEach(key => {
+				switch (key) {
+					case 'dob':
+						if (!learner[key]) break;
+						learner.dob = learner.dob.toString();
+						break;
+					case 'fatherName':
+					case 'fatherId':
+					case 'fatherTel':
+						if (!learner[key]) break;
+						Object.assign(pushLearner.father, {
+							[key.replace('father', '')?.toLowerCase()]: learner[key]
+						});
+						delete learner[key];
+						break;
+					case 'motherName':
+					case 'motherId':
+					case 'motherTel':
+						if (!learner[key]) break;
+						Object.assign(pushLearner.mother, {
+							[key.replace('mother', '')?.toLowerCase()]: learner[key]
+						});
+						delete learner[key];
+						break;
+					case 'guardianName':
+					case 'guardianId':
+					case 'guardianTel':
+						if (!learner[key]) break;
+						Object.assign(pushLearner.guardian, {
+							[key.replace('guardian', '')?.toLowerCase()]: learner[key]
+						});
+						delete learner[key];
+						break;
+					case 'county':
+					case 'subCounty':
+						if (!learner[key]) break;
+						let countyNo: {countyNo; subCountyNo} = countyToNo(
+							learner.county,
+							learner.subCounty
+						);
+						pushLearner.countyNo = countyNo.countyNo;
+						pushLearner.subCountyNo = countyNo.subCountyNo;
+						break;
+					case 'form':
+					case 'grade':
+						if (!learner[key]) break;
+						pushLearner.grade = learner[key]?.toLowerCase();
+						delete learner[key];
+						break;
+					case 'gender':
+						if (!learner[key]) break;
+						pushLearner.gender = learner[key]?.toLowerCase();
+						delete learner[key];
+						break;
+				}
 			});
-		}
-		cleanLearner.push({
-			...learner,
-			...pushLearner
+			pushLearner.institutionId = institutionId.toString();
+			if (extraData && Object.keys(extraData).length > 0) {
+				Object.entries(extraData).forEach(x => {
+					pushLearner[x[0]] = x[1];
+				});
+			}
+			cleanLearner.push({
+				...learner,
+				...pushLearner
+			});
 		});
-	});
-	return cleanLearner;
+		return cleanLearner;
+	} catch (err) {
+		throw {message: err?.message || 'failed to parse learner details', cause: err};
+	}
 }

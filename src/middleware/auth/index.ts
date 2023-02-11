@@ -69,7 +69,7 @@ export default async (req: ExtendedRequest, res: Response, next: NextFunction) =
 				}
 				if (req.path === '/api/auth/refresh') {
 					logger.debug('Token refresh');
-					req.token = tokenFromDb as unknown as TokenFromDb;
+					req.token = <TokenFromDb>(<unknown>tokenFromDb);
 					req.decodedToken = decodedToken;
 					return next();
 				} else if (Date.parse(tokenFromDb.expires.toString()) < Date.now()) {
@@ -96,8 +96,8 @@ export default async (req: ExtendedRequest, res: Response, next: NextFunction) =
 								}
 								// todo: Make sure to remove sensitive data from endpoints that
 								//  do not need it
-								req.institution = institution as unknown as DbInstitution;
-								req.token = tokenFromDb as unknown as TokenFromDb;
+								req.institution = <DbInstitution>(<unknown>institution);
+								req.token = <TokenFromDb>(<unknown>tokenFromDb);
 								req.decodedToken = decodedToken as JWTToken;
 								// todo: If track login and sync local database if user hasn't
 								//  logged in a while. This should happen in the background

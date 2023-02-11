@@ -2,7 +2,7 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import {AxiosInstance} from 'axios';
+import {AxiosError, AxiosInstance} from 'axios';
 import FormData from 'form-data';
 import {writeFileSync} from 'fs';
 import moment from 'moment';
@@ -14,10 +14,14 @@ import {RequestingLearner} from '../middleware/interfaces';
 import {countyToNo, form, nationalities, setMedicalCondition, splitNames} from './converts';
 import {
 	AdmitApiCall,
+	AdmittedJoiningLearners,
+	ApprovedLearner,
 	CaptureRequestingLearner,
 	ErrorResponse,
 	ListLearner,
 	ParsedLabel,
+	RequestedJoiningLearner,
+	SchoolSelected,
 	SearchLearner,
 	SelectedLearner,
 	StateObject
@@ -375,6 +379,8 @@ export class Nemis {
 			});
 			return parsedLearnerJson;
 		} catch (err) {
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {message: err.message || 'Failed while try to list learners.', cause: err};
 			throw err;
 		}
 	}
@@ -455,7 +461,7 @@ export class Nemis {
 		try {
 			if (!indexNo || !instituiton?.code || !instituiton?.knecCode)
 				throw {
-					message: 'Some params' + ' are missing'
+					message: 'Some params are missing'
 				};
 			let apiCallResults = (
 				await this.axiosInstance.get(`/generic/api/FormOne/Admission/${indexNo}`)
@@ -494,7 +500,7 @@ export class Nemis {
 									return i === 0
 										? x.toLowerCase()
 										: x.charAt(0).toUpperCase() +
-										x.replace(/^./, '').toLowerCase();
+												x.replace(/^./, '').toLowerCase();
 								})
 								.join('');
 							Object.assign(resolveResults, {[camelCaseKey]: apiCallResults[key]});
@@ -596,59 +602,90 @@ export class Nemis {
 			let canRequest = studentIndexDocument.querySelector('#txtCanReq')?.attrs?.value !== '0';
 			if (!canAdmit)
 				throw {message: 'Admitting learners is currently disabled on the Nemis website.'};
-			let postHtml = (
-				await this.axiosInstance({
-					method: 'post',
-					url: '/Learner/Studindex.aspx',
-					headers: this.#SECURE_HEADERS,
-					data: qs.stringify({
-						...this.#stateObject,
-						ctl00$ContentPlaceHolder1$BtnAdmit: 'Admit Student',
-						ctl00$ContentPlaceHolder1$ScriptManager1:
-							'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$BtnAdmit',
-						ctl00$ContentPlaceHolder1$txtAdmt: 1,
-						ctl00$ContentPlaceHolder1$txtCanAdmt: canAdmit ? 1 : 0,
-						ctl00$ContentPlaceHolder1$txtCanReq: canRequest ? 1 : 0,
-						ctl00$ContentPlaceHolder1$txtGender: learnerWithApiCallResults?.gender
-							?.split('')[0]
-							?.toUpperCase(),
-						ctl00$ContentPlaceHolder1$txtIndex: learnerWithApiCallResults?.indexNo,
-						ctl00$ContentPlaceHolder1$txtMarks:
+			let postHtml = await this.axiosInstance({
+				method: 'post',
+				url: '/Learner/Studindex.aspx',
+				headers: this.#SECURE_HEADERS,
+				data: qs.stringify({
+					...this.#stateObject,
+					ctl00$ContentPlaceHolder1$BtnAdmit: 'Admit Student',
+					ctl00$ContentPlaceHolder1$ScriptManager1:
+						'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$BtnAdmit',
+					ctl00$ContentPlaceHolder1$txtAdmt: 1,
+					ctl00$ContentPlaceHolder1$txtCanAdmt: canAdmit ? 1 : 0,
+					ctl00$ContentPlaceHolder1$txtCanReq: canRequest ? 1 : 0,
+					ctl00$ContentPlaceHolder1$txtGender: learnerWithApiCallResults?.gender
+						?.split('')[0]
+						?.toUpperCase(),
+					ctl00$ContentPlaceHolder1$txtIndex: learnerWithApiCallResults?.indexNo,
+					ctl00$ContentPlaceHolder1$txtMarks:
 						learnerWithApiCallResults.apiResponse?.marks,
-						ctl00$ContentPlaceHolder1$txtName:
-						learnerWithApiCallResults.apiResponse?.name,
-						ctl00$ContentPlaceHolder1$txtReq: 0,
-						ctl00$ContentPlaceHolder1$txtSName:
+					ctl00$ContentPlaceHolder1$txtName: learnerWithApiCallResults.apiResponse?.name,
+					ctl00$ContentPlaceHolder1$txtReq: 0,
+					ctl00$ContentPlaceHolder1$txtSName:
 						learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
-						ctl00$ContentPlaceHolder1$txtSName2:
+					ctl00$ContentPlaceHolder1$txtSName2:
 						learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
-						ctl00$ContentPlaceHolder1$txtSchool:
+					ctl00$ContentPlaceHolder1$txtSchool:
 						learnerWithApiCallResults.apiResponse?.schoolSelected?.code,
-						ctl00$ContentPlaceHolder1$txtSearch:
+					ctl00$ContentPlaceHolder1$txtSearch:
 						learnerWithApiCallResults.apiResponse?.indexNo,
-						ctl00$ContentPlaceHolder1$txtStatus: ''
-					})
+					ctl00$ContentPlaceHolder1$txtStatus: ''
 				})
-			)?.data;
+			});
 
-			if (/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml))
+			if (/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml?.data))
 				throw {
 					message: 'Admission failed, please request learner first',
 					cause: 'We got redirected to request page for the learner'
 				};
-			let message = htmlParser(postHtml).querySelector('#ErrorMessage').innerHTML;
-			document.querySelector('#ErrorMessage');
-			// post index
-			// get error or get redirect or get admit
-			if (/success/gim.test(message)) return true;
+			if (postHtml.request?.path === '/Learner/Studindexchk.aspx') {
+				//await this.axiosInstance.get()
+				let postAdmHtml = await this.axiosInstance({
+					method: 'post',
+					url: '/Learner/Studindexchk.aspx',
+					headers: this.#SECURE_HEADERS,
+					data: {
+						...this.#stateObject,
+						ctl00$ContentPlaceHolder1$BtnAdmit: 'Admit Student',
+						ctl00$ContentPlaceHolder1$txtBCert:
+							learnerWithApiCallResults?.father?.tel ||
+							learnerWithApiCallResults?.mother?.tel ||
+							learnerWithApiCallResults?.guardian?.tel,
+						ctl00$ContentPlaceHolder1$txtGender:
+							learnerWithApiCallResults.apiResponse?.gender,
+						ctl00$ContentPlaceHolder1$txtIndex:
+							learnerWithApiCallResults.apiResponse?.indexNo,
+						ctl00$ContentPlaceHolder1$txtMarks:
+							learnerWithApiCallResults.apiResponse?.marks,
+						ctl00$ContentPlaceHolder1$txtName:
+							learnerWithApiCallResults.apiResponse?.name,
+						ctl00$ContentPlaceHolder1$txtUPI: learnerWithApiCallResults?.adm
+					}
+				});
+				let message = htmlParser(postAdmHtml?.data).querySelector(
+					'#ctl00_ContentPlaceHolder1_ErrorMessage'
+				).innerHTML;
+				if (!message?.toLowerCase()?.startsWith('the student has been admitted')) {
+					writeFileSync(
+						process.cwd() +
+							'/debug/html/post_posting_responce_adm_' +
+							learnerWithApiCallResults.indexNo +
+							'.html',
+						(await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data
+					);
+					throw {message: message || 'Failed to admit learner.'};
+				}
+				return true;
+			}
 			await writeFileSync(
 				process.cwd() +
-				'/debug/html/posting_admit_' +
-				learnerWithApiCallResults.indexNo +
-				'.html',
-				postHtml
+					'/debug/html/posting_admit_' +
+					learnerWithApiCallResults.indexNo +
+					'.html',
+				postHtml?.data
 			);
-			throw {message: message};
+			throw {message: "Could't redirect to admit learner"};
 		} catch (err) {
 			throw err;
 		}
@@ -658,33 +695,104 @@ export class Nemis {
 	 * this function gets form one learners who have been successfully admitted but are awaiting
 	 * biodata cpture
 	 */
-	async getAdmitttedJoiningLearners() {
+	async getAdmittedJoiningLearners(): Promise<AdmittedJoiningLearners[]> {
 		try {
-			let admittedLearnersHtml = await this.axiosInstance.get(
-				'/Admission/Listlearnersrep.aspx'
-			);
-			// todo: Incomplete
-			//tableToJson.convert(htmlParser(admittedLearnersHtml).querySelector())
+			await this.axiosInstance.get('/Admission/Listlearnersrep.aspx');
+			await this.axiosInstance({
+				method: 'post',
+				url: '/Admission/Listlearnersrep.aspx',
+				data: {
+					...this.#stateObject,
+					ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+				}
+			});
+			let admittedLearnerTable = htmlParser(
+				(await this.axiosInstance.get('/Admission/Listlearnersrep.aspx'))?.data
+			)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+			if (!admittedLearnerTable) return <AdmittedJoiningLearners[]>[];
+			let admittedLearnerJson = tableToJson
+				.convert(admittedLearnerTable, {
+					stripHtmlFromCells: false
+				})
+				.flat();
+			if (!admittedLearnerJson || admittedLearnerJson.length === 0)
+				return <AdmittedJoiningLearners[]>[];
+			return admittedLearnerJson.map((x, i) => {
+				return {
+					no: i + 1,
+					indexNo: x['Index'],
+					name: x['Name'],
+					gender: x['Gender'],
+					yob: Number(x['Year of Birth']),
+					marks: Number(x['Marks']),
+					subCounty: x['Sub-County'],
+					upi: x['UPI'] === '&nbsp;' ? undefined : x['UPI'],
+					postback: 'ctl00$ContentPlaceHolder1$grdLearners',
+					actions: {
+						captureWithBirthCertificate: 'ActionFOS$' + i,
+						captureWithoutBirthCertificate: 'ActionFOSWBC$' + i,
+						resetBiodataCapture: 'ActionReset$' + i,
+						undoAdmission: 'ActionUNDO$' + i
+					}
+				};
+			});
 		} catch (err) {
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {
+					message:
+						err.message ||
+						'Errored while getting list of joining learners' +
+							' awiting biodata capture.',
+					cause: err
+				};
 			throw err;
 		}
 	}
 
 	async captureJoiningBiodata(
-		learner: NemisLearner & {postback: string}
+		learner: NemisLearner & {
+			postback: string;
+			actions: {
+				captureWithBirthCertificate: string;
+				captureWithoutBirthCertificate: string;
+				resetBiodataCapture: string;
+				undoAdmission: string;
+			};
+		}
 	): Promise<{upi: string; message: string; alertMessage: string}> {
 		try {
-			// todo: Incomplete
-			let postResponsse = (
-				await this.axiosInstance({
+			let postResponse = await this.axiosInstance({
+				method: 'post',
+				url: '/Admission/Listlearnersrep.aspx',
+				data: {
+					...this.#stateObject,
+					__EVENTTARGET: learner.postback,
+					__EVENTARGUMENT: learner.actions.captureWithBirthCertificate,
+					ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+				},
+				headers: this.#SECURE_HEADERS
+			});
+			if (postResponse?.request?.path === '/Learner/alearner.aspx')
+				return this.captureBioData(learner);
+			if (postResponse?.request?.path === '/Admission/Listlearnersrep.aspx') {
+				postResponse = await this.axiosInstance({
 					method: 'post',
 					url: '/Admission/Listlearnersrep.aspx',
-					data: {}
-				})
-			)?.data;
-			if (postResponsse?.request?.path !== '/Learner/alearner.aspx' || !postResponsse?.data)
-				throw {message: 'failed to get learner/alearner.aspx'};
-			return this.captureBioData(learner);
+					data: {
+						...this.#stateObject,
+						__EVENTTARGET: learner.postback,
+						__EVENTARGUMENT: learner.actions.resetBiodataCapture,
+						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+					},
+					headers: this.#SECURE_HEADERS
+				});
+				throw {
+					message: htmlParser(postResponse?.data)?.querySelector(
+						'#ctl00_ContentPlaceHolder1_ErrorMessage'
+					).innerText
+				};
+			}
+			throw {message: 'failed to get learner/alearner.aspx'};
 		} catch (err) {
 			throw err;
 		}
@@ -909,11 +1017,11 @@ export class Nemis {
 						ctl00$ContentPlaceHolder1$txtName: requestingLearner?.name,
 						ctl00$ContentPlaceHolder1$txtReq: 1,
 						ctl00$ContentPlaceHolder1$txtSName:
-						requestingLearner?.schoolAdmitted?.originalString,
+							requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSName2:
-						requestingLearner?.schoolAdmitted?.originalString,
+							requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSchool:
-						requestingLearner?.schoolSelected?.code,
+							requestingLearner?.schoolSelected?.code,
 						ctl00$ContentPlaceHolder1$txtSearch: requestingLearner?.indexNo,
 						ctl00$ContentPlaceHolder1$txtStatus: ''
 					})
@@ -958,9 +1066,9 @@ export class Nemis {
 			else
 				await writeFileSync(
 					process.cwd() +
-					'/debug/html/posting_request_' +
-					requestingLearner.indexNo +
-					'.html',
+						'/debug/html/posting_request_' +
+						requestingLearner.indexNo +
+						'.html',
 					postHtml
 				);
 		} catch (err) {
@@ -968,34 +1076,117 @@ export class Nemis {
 		}
 	}
 
-	async getRequestedJoiningLearners() {
+	async getRequestedJoiningLearners(): Promise<
+		(RequestedJoiningLearner & {deleteCallback: string})[]
+	> {
 		try {
-			/*let requestedJoiningLearnerTable = htmlParser(
-				(await this.axiosInstance.get())?.data
-			).querySelector('table selector here');
-			tableToJson.convert(requestedJoiningLearnerTable)?.map(x => {});*/
+			await this.axiosInstance.get('/Learner/Liststudreq.aspx');
+			let requestedJoiningLearnerTable = htmlParser(
+				(
+					await this.axiosInstance({
+						method: 'post',
+						url: '/Learner/Liststudreq.aspx',
+						data: qs.stringify({
+							...this.#stateObject,
+							ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+						})
+					})
+				)?.data
+			)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+			return tableToJson
+				.convert(requestedJoiningLearnerTable, {
+					ignoreHiddenRows: true,
+					stripHtmlFromCells: false
+				})
+				?.flat()
+				?.map(x => {
+					if (x['Index No'] === '&nbsp;') return;
+					return {
+						no: x['No.'],
+						indexNo: x['Index No'],
+						name: x['Student Name'],
+						gender: x['Gender'],
+						marks: x['Marks'],
+						schoolSelected: ((): SchoolSelected => {
+							if (typeof x['Current Selected To'] !== 'string') return;
+							return <SchoolSelected>{
+								originalString: x['Current Selected To'],
+								...[
+									...x['Current Selected To']?.matchAll(
+										/(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
+									)
+								][0]?.groups
+							};
+						})(),
+						requestedBy: x['Request Description'],
+						parentId: x["Parent's IDNo"],
+						parentTel: x['Mobile No'],
+						dateCaptured: x['Date Captured'],
+						approved: {
+							on: x['Approved On'] === '&nbsp;' ? undefined : x['Approved On'],
+							by: x['Approved By'] === '&nbsp;' ? undefined : x['Approved By']
+						},
+						status: x['Status'] === '&nbsp;' ? undefined : x['Status'],
+						deleteCallback: x[13]?.match(/ctl.*?Del/)
+					};
+				})
+				?.filter(x => x);
 		} catch (err) {
 			throw err;
 		}
 	}
 
-	async getApprovedJoiningLearners() {
+	async getApprovedJoiningLearners(): Promise<ApprovedLearner[]> {
 		try {
 			// chang page size
 			await this.axiosInstance.get('/Learner/Liststudreqa.aspx');
-			let v = await this.axiosInstance({
-				method: 'post',
-				url: '/Learner/Liststudreqa.aspx',
-				data: qs.stringify({
-					...this.#stateObject,
-					ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+			let getAllHtml = (
+				await this.axiosInstance({
+					method: 'post',
+					url: '/Learner/Liststudreqa.aspx',
+					data: qs.stringify({
+						...this.#stateObject,
+						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+					})
 				})
-			});
-			await writeFileSync(process.cwd() + '/debug/html/list_approved.html', v.data);
-			let requestedJoiningLearnerTable = htmlParser(
-				(await this.axiosInstance.get('/Learner/Liststudreqa.aspx'))?.data
-			).querySelector('table selector here');
-			//tableToJson.convert(requestedJoiningLearnerTable)?.map(x => {});
+			)?.data;
+			//await writeFileSync(process.cwd() + '/debug/html/list_approved.html', getAllHtml);
+			let requestedJoiningLearnerTable = htmlParser(getAllHtml).querySelector(
+				'#ctl00_ContentPlaceHolder1_grdLearners'
+			)?.outerHTML;
+			return tableToJson
+				.convert(requestedJoiningLearnerTable)
+				?.flat()
+				.map(x => {
+					return {
+						no: x['No.'],
+						indexNo: x['Index No'],
+						name: x['Student Name']?.toLowerCase(),
+						gender: x['Gender']?.toLowerCase(),
+						marks: x['Marks'],
+						schoolSelected: ((): SchoolSelected => {
+							if (typeof x['Current Selected To'] !== 'string') return;
+							return <SchoolSelected>{
+								originalString: x['Current Selected To'],
+								...[
+									...x['Current Selected To']?.matchAll(
+										/(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
+									)
+								][0]?.groups
+							};
+						})(),
+						requestedBy: x['Request Description'],
+						parentId: x["Parent's IDNo"],
+						parentTel: x['Mobile No'],
+						dateCaptured: x['Date Captured'],
+						approved: {
+							by: x['Approved By'],
+							on: x['Approved On']
+						},
+						status: x['Status']
+					};
+				})
+				.filter(x => x.indexNo);
 		} catch (err) {
 			throw err;
 		}
@@ -1134,13 +1325,16 @@ export class Nemis {
 						x.birthCertificateNo === requestingLearner.birthCertificateNo
 				);
 			if (requestedLearner.length !== 1) {
-				return new Error('Error requesting learner', {
-					cause: new Error(JSON.stringify(requestingLearner))
-				});
+				throw {
+					message: 'Error requesting learner',
+					cause: requestingLearner
+				};
 			}
 			return requestingLearner;
 		} catch (err) {
-			throw new Error('Failed to capture continuing laerner', {cause: err});
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {message: err.message || 'Failed to capture continuing learner', cause: err};
+			throw err;
 		}
 	}
 
@@ -1198,7 +1392,12 @@ export class Nemis {
 				});
 			return pendingContinuingLearner;
 		} catch (err) {
-			throw new Error('Failed to get pending continuing learners', {cause: err});
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {
+					message: err.message || 'Failed to get pending continuing learners',
+					cause: err
+				};
+			throw err;
 		}
 	}
 
@@ -1235,6 +1434,8 @@ export class Nemis {
 			}
 			return this.captureBioData(continuingLearner);
 		} catch (err) {
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {message: err.message || 'Failed to capture continuing learner', cause: err};
 			throw err;
 		}
 	}
@@ -1257,8 +1458,9 @@ export class Nemis {
 				__VIEWSTATE: this.#stateObject.__VIEWSTATE,
 				__VIEWSTATEENCRYPTED: '',
 				__VIEWSTATEGENERATOR: this.#stateObject.__VIEWSTATEGENERATOR,
-				ctl00$ContentPlaceHolder1$DOB$ctl00:
-					learner.dob.month + '/' + learner.dob.day + '/' + learner.dob.year,
+				ctl00$ContentPlaceHolder1$DOB$ctl00: `${
+					learner.dob?.getMonth() + 1
+				}/${learner.dob.getDate()}/${learner.dob.getFullYear()}`,
 				ctl00$ContentPlaceHolder1$Nationality: nationality,
 				ctl00$ContentPlaceHolder1$ScriptManager1:
 					'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$ddlcounty',
@@ -1272,7 +1474,7 @@ export class Nemis {
 				?.data;
 			//writeFileSync(process.cwd() + '/debug/html/posted_alearner_subc.html', aLearnerHtml);
 			if (!/^.+updatePanel\|ctl00_ContentPlaceHolder1_UpdatePanel1/g.test(aLearnerHtml)) {
-				throw new Error('Failed to post county.');
+				throw {message: 'Failed to post county.'};
 			}
 			//let scrappedAlearner = this.scrapAlearner(aLearnerHtml);
 
@@ -1288,7 +1490,9 @@ export class Nemis {
 			formData.append('ctl00$ContentPlaceHolder1$Birth_Cert_No', learner.birthCertificateNo);
 			formData.append(
 				'ctl00$ContentPlaceHolder1$DOB$ctl00',
-				learner.dob.month + '/' + learner.dob.day + '/' + learner.dob.year
+				`${
+					learner.dob?.getMonth() + 1
+				}/${learner.dob.getDate()}/${learner.dob.getFullYear()}`
 			);
 			formData.append(
 				'ctl00$ContentPlaceHolder1$Gender',
@@ -1319,14 +1523,14 @@ export class Nemis {
 			);
 			formData.append('ctl00$ContentPlaceHolder1$txtEmailAddress', '');
 
-			if (learner.father.name && learner.father.id && learner.father.tel) {
+			if (learner?.father?.name && learner?.father?.id && learner?.father?.tel) {
 				formData.append('ctl00$ContentPlaceHolder1$txtFatherContacts', learner.father.tel);
 				formData.append('ctl00$ContentPlaceHolder1$txtFatherIDNO', learner.father.id);
 				formData.append('ctl00$ContentPlaceHolder1$txtFatherName', learner.father.name);
 				formData.append('ctl00$ContentPlaceHolder1$txtFatherUPI', '');
 			}
 
-			if (learner.guardian.name && learner.guardian.id && learner.guardian.tel) {
+			if (learner?.guardian?.name && learner?.guardian?.id && learner?.guardian?.tel) {
 				formData.append('ctl00$ContentPlaceHolder1$txtGuardianIDNO', learner.guardian.id);
 				formData.append('ctl00$ContentPlaceHolder1$txtGuardianname', learner.guardian.name);
 				formData.append('ctl00$ContentPlaceHolder1$txtGuardianUPI', '');
@@ -1335,7 +1539,7 @@ export class Nemis {
 					learner.guardian.tel
 				);
 			}
-			if (learner.mother.name && learner.mother.id && learner.mother.tel) {
+			if (learner?.mother?.name && learner?.mother?.id && learner?.mother?.tel) {
 				formData.append('ctl00$ContentPlaceHolder1$txtMotherIDNo', learner.mother.id);
 				formData.append('ctl00$ContentPlaceHolder1$txtMotherName', learner.mother.name);
 				formData.append('ctl00$ContentPlaceHolder1$txtMotherUPI', '');
@@ -1355,37 +1559,55 @@ export class Nemis {
 				})
 			)?.data;
 
-			writeFileSync(
-				process.cwd() + '/debug/html/2_post_alearner' + learner.indexNo + '.html',
-				aLearnerHtml
-			);
-
 			let aLearnerDocument = htmlParser(aLearnerHtml);
 			let message = aLearnerDocument.querySelector('.alert');
 			//let message = messageElement?.innerText;
 			if (!message?.innerText) {
+				let newUpi = aLearnerDocument.querySelector(
+					'#ctl00_ContentPlaceHolder1_instmessage'
+				)?.innerText;
+				if (typeof newUpi === 'string' && newUpi.startsWith('New UPI:')) {
+					return {
+						upi: newUpi.replace('New UPI: ', ''),
+						message: 'Recieved a new UPI',
+						alertMessage: undefined
+					};
+				}
 				writeFileSync(
 					process.cwd() + '/debug/html/no_alert_message_' + learner.indexNo + '.html',
 					aLearnerHtml
 				);
-				return Promise.reject(
-					'Alert message is missing. We were not able to parse' +
-					' message from then page.'
-				);
+				throw {
+					message:
+						'Alert message is missing. We were not able to parse' +
+						' message from then page.'
+				};
 			}
 			// If learner got assigned UPI number
-			if (aLearnerDocument.querySelector('#UPI').attrs?.value) {
-				return Promise.resolve({
+			if (
+				aLearnerDocument.querySelector('#UPI').attrs?.value ||
+				/The Learner Basic Details have been Saved successfully/.test(message?.innerText)
+			) {
+				return {
 					upi: aLearnerDocument.querySelector('#UPI').attrs?.value,
-					message: message.innerText,
+					message: message.innerText.replace('&times;  ', ''),
 					alertMessage: message.outerHTML
-				});
+				};
+			}
+			if (
+				/The Learner Basic Details have been Saved successfully/i.test(message?.innerText)
+			) {
+				return {
+					upi: aLearnerDocument.querySelector('#UPI').attrs?.value,
+					message: message.innerText.replace('&times;  ', ''),
+					alertMessage: message.outerHTML
+				};
 			}
 			if (/Failure!/g.test(message.innerText))
-				return Promise.reject({
+				throw {
 					alertMessage: message.outerHTML,
 					message: message.innerText?.replace(/(^.)\n(Failure!)/, '')
-				});
+				};
 
 			// We can't take this as an assurerance everything went well, becouse if it did we'd
 			// have already returned with the neew UPI
@@ -1393,12 +1615,14 @@ export class Nemis {
 				process.cwd() + '/debug/html/unknown_error_' + learner.indexNo + '.html',
 				aLearnerHtml
 			);
-			return Promise.reject({
+			throw {
 				alertMessage: message.outerHTML,
 				message: message.innerText?.replace(/(^.)\n(Failure!)/, '')
-			});
+			};
 		} catch (err) {
-			Promise.reject(err?.message || 'Failed to capture biodata deu to unknow error.');
+			if (err instanceof Error || err instanceof AxiosError)
+				throw {message: err.message || "Failed to capture learner's biodata ", cause: err};
+			throw err;
 		}
 	}
 
@@ -1570,9 +1794,12 @@ export class Nemis {
 					alertHtml: succcessMessageElement.outerHTML
 				};
 				if (!parsedReturnObject.nhifNo)
-					return Promise.reject(
-						"Failed to get nhif number since succcessMessage doesn't contain a number"
-					);
+					throw {
+						message:
+							"Failed to get nhif number since succcessMessage doesn't contain a" +
+							' number',
+						cause: "Couldn't find nhif number on the returned page"
+					};
 				return Promise.resolve(parsedReturnObject);
 			};
 			//await postNhif(learnersWithoutNhif[10]);
@@ -1707,7 +1934,7 @@ export class Nemis {
 			if (!viewState || !viewStateGenerator) {
 				logger.error('View sate not saved');
 				throw {
-					messgae: "Couldn't find any view state data.",
+					message: "Couldn't find any view state data.",
 					cause: 'Possibly an invalid viewstate was used'
 				};
 			} else {
@@ -1794,7 +2021,7 @@ export class Nemis {
 					}
 					return response;
 				} catch (err) {
-					return Promise.reject(err);
+					return Promise.reject(err.message || err);
 				}
 			},
 			error => {
@@ -1817,9 +2044,23 @@ export class Nemis {
 					if (error.code === 'ENOTFOUND') {
 						response.message = `The requested address ${error.hostname} was not found.`;
 						response.type = 'address_not_found';
+					} else if (error.code === 'ECONNRESET') {
+						response.message = error.message || `Connection has reset`;
+						response.type = 'connection_reset';
+					} else {
+						response.message = error.message;
+						response.type = error.code;
 					}
 				} else {
 					switch (error.response?.status) {
+						case 400:
+							if (error.response.statusText === 'Bad Request') {
+								if (error.response?.data?.startsWith('No Form One Admission for')) {
+									response.message = error.response?.data;
+									response.type = 'learner_not_found';
+								}
+							}
+							break;
 						case 500:
 							response.message = 'Internal server error';
 							response.type = 'internal_server_error';
@@ -1837,8 +2078,8 @@ export class Nemis {
 							response.type = 'gateway_timeout';
 							break;
 						default:
-							response.message = 'Unknown error';
-							response.type = 'unknown_error';
+							response.message = error.response?.data || 'Unknown error';
+							response.type = error?.code?.toLowerCase() || 'unknown_error';
 							break;
 					}
 				}
