@@ -14,8 +14,8 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 				message: 'Bad request. No file received.',
 				cause: [
 					'This end points expects a multi-part upload with an Excel file.' +
-						req.headers['content-type'] +
-						' Content type is not supported'
+					req.headers['content-type'] +
+					' Content type is not supported'
 				]
 			};
 		if (typeof req.files === 'object' && Object.keys(req.files).length < 1)
@@ -78,7 +78,7 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 			};
 		}
 		// Move files to institutions specific folder
-		let path = `${process.cwd()}/uploads/${req.institution.username}/${
+		let path = process.cwd() + `/uploads/${req.institution.username}/${
 			file.name
 		}_${new Date().toDateString()}`.replace(' ', '_');
 		file.mv(path, err => {

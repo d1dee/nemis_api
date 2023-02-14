@@ -3,8 +3,7 @@
  */
 
 import {NextFunction, Response} from 'express';
-import * as jwt from 'jsonwebtoken';
-import {JsonWebTokenError, TokenExpiredError} from 'jsonwebtoken';
+import {decode, JsonWebTokenError, TokenExpiredError, verify} from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import institution_schema from '../../database/institution';
 import tokenSchema from '../../database/token';
@@ -32,7 +31,7 @@ export default async (req: ExtendedRequest, res: Response, next: NextFunction) =
 				logger.trace('Token: ' + token);
 
 				//Get token value to check if it's revoked
-				let decodedToken = jwt.decode(token) as JWTToken;
+				let decodedToken = decode(token) as JWTToken;
 				if (!decodedToken?.id) {
 					throw {
 						code: 403,
@@ -78,7 +77,7 @@ export default async (req: ExtendedRequest, res: Response, next: NextFunction) =
 				}
 
 				//Verify the token
-				jwt.verify(token, tokenFromDb.tokenSecret, async (err, decodedToken) => {
+				verify(token, tokenFromDb.tokenSecret, async (err, decodedToken) => {
 					if (typeof decodedToken === 'object') {
 						logger.debug('Token decodedToken');
 						logger.trace('Token: ' + JSON.stringify(decodedToken));

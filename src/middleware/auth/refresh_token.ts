@@ -3,7 +3,7 @@
  */
 
 import {randomFillSync} from 'crypto';
-import * as jwt from 'jsonwebtoken';
+import {JsonWebTokenError, sign, TokenExpiredError, verify} from 'jsonwebtoken';
 import institution_schema from '../../database/institution';
 import token_schema from '../../database/token';
 import {ExtendedRequest} from '../../interfaces';
@@ -25,9 +25,9 @@ export default (req: ExtendedRequest) => {
 				cause: 'Token does not contain an id'
 			};
 		}
-		jwt.verify(token.token, token.tokenSecret, async err => {
+		verify(token.token, token.tokenSecret, async err => {
 			if (err) {
-				if (err instanceof jwt.TokenExpiredError) {
+				if (err instanceof TokenExpiredError) {
 					//Token refresh
 
 					logger.trace(
@@ -42,7 +42,7 @@ export default (req: ExtendedRequest) => {
 					logger.debug('Token secret: ' + tokenSecret);
 
 					let tokenDb = await token_schema.create({
-						token: jwt.sign(decodedToken, tokenSecret, {
+						token: sign(decodedToken, tokenSecret, {
 							expiresIn: '0 seconds'
 						}),
 						tokenSecret: tokenSecret,
@@ -71,7 +71,7 @@ export default (req: ExtendedRequest) => {
 						message: 'Token refreshed',
 						data: {token: tokenDb.token}
 					});
-				} else if (err instanceof jwt.JsonWebTokenError) {
+				} else if (err instanceof JsonWebTokenError) {
 					throw {code: 403, message: 'Forbidden. Invalid token', cause: err};
 				} else {
 					logger.error(err);

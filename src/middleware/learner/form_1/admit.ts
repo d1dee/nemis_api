@@ -38,7 +38,7 @@ const admitDatabaseJoiningLearners = async (req: ExtendedRequest) => {
 			return req.response.respond(
 				[],
 				'All learner have already' +
-					' been admitted or no learner awaiting admission in the database.'
+				' been admitted or no learner awaiting admission in the database.'
 			);
 		let addLearnerResults = await admitLearner(databaseResults, req);
 		await saveAdmissionResultToDb(addLearnerResults);
@@ -205,13 +205,13 @@ const admitLearner = async (learners: NemisLearner[], req: ExtendedRequest) => {
 					return;
 				}
 				if (
-					learners[i]?.gender
+					!learners[i]?.gender
 						?.toLowerCase()
 						?.startsWith(x.value?.gender?.split('')?.shift()?.toLowerCase())
 				) {
 					errors.push({
 						...learners[i],
-						error: "Learner' gender doesn't match with the api's gender",
+						error: 'Learner\'s gender doesn\'t match with the api\'s gender',
 						admitted: false,
 						requested: false
 					});
@@ -302,8 +302,8 @@ const admitLearner = async (learners: NemisLearner[], req: ExtendedRequest) => {
 				learnerToAdmit.map(x => {
 					if (!x.apiResponse) {
 						Promise.reject(
-							"Learner index failed to return learner's" +
-								' admission info. Please check indexNo and retry.'
+							'Learner index failed to return learner\'s' +
+							' admission info. Please check indexNo and retry.'
 						);
 						return;
 					}

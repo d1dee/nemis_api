@@ -2,13 +2,13 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import {AxiosError, AxiosInstance} from 'axios';
+import axios, {AxiosError, AxiosInstance} from 'axios';
 import FormData from 'form-data';
 import {writeFileSync} from 'fs';
 import moment from 'moment';
 import {parse as htmlParser} from 'node-html-parser';
-
 import {Tabletojson as tableToJson} from 'tabletojson';
+
 import {Grades, Institution, NemisLearner, NemisLearnerFromDb} from '../interfaces';
 import {RequestingLearner} from '../middleware/interfaces';
 import {countyToNo, form, nationalities, setMedicalCondition, splitNames} from './converts';
@@ -27,8 +27,6 @@ import {
 	StateObject
 } from './interface';
 import logger from './logger';
-
-const axios = require('axios').default;
 import qs = require('qs');
 
 /**
@@ -500,7 +498,7 @@ export class Nemis {
 									return i === 0
 										? x.toLowerCase()
 										: x.charAt(0).toUpperCase() +
-												x.replace(/^./, '').toLowerCase();
+										x.replace(/^./, '').toLowerCase();
 								})
 								.join('');
 							Object.assign(resolveResults, {[camelCaseKey]: apiCallResults[key]});
@@ -619,17 +617,17 @@ export class Nemis {
 						?.toUpperCase(),
 					ctl00$ContentPlaceHolder1$txtIndex: learnerWithApiCallResults?.indexNo,
 					ctl00$ContentPlaceHolder1$txtMarks:
-						learnerWithApiCallResults.apiResponse?.marks,
+					learnerWithApiCallResults.apiResponse?.marks,
 					ctl00$ContentPlaceHolder1$txtName: learnerWithApiCallResults.apiResponse?.name,
 					ctl00$ContentPlaceHolder1$txtReq: 0,
 					ctl00$ContentPlaceHolder1$txtSName:
-						learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
+					learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
 					ctl00$ContentPlaceHolder1$txtSName2:
-						learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
+					learnerWithApiCallResults.apiResponse?.schoolAdmitted?.originalString,
 					ctl00$ContentPlaceHolder1$txtSchool:
-						learnerWithApiCallResults.apiResponse?.schoolSelected?.code,
+					learnerWithApiCallResults.apiResponse?.schoolSelected?.code,
 					ctl00$ContentPlaceHolder1$txtSearch:
-						learnerWithApiCallResults.apiResponse?.indexNo,
+					learnerWithApiCallResults.apiResponse?.indexNo,
 					ctl00$ContentPlaceHolder1$txtStatus: ''
 				})
 			});
@@ -653,13 +651,13 @@ export class Nemis {
 							learnerWithApiCallResults?.mother?.tel ||
 							learnerWithApiCallResults?.guardian?.tel,
 						ctl00$ContentPlaceHolder1$txtGender:
-							learnerWithApiCallResults.apiResponse?.gender,
+						learnerWithApiCallResults.apiResponse?.gender,
 						ctl00$ContentPlaceHolder1$txtIndex:
-							learnerWithApiCallResults.apiResponse?.indexNo,
+						learnerWithApiCallResults.apiResponse?.indexNo,
 						ctl00$ContentPlaceHolder1$txtMarks:
-							learnerWithApiCallResults.apiResponse?.marks,
+						learnerWithApiCallResults.apiResponse?.marks,
 						ctl00$ContentPlaceHolder1$txtName:
-							learnerWithApiCallResults.apiResponse?.name,
+						learnerWithApiCallResults.apiResponse?.name,
 						ctl00$ContentPlaceHolder1$txtUPI: learnerWithApiCallResults?.adm
 					}
 				});
@@ -669,9 +667,9 @@ export class Nemis {
 				if (!message?.toLowerCase()?.startsWith('the student has been admitted')) {
 					writeFileSync(
 						process.cwd() +
-							'/debug/html/post_posting_responce_adm_' +
-							learnerWithApiCallResults.indexNo +
-							'.html',
+						'/debug/html/post_posting_responce_adm_' +
+						learnerWithApiCallResults.indexNo +
+						'.html',
 						(await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data
 					);
 					throw {message: message || 'Failed to admit learner.'};
@@ -680,12 +678,12 @@ export class Nemis {
 			}
 			await writeFileSync(
 				process.cwd() +
-					'/debug/html/posting_admit_' +
-					learnerWithApiCallResults.indexNo +
-					'.html',
+				'/debug/html/posting_admit_' +
+				learnerWithApiCallResults.indexNo +
+				'.html',
 				postHtml?.data
 			);
-			throw {message: "Could't redirect to admit learner"};
+			throw {message: 'Could\'t redirect to admit learner'};
 		} catch (err) {
 			throw err;
 		}
@@ -742,7 +740,7 @@ export class Nemis {
 					message:
 						err.message ||
 						'Errored while getting list of joining learners' +
-							' awiting biodata capture.',
+						' awaiting biodata capture.',
 					cause: err
 				};
 			throw err;
@@ -1017,11 +1015,11 @@ export class Nemis {
 						ctl00$ContentPlaceHolder1$txtName: requestingLearner?.name,
 						ctl00$ContentPlaceHolder1$txtReq: 1,
 						ctl00$ContentPlaceHolder1$txtSName:
-							requestingLearner?.schoolAdmitted?.originalString,
+						requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSName2:
-							requestingLearner?.schoolAdmitted?.originalString,
+						requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSchool:
-							requestingLearner?.schoolSelected?.code,
+						requestingLearner?.schoolSelected?.code,
 						ctl00$ContentPlaceHolder1$txtSearch: requestingLearner?.indexNo,
 						ctl00$ContentPlaceHolder1$txtStatus: ''
 					})
@@ -1066,9 +1064,9 @@ export class Nemis {
 			else
 				await writeFileSync(
 					process.cwd() +
-						'/debug/html/posting_request_' +
-						requestingLearner.indexNo +
-						'.html',
+					'/debug/html/posting_request_' +
+					requestingLearner.indexNo +
+					'.html',
 					postHtml
 				);
 		} catch (err) {
@@ -1080,7 +1078,9 @@ export class Nemis {
 		(RequestedJoiningLearner & {deleteCallback: string})[]
 	> {
 		try {
-			await this.axiosInstance.get('/Learner/Liststudreq.aspx');
+			await this.axiosInstance.get('/Learner/Liststudreq.aspx').catch(err => {
+				throw {message: 'Error while getting list of requested learners.' + err?.message ? err.message : ''};
+			});
 			let requestedJoiningLearnerTable = htmlParser(
 				(
 					await this.axiosInstance({
@@ -1119,7 +1119,7 @@ export class Nemis {
 							};
 						})(),
 						requestedBy: x['Request Description'],
-						parentId: x["Parent's IDNo"],
+						parentId: x['Parent\'s IDNo'],
 						parentTel: x['Mobile No'],
 						dateCaptured: x['Date Captured'],
 						approved: {
@@ -1176,7 +1176,7 @@ export class Nemis {
 							};
 						})(),
 						requestedBy: x['Request Description'],
-						parentId: x["Parent's IDNo"],
+						parentId: x['Parent\'s IDNo'],
 						parentTel: x['Mobile No'],
 						dateCaptured: x['Date Captured'],
 						approved: {
@@ -1621,7 +1621,7 @@ export class Nemis {
 			};
 		} catch (err) {
 			if (err instanceof Error || err instanceof AxiosError)
-				throw {message: err.message || "Failed to capture learner's biodata ", cause: err};
+				throw {message: err.message || 'Failed to capture learner\'s biodata ', cause: err};
 			throw err;
 		}
 	}
@@ -1796,9 +1796,9 @@ export class Nemis {
 				if (!parsedReturnObject.nhifNo)
 					throw {
 						message:
-							"Failed to get nhif number since succcessMessage doesn't contain a" +
+							'Failed to get nhif number since succcessMessage doesn\'t contain a' +
 							' number',
-						cause: "Couldn't find nhif number on the returned page"
+						cause: 'Couldn\'t find nhif number on the returned page'
 					};
 				return Promise.resolve(parsedReturnObject);
 			};
@@ -1934,7 +1934,7 @@ export class Nemis {
 			if (!viewState || !viewStateGenerator) {
 				logger.error('View sate not saved');
 				throw {
-					message: "Couldn't find any view state data.",
+					message: 'Couldn\'t find any view state data.',
 					cause: 'Possibly an invalid viewstate was used'
 				};
 			} else {

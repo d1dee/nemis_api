@@ -159,6 +159,7 @@ export default class {
 				});
 				break;
 			default:
+				if (isNaN(Number(errorCode))) errorCode = 500;
 				this.#response.status(errorCode).json({
 					success: false,
 					message: message,
