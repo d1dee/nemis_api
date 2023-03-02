@@ -2,8 +2,8 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import Learner from '../controller/learner';
-import {ExtendedRequest, NemisLearner, NemisLearnerFromDb} from '../interfaces';
+import learner from '../database/learner';
+import {ExtendedRequest, NemisLearner} from '../interfaces';
 import {parseLearner} from '../libs/converts';
 import import_excel from '../libs/import_excel';
 
@@ -14,22 +14,37 @@ const addLearnerByFile = async (req: ExtendedRequest) => {
 			throw {code: 400, message: 'No file was uploaded'};
 		}
 		let validLearner = [] as NemisLearner[],
-			invalidLearner = [] as Partial<NemisLearner>[];
+			invalidLearner = [];
 		import_excel(req.body.file).map(x => {
 			validLearner.push(...x.validDataObject);
 			invalidLearner.push(...x.invalidDataObject);
 		});
-		if (invalidLearner.length > 0) {
+		if (req.queryParams?.ignoreNonEssentialBlanks && invalidLearner.length > 0) {
+			let essentialErrors = invalidLearner.filter((x, i) => ['gender', 'name', 'adm', 'stream', 'grade', 'form', 'kcpeYear'].filter(k => Object.keys(x.errors.validationErrors).includes(k)).length > 0 ? invalidLearner.splice(i, 1) : false);
+			validLearner.push(...invalidLearner.map(x => {
+				return {...x, errors: JSON.stringify(x.errors || 'Unknown error')};
+			}));
+			invalidLearner = [];
+			if (essentialErrors.length > 0) {
+				throw {
+					code: 400,
+					message: 'The following critical errors' +
+						' encountered while validating learner',
+					cause: essentialErrors
+				};
+			}
+		}
+		if (invalidLearner.length > 0 && !req.queryParams?.ignoreNonEssentialBlanks) {
 			throw {
 				code: 400,
 				message: 'Following errors were encountered while validating learner',
 				cause: invalidLearner
 			};
 		}
-		let insertedDocs = await addCompleteLearner(validLearner, req);
+		let insertedDocs = await addCompleteLearner(validLearner, req).catch();
 		return req.response.respond(
 			insertedDocs,
-			insertedDocs?.length + ' learners were successful added to the' + ' database.'
+			/*insertedDocs?.length +*/ ' learners were successful added to the' + ' database.'
 		);
 	} catch (err) {
 		req.response.error(
@@ -56,71 +71,49 @@ const addLearnerByJson = async (req: ExtendedRequest) => {
 	}
 };
 const addCompleteLearner = async (
-	jsonData,
-	req: ExtendedRequest
-): Promise<NemisLearnerFromDb[]> => {
-	try {
-		const queryParams = req.queryParams;
-
-		if (jsonData?.length === 0) {
-			throw {code: 400, message: 'Parse error', cause: 'Received an empty array.'};
-		}
-		if (!queryParams.grade)
-			throw {
-				code: 400,
-				message: 'Parse error',
-				cause: "You haven' specified learners" + ' grade/form.'
-			};
-
-		let insertedDocs: NemisLearnerFromDb[];
-		let insertManyErrors: (NemisLearnerFromDb & {error: string})[] = (
-			await Promise.allSettled([
-				Learner.prototype.addLearnerToDatabase(
-					parseLearner(jsonData, req.institution._id, {
-						grade: queryParams?.grade
-					})
-				)
-			])
-		)
-			.map(x => {
-				if (x.status === 'fulfilled') {
-					insertedDocs = <NemisLearnerFromDb[]>(<unknown>x.value);
-					return;
-				}
-				insertedDocs = x.reason?.insertedDocs;
-				return x.reason?.writeErrors?.map(z => {
-					return {
-						...z?.err?.op,
-						error: z.err?.errmsg?.replace(/ collection.*dup/, ', duplicated')
-					};
-				});
-			})
-			.flat()
-			.filter(x => x);
-		if (insertManyErrors.length > 0) {
-			throw {
-				code: 400,
-				message:
-					insertedDocs?.length +
-					' learner(s) have been successfully saved to database' +
-					' with the following errors.',
-				cause: insertManyErrors
-			};
-		}
-		if (insertedDocs && insertedDocs.length > 1) return insertedDocs;
-		// This would be embarrassing if we reached here
-		throw {
-			code: 500,
-			message: ' No way we should be here, kindly report to the higher ups',
-			cause: {
-				inserted: insertedDocs,
-				errors: insertManyErrors
+		jsonData,
+		req: ExtendedRequest
+	) => {
+		try {
+			const queryParams = req.queryParams;
+			if (jsonData?.length === 0) {
+				throw {code: 400, message: 'Parse error', cause: 'Received an empty array.'};
 			}
-		};
-	} catch (err) {
-		throw err;
+			if (!queryParams.grade) {
+				return (await Promise.allSettled(parseLearner(jsonData, req.institution._id)
+					.map(x => {
+						if (x?.grade) {
+							let query = ['adm', 'indexNo', 'birthCertificateNo'].map(k => x[k] ? {[k]: x[k]} : undefined).filter(v => v);
+							return learner.findOneAndUpdate({
+								$or: query
+							}, {$set: x}, {
+								upsert: true,
+								returnDocument: 'after'
+							});
+						} else throw {message: 'Learners grade was not specified'};
+					}))).map(x => {
+					if (x.status === 'rejected')
+						return x.reason;
+					return x.value;
+				});
+			}
+			// findOneAndUpdate, upsert if not found then return new document
+			return (await Promise.allSettled(
+				parseLearner(jsonData, req.institution._id, {grade: queryParams?.grade})
+					.map(x => learner.findOneAndUpdate({
+						$or: [
+							{adm: x?.adm},
+							{indexNo: x?.indexNo},
+							{birthCertificateNo: x?.birthCertificateNo}]
+					}, x, {
+						upsert: true,
+						returnDocument: 'after'
+					})))).map(x => x.status === 'fulfilled' ? x.value : x.reason);
+		} catch (err) {
+			throw err;
+		}
 	}
-};
+;
 
 /*
 

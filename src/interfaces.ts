@@ -42,15 +42,19 @@ export interface Counties {
 export interface NemisLearner extends BasicLearner, Contacts, Counties {
 	birthCertificateNo?: string;
 	nhifNo?: number;
+	continuing?: boolean;
 	medicalCondition?: string;
 	isSpecial?: boolean;
 	age?: number;
 	marks?: number;
 	indexNo?: string;
 	nationality?: string;
+	remarks?: string;
+	kcpeYear?: number;
 }
 
 export interface NemisLearnerFromDb extends NemisLearner {
+	error?: string;
 	nemisApiResultsId: string | ObjectId;
 	_id: string | ObjectId;
 	__v?: number;
@@ -128,27 +132,27 @@ export interface DbInstitution extends Institution {
 	revokedToken?: string;
 	learners?:
 		| [
-				{
-					type: string;
-					ref: 'learner';
-				}
-		  ]
+		{
+			type: string;
+			ref: 'learner';
+		}
+	]
 		| Number;
 	teachers?:
 		| [
-				{
-					type: string;
-					ref: 'teacher';
-				}
-		  ]
+		{
+			type: string;
+			ref: 'teacher';
+		}
+	]
 		| Number;
 	nonTeaching?:
 		| [
-				{
-					type: string;
-					ref: 'nonTeaching';
-				}
-		  ]
+		{
+			type: string;
+			ref: 'nonTeaching';
+		}
+	]
 		| Number;
 }
 

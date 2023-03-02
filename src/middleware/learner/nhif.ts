@@ -15,8 +15,9 @@ const submitNhif = async (req: ExtendedRequest) => {
 			};
 		const nemis = req.nemis;
 		if (req.queryParams['await']) {
+			let res = await nemis.submitToNhif(queryParams.grade);
 			return req.response.respond(
-				await nemis.submitToNhif(queryParams.grade),
+				res,
 				'Below learners have been successfully submitted to NHIF'
 			);
 		}
@@ -27,8 +28,8 @@ const submitNhif = async (req: ExtendedRequest) => {
 			learnersWithoutNhif,
 			'Below learners will be submitted to NHIF in the background.'
 		);
-		let k = await nemis.submitToNhif(queryParams.grade);
-		console.log(k);
+		await nemis.submitToNhif(queryParams.grade);
+		//console.log(k);
 	} catch (err) {
 		req.response.error(
 			err.code || 500,

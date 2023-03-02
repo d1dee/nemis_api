@@ -3,9 +3,10 @@
  */
 
 import axios, {AxiosError, AxiosInstance} from 'axios';
+import buffer from 'buffer';
 import FormData from 'form-data';
 import {writeFileSync} from 'fs';
-import moment from 'moment';
+import {Error, Promise} from 'mongoose';
 import {parse as htmlParser} from 'node-html-parser';
 import {Tabletojson as tableToJson} from 'tabletojson';
 
@@ -17,6 +18,7 @@ import {
 	AdmittedJoiningLearners,
 	ApprovedLearner,
 	CaptureRequestingLearner,
+	ContinuingLearnerApiResponse,
 	ErrorResponse,
 	ListLearner,
 	ParsedLabel,
@@ -28,6 +30,17 @@ import {
 } from './interface';
 import logger from './logger';
 import qs = require('qs');
+
+
+interface JoiningLearnerBiodata extends NemisLearnerFromDb {
+	postback: string;
+	actions: {
+		captureWithBirthCertificate: string;
+		captureWithoutBirthCertificate: string;
+		resetBiodataCapture: string;
+		undoAdmission: string;
+	};
+}
 
 /**
  * Class used to interact with the NEMIS website.
@@ -365,7 +378,12 @@ export class Nemis {
 					upi: String(element['Learner UPI']),
 					name: String(element['Learner Name'])?.toLowerCase().replace(',', ' '),
 					gender: String(element['Gender'])?.toLowerCase(),
-					dob: moment(element['Date of Birth'], 'DD/MM/YYYY').format('MM/DD/YYYY'),
+					dob: (() => {
+						let d = element['Date of Birth'].split('/');
+						if (d.length === 3)
+							return new Date(d[1] + '-' + d[0] + '-' + d[2]).toISOString();
+						return undefined;
+					})(),
 					age: Number(element['AGE']),
 					isSpecial: !!element['Disability']?.toLowerCase(),
 					birthCertificateNo: String(element['Birth Cert No'])?.toLowerCase(),
@@ -587,6 +605,59 @@ export class Nemis {
 		}
 	}
 
+	async continuingLearnerApiCalls(upiOrBirthCertificateNo): Promise<ContinuingLearnerApiResponse> {
+		try {
+			if (!upiOrBirthCertificateNo || typeof upiOrBirthCertificateNo !== 'string')
+				throw{message: 'BirthCertififcate or upi is undefined or not a string'};
+			let response = (await this.axiosInstance.get('/generic/api/Learner/StudUpi/' + encodeURIComponent(upiOrBirthCertificateNo)))?.data;
+			if (!response)
+				return {isLearner: false};
+			let returnLearner = {};
+			Object.entries(response).map(x => {
+				switch (true) {
+					case 'xCatDesc' === x[0]:
+						Object.assign(returnLearner, {
+							isLearner: !(/Not a Learner/i.test(typeof x[1] === 'string' ? x[1] : '')),
+							isLearnerDescription: x[1]
+						});
+						break;
+					case 'birth_Cert_No' === x[0]:
+						Object.assign(returnLearner, {birthCertificateNo: x[1]});
+						break;
+					case /_/.test(x[0]):
+						const camelCaseKey = x[0]
+							.split('_')
+							.map((x, i) => {
+								return i === 0
+									? x.toLowerCase()
+									: x.charAt(0).toUpperCase() +
+									x.replace(/^./, '').toLowerCase();
+							})
+							.join('');
+						Object.assign(returnLearner, {[camelCaseKey]: x[1]});
+						break;
+					case /^.(?:[a-z]+?[A-Z]+?)+\w+/.test(x[0]):
+						Object.assign(returnLearner, {
+							[x[0].charAt(0).toLowerCase() + x[0].replace(/^./, '')]: x[1]
+						});
+						break;
+					default:
+						Object.assign(returnLearner, {[x[0].toLowerCase()]: x[1]});
+						break;
+				}
+			});
+			return <ContinuingLearnerApiResponse>returnLearner;
+		} catch (err) {
+			if (err instanceof AxiosError) {
+				if (err?.response?.status === 404) return {isLearner: false};
+				else throw {
+					message: err.message || 'Errors contacting nemis apis', cause: err
+				};
+			}
+			throw err;
+		}
+	}
+
 	async admitJoiningLearner(
 		learnerWithApiCallResults: NemisLearner & {apiResponse: AdmitApiCall}
 	): Promise<boolean> {
@@ -598,8 +669,9 @@ export class Nemis {
 			);
 			let canAdmit = studentIndexDocument.querySelector('#txtCanAdmt')?.attrs?.value !== '0';
 			let canRequest = studentIndexDocument.querySelector('#txtCanReq')?.attrs?.value !== '0';
-			if (!canAdmit)
+			/*if (!canAdmit)
 				throw {message: 'Admitting learners is currently disabled on the Nemis website.'};
+			*/
 			let postHtml = await this.axiosInstance({
 				method: 'post',
 				url: '/Learner/Studindex.aspx',
@@ -661,15 +733,13 @@ export class Nemis {
 						ctl00$ContentPlaceHolder1$txtUPI: learnerWithApiCallResults?.adm
 					}
 				});
-				let message = htmlParser(postAdmHtml?.data).querySelector(
+				let message = htmlParser(postAdmHtml?.data)?.querySelector(
 					'#ctl00_ContentPlaceHolder1_ErrorMessage'
-				).innerHTML;
-				if (!message?.toLowerCase()?.startsWith('the student has been admitted')) {
+				)?.innerHTML;
+				if (!/THE STUDENT HAS BEEN ADMITTED TO THE SCHOOL\. ENSURE YOU CAPTURE BIO-DATAmessage/.test(message)) {
 					writeFileSync(
 						process.cwd() +
-						'/debug/html/post_posting_responce_adm_' +
-						learnerWithApiCallResults.indexNo +
-						'.html',
+						'/debug/html/post_Learner_Studindexchk.aspx' + learnerWithApiCallResults.adm + '.html',
 						(await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data
 					);
 					throw {message: message || 'Failed to admit learner.'};
@@ -695,17 +765,8 @@ export class Nemis {
 	 */
 	async getAdmittedJoiningLearners(): Promise<AdmittedJoiningLearners[]> {
 		try {
-			await this.axiosInstance.get('/Admission/Listlearnersrep.aspx');
-			await this.axiosInstance({
-				method: 'post',
-				url: '/Admission/Listlearnersrep.aspx',
-				data: {
-					...this.#stateObject,
-					ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-				}
-			});
 			let admittedLearnerTable = htmlParser(
-				(await this.axiosInstance.get('/Admission/Listlearnersrep.aspx'))?.data
+				(await this.changeResultsPerPage('/Admission/Listlearnersrep.aspx'))?.data
 			)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
 			if (!admittedLearnerTable) return <AdmittedJoiningLearners[]>[];
 			let admittedLearnerJson = tableToJson
@@ -748,15 +809,7 @@ export class Nemis {
 	}
 
 	async captureJoiningBiodata(
-		learner: NemisLearner & {
-			postback: string;
-			actions: {
-				captureWithBirthCertificate: string;
-				captureWithoutBirthCertificate: string;
-				resetBiodataCapture: string;
-				undoAdmission: string;
-			};
-		}
+		learner: JoiningLearnerBiodata
 	): Promise<{upi: string; message: string; alertMessage: string}> {
 		try {
 			let postResponse = await this.axiosInstance({
@@ -773,23 +826,27 @@ export class Nemis {
 			if (postResponse?.request?.path === '/Learner/alearner.aspx')
 				return this.captureBioData(learner);
 			if (postResponse?.request?.path === '/Admission/Listlearnersrep.aspx') {
-				postResponse = await this.axiosInstance({
-					method: 'post',
-					url: '/Admission/Listlearnersrep.aspx',
-					data: {
-						...this.#stateObject,
-						__EVENTTARGET: learner.postback,
-						__EVENTARGUMENT: learner.actions.resetBiodataCapture,
-						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-					},
-					headers: this.#SECURE_HEADERS
-				});
-				throw {
-					message: htmlParser(postResponse?.data)?.querySelector(
-						'#ctl00_ContentPlaceHolder1_ErrorMessage'
-					).innerText
-				};
+				let errorMessage = htmlParser(postResponse?.data)?.querySelector(
+					'#ctl00_ContentPlaceHolder1_ErrorMessage'
+				)?.innerText;
+				if (errorMessage && learner?.upi && errorMessage.startsWith('You Can Not Capture' +
+					' Bio-Data Twice for this Student. Use the LEARNER')) {
+					// Reset then capture biodata
+					await this.axiosInstance({
+						method: 'post',
+						url: '/Admission/Listlearnersrep.aspx',
+						data: {
+							...this.#stateObject,
+							__EVENTTARGET: learner.postback,
+							__EVENTARGUMENT: learner.actions.resetBiodataCapture,
+							ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+						},
+						headers: this.#SECURE_HEADERS
+					});
+					return this.captureJoiningBiodata(learner);
+				}
 			}
+			writeFileSync(process.cwd() + '/debug/html/get_alearner_' + learner?.indexNo + '.html', postResponse?.data);
 			throw {message: 'failed to get learner/alearner.aspx'};
 		} catch (err) {
 			throw err;
@@ -803,7 +860,7 @@ export class Nemis {
 	): Promise<AdmitOrCaptureRequestApiCalls> {
 		//http://nemis.education.go.ke/generic/api/FormOne/Admission/02110125028
 		//http://nemis.education.go.ke/generic/api/FormOne/Results/02110125028
-		//http://nemis.education.go.ke/generic/api/FormOne/Reported/XS5M/02110125028
+		//http://nemis.education.go.ke/generic/api/FormOne/Reported/_/02110125028
 		//http://nemis.education.go.ke/generic/api/FormOne/SelectionStatus/11207102/11207102
 		try {
 			const apiCallPromises = [
@@ -984,6 +1041,24 @@ export class Nemis {
 		}
 	}
 	*/
+	async admitDefferedLearner(defferedLearner: NemisLearnerFromDb) {
+		try {
+			let defferedTableHtml = htmlParser.parse(await this.axiosInstance.get('/Learner/differedadmissions.aspx'))?.outerHTML;
+			if (!defferedLearner)
+				throw{
+					message: 'Couldn\'t parse defffered learner table.',
+					cause: 'defferedLearnerHtml is undefined'
+				};
+			let defferedJson = tableToJson.convert(defferedTableHtml).map(x => {
+				console.log(x);
+			});
+
+
+		} catch (err) {
+			throw err;
+		}
+	}
+
 	async requestJoiningLearner(
 		indexNo: string,
 		requestingLearner: CaptureRequestingLearner & AdmitApiCall,
@@ -1025,9 +1100,21 @@ export class Nemis {
 					})
 				})
 			)?.data;
-			//await writeFileSync(process.cwd() + '/debug/html/search.html', k.data);
-			if (!/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml))
-				throw {message: 'failed to post api results.', cause: requestingLearner};
+			await writeFileSync(process.cwd() + '/debug/html/search.html', postHtml);
+			if (!/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml)) {
+				let viewstateAtob = buffer.atob(this.#stateObject?.__VIEWSTATE);
+				if (viewstateAtob && /School Vacacies are exhausted!!/.test(viewstateAtob))
+					throw {
+						message: 'The School Vacancies are exhausted!!. Request for Extra' +
+							' Slots from Director Secondary!!'
+					};
+				else
+					throw {
+						message: 'Failed to reqirect to \'/Learner/Studindexreq.aspx\'.',
+						cause: requestingLearner
+					};
+			}
+
 			await this.axiosInstance.get('/Learner/Studindexreq.aspx');
 			postHtml = (
 				await this.axiosInstance({
@@ -1069,6 +1156,7 @@ export class Nemis {
 					'.html',
 					postHtml
 				);
+			throw {message: 'Couldn\'t parse any error message. Saved respoce file for debug'};
 		} catch (err) {
 			throw err;
 		}
@@ -1078,21 +1166,9 @@ export class Nemis {
 		(RequestedJoiningLearner & {deleteCallback: string})[]
 	> {
 		try {
-			await this.axiosInstance.get('/Learner/Liststudreq.aspx').catch(err => {
-				throw {message: 'Error while getting list of requested learners.' + err?.message ? err.message : ''};
-			});
-			let requestedJoiningLearnerTable = htmlParser(
-				(
-					await this.axiosInstance({
-						method: 'post',
-						url: '/Learner/Liststudreq.aspx',
-						data: qs.stringify({
-							...this.#stateObject,
-							ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-						})
-					})
-				)?.data
-			)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+			let requestedJoiningLearnerTable = htmlParser((
+				await this.changeResultsPerPage('/Learner/Liststudreq.aspx'))?.data)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+			if (!requestedJoiningLearnerTable) return [];
 			return tableToJson
 				.convert(requestedJoiningLearnerTable, {
 					ignoreHiddenRows: true,
@@ -1127,7 +1203,7 @@ export class Nemis {
 							by: x['Approved By'] === '&nbsp;' ? undefined : x['Approved By']
 						},
 						status: x['Status'] === '&nbsp;' ? undefined : x['Status'],
-						deleteCallback: x[13]?.match(/ctl.*?Del/)
+						deleteCallback: x['Approved On'] === '&nbsp;' ? x[13]?.match(/ctl.*?Del/g)[0] : undefined
 					};
 				})
 				?.filter(x => x);
@@ -1139,21 +1215,12 @@ export class Nemis {
 	async getApprovedJoiningLearners(): Promise<ApprovedLearner[]> {
 		try {
 			// chang page size
-			await this.axiosInstance.get('/Learner/Liststudreqa.aspx');
-			let getAllHtml = (
-				await this.axiosInstance({
-					method: 'post',
-					url: '/Learner/Liststudreqa.aspx',
-					data: qs.stringify({
-						...this.#stateObject,
-						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-					})
-				})
-			)?.data;
+			let getAllHtml = (await this.changeResultsPerPage('/Learner/Liststudreqa.aspx'))?.data;
 			//await writeFileSync(process.cwd() + '/debug/html/list_approved.html', getAllHtml);
 			let requestedJoiningLearnerTable = htmlParser(getAllHtml).querySelector(
 				'#ctl00_ContentPlaceHolder1_grdLearners'
 			)?.outerHTML;
+			if (!requestedJoiningLearnerTable) return [];
 			return tableToJson
 				.convert(requestedJoiningLearnerTable)
 				?.flat()
@@ -1192,7 +1259,6 @@ export class Nemis {
 		}
 	}
 
-	// todo: use this to check if we can admit or request
 	async getDates() {
 		return await this.axiosInstance.get('/generic/api/formone/admissiondates').catch(err => {
 			Promise.reject(err);
@@ -1208,9 +1274,7 @@ export class Nemis {
 			let requestedContinuingLearners = htmlParser(
 				requestedContinuingLearnersHtml
 			)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
-			if (!requestedContinuingLearners) {
-				return [];
-			}
+			if (!requestedContinuingLearners) return [];
 			let requestedContinuingLearnersJson = tableToJson
 				.convert(requestedContinuingLearners)
 				.flat()
@@ -1236,19 +1300,19 @@ export class Nemis {
 				});
 			return requestedContinuingLearnersJson;
 		} catch (err) {
-			throw new Error('Error while fetching list of requested continuing learners', {
+			throw {
+				message: 'Error while fetching list of requested continuing learners',
 				cause: err
-			});
+			};
 		}
 	}
 
 	async requestContinuingLearners(
-		requestingLearner: RequestingLearner
-	): Promise<RequestingLearner | Error> {
+		requestingLearner: (NemisLearnerFromDb & {apiResults: {}})
+	) {
 		try {
 			await this.axiosInstance.get('/Learner/Listadmrequestsskul.aspx');
 			// Let midddleware handle most of the data validations
-
 			await this.axiosInstance({
 				method: 'post',
 				url: '/Learner/Listadmrequestsskul.aspx',
@@ -1278,45 +1342,41 @@ export class Nemis {
 						__VIEWSTATE: this.#stateObject.__VIEWSTATE,
 						__VIEWSTATEGENERATOR: this.#stateObject.__VIEWSTATEGENERATOR,
 						ctl00$ContentPlaceHolder1$Button2: '[  SAVE  ]',
-						ctl00$ContentPlaceHolder1$SelectGender: requestingLearner.gender
-							.split('')[0]
+						ctl00$ContentPlaceHolder1$SelectGender: requestingLearner.gender.charAt(0)
 							.toUpperCase(),
 						ctl00$ContentPlaceHolder1$SelectGrade: form(requestingLearner.grade),
 						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage,
 						ctl00$ContentPlaceHolder1$txtAdmNo: requestingLearner.adm,
 						ctl00$ContentPlaceHolder1$txtBCert: requestingLearner.birthCertificateNo,
-						ctl00$ContentPlaceHolder1$txtFirstname:
-							requestingLearner?.firstname || names?.firstname,
+						ctl00$ContentPlaceHolder1$txtFirstname: names?.firstname,
 						ctl00$ContentPlaceHolder1$txtIndex: requestingLearner.indexNo,
-						ctl00$ContentPlaceHolder1$txtOthername:
-							requestingLearner?.otherName || names?.otherName,
-						ctl00$ContentPlaceHolder1$txtRemark: requestingLearner.remarks,
-						ctl00$ContentPlaceHolder1$txtSurname:
-							requestingLearner?.surname || names?.surname,
+						ctl00$ContentPlaceHolder1$txtOthername: names?.otherName,
+						ctl00$ContentPlaceHolder1$txtRemark: requestingLearner.remarks || 'Failed' +
+							' admission ',
+						ctl00$ContentPlaceHolder1$txtSurname: names?.surname,
 						ctl00$ContentPlaceHolder1$txtYear: requestingLearner.kcpeYear
 					})
 				})
 			)?.data;
+			let requestedLearnersTable = htmlParser(requestingLearnerHtml).querySelector(
+				'#ctl00_ContentPlaceHolder1_grdLearners'
+			)?.outerHTML || ' '; // set an empty string if querySelector returns undefined
 			let requestedLearner = tableToJson
-				.convert(
-					htmlParser(requestingLearnerHtml).querySelector(
-						'#ctl00_ContentPlaceHolder1_grdLearners'
-					).outerHTML
-				)
+				.convert(requestedLearnersTable)
 				.flat()
-				.map(element => {
+				.map(x => {
 					return {
-						no: Number(element['No.']),
-						adm: String(element['Adm No']),
-						surname: String(element['Surname']?.toLowerCase()),
-						otherName: String(element['Othername']?.toLowerCase()),
-						firstname: String(element['Firstname']?.toLowerCase()),
-						gender: String(element['Gender']?.toLowerCase()),
-						kcpeYear: Number(element['KCPE Year']),
-						indexNo: String(element['Index']),
-						birthCertificateNo: String(element['Birth Certificate'])?.toLowerCase(),
-						grade: Number(element['Grade']),
-						remarks: String(element['Remark'])?.toLowerCase()
+						no: Number(x['No.']),
+						adm: String(x['Adm No']),
+						surname: String(x['Surname']?.toLowerCase()),
+						otherName: String(x['Othername']?.toLowerCase()),
+						firstname: String(x['Firstname']?.toLowerCase()),
+						gender: String(x['Gender']?.toLowerCase()),
+						kcpeYear: Number(x['KCPE Year']),
+						indexNo: String(x['Index']),
+						birthCertificateNo: String(x['Birth Certificate'])?.toLowerCase(),
+						grade: Number(x['Grade']),
+						remarks: String(x['Remark'])?.toLowerCase()
 					};
 				})
 				.filter(
@@ -1330,7 +1390,7 @@ export class Nemis {
 					cause: requestingLearner
 				};
 			}
-			return requestingLearner;
+			return true;
 		} catch (err) {
 			if (err instanceof Error || err instanceof AxiosError)
 				throw {message: err.message || 'Failed to capture continuing learner', cause: err};
@@ -1342,52 +1402,33 @@ export class Nemis {
 	async getPendingContinuingLearners(): Promise<RequestingLearner[]> {
 		try {
 			// Get entire list
-			await this.axiosInstance.get('/Learner/Listadmrequestsskulapp.aspx');
-			let pendingLearners = (
-				await this.axiosInstance({
-					method: 'post',
-					url: '/Learner/Listadmrequestsskulapp.aspx',
-					data: qs.stringify({
-						__EVENTARGUMENT: '',
-						__VIEWSTATEENCRYPTED: '',
-						__LASTFOCUS: '',
-						__EVENTVALIDATION: this.#stateObject.__EVENTVALIDATION,
-						__VIEWSTATE: this.#stateObject.__VIEWSTATE,
-						__VIEWSTATEGENERATOR: this.#stateObject.__VIEWSTATEGENERATOR,
-						__EVENTTARGET: 'ctl00$ContentPlaceHolder1$SelectRecs',
-						ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-					}),
-					headers: this.#SECURE_HEADERS
-				})
-			)?.data;
+			let pendingLearners = (await this.changeResultsPerPage('/Learner/Listadmrequestsskulapp.aspx'))?.data;
+			let pendingLearnerTable = htmlParser(pendingLearners).querySelector(
+				'#ctl00_ContentPlaceHolder1_grdLearners'
+			).outerHTML || ' '; // Set empty string if querySeletor doesn't return a value
 			const pendingContinuingLearner = tableToJson
-				.convert(
-					htmlParser(pendingLearners).querySelector(
-						'#ctl00_ContentPlaceHolder1_grdLearners'
-					).outerHTML,
-					{stripHtmlFromCells: false}
-				)
+				.convert(pendingLearnerTable, {stripHtmlFromCells: false})
 				.flat()
-				.map(element => {
+				.map(x => {
 					return {
-						no: Number(element['No.']),
-						adm: String(element['Adm No']),
-						surname: String(element['Surname']?.toLowerCase()),
-						otherName: String(element['Othername']?.toLowerCase()),
-						firstname: String(element['Firstname']?.toLowerCase()),
+						no: Number(x['No.']),
+						adm: String(x['Adm No']),
+						surname: String(x['Surname']?.toLowerCase()),
+						otherName: String(x['Othername']?.toLowerCase()),
+						firstname: String(x['Firstname']?.toLowerCase()),
 						name: [
-							String(element['Surname']?.toLowerCase()),
-							String(element['Firstname']?.toLowerCase()),
-							String(element['Othername']?.toLowerCase())
+							String(x['Surname']?.toLowerCase()),
+							String(x['Firstname']?.toLowerCase()),
+							String(x['Othername']?.toLowerCase())
 						].join(' '),
-						gender: String(element['Gender']?.toLowerCase()),
-						kcpeYear: Number(element['KCPE Year']),
-						indexNo: String(element['Index']),
-						birthCertificateNo: String(element['Birth Certificate'])?.toLowerCase(),
-						grade: element['Grade'],
-						remarks: String(element['Remark'])?.toLowerCase(),
-						upi: element['UPI'] === '&nbsp;' ? '' : element['UPI'],
-						postback: htmlParser(element['11']).querySelector('input').attrs?.name
+						gender: String(x['Gender']?.toLowerCase()),
+						kcpeYear: Number(x['KCPE Year']),
+						indexNo: String(x['Index']),
+						birthCertificateNo: String(x['Birth Certificate'])?.toLowerCase(),
+						grade: x['Grade'],
+						remarks: String(x['Remark'])?.toLowerCase(),
+						upi: x['UPI'] === '&nbsp;' ? '' : x['UPI'],
+						postback: htmlParser(x['11']).querySelector('input').attrs?.name
 					};
 				});
 			return pendingContinuingLearner;
@@ -1904,6 +1945,42 @@ export class Nemis {
 		}
 	}
 
+	/**
+	 *  since number of results per page persist over request if over multpile pages, we use
+	 *  this method to check if we really need to change number of results per page
+	 */
+	async changeResultsPerPage(url: string): Promise<any> {
+		try {
+			if (typeof url !== 'string')
+				throw{message: 'expected response to be a string.'};
+			let getResponse = await this.axiosInstance.get(url);
+			// Check if we all getting the entire list
+			let table = htmlParser(getResponse?.data)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+			let firstTableElement = tableToJson.convert(table, {stripHtml: false})?.flat()?.shift();
+			if (!firstTableElement) return getResponse;
+			if (typeof firstTableElement !== 'object') return getResponse;
+			let numberOfPages = Object.entries(firstTableElement)?.map(x => {
+				if (typeof x[1] === 'string') {
+					return x[1].match(/__doPostBack\('ctl00\$ContentPlaceHolder1\$grdLearners','Page\$\d+'\)/g);
+				}
+			}).filter(x => x);
+			if (numberOfPages.length === 0) {
+				return getResponse;
+			}
+			await this.axiosInstance({
+				method: 'post',
+				url: url,
+				data: {
+					...this.#stateObject,
+					ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
+				}
+			});
+			return this.axiosInstance.get(url);
+		} catch (err) {
+			throw err;
+		}
+	}
+
 	// Parse viewstate data from web page
 	#setViewState(data) {
 		if (!data || data.length < 100) return;
@@ -1924,6 +2001,7 @@ export class Nemis {
 				__VIEWSTATEENCRYPTED: viewStateEncrypted ? viewStateEncrypted : undefined,
 				__VIEWSTATEGENERATOR: viewStateGenerator ? viewStateGenerator : undefined
 			};
+			return;
 		} else {
 			let viewState = data?.match(/(?<=(__VIEWSTATE\|)).*?(?=\|)/gm)?.toString(),
 				viewStateGenerator = data
@@ -1931,19 +2009,20 @@ export class Nemis {
 					?.toString(),
 				eventValidation = data.match(/(?<=__EVENTVALIDATION\|).*?(?=\|)/gm)?.toString();
 			//now check if view state is set
-			if (!viewState || !viewStateGenerator) {
-				logger.error('View sate not saved');
-				throw {
-					message: 'Couldn\'t find any view state data.',
-					cause: 'Possibly an invalid viewstate was used'
-				};
-			} else {
+			if (viewState || viewStateGenerator) {
 				this.#stateObject = {
 					__EVENTVALIDATION: eventValidation ? eventValidation : '',
 					__VIEWSTATE: viewState ? viewState : '',
 					__VIEWSTATEGENERATOR: viewStateGenerator ? viewStateGenerator : ''
 				};
+				return;
 			}
+			logger.error('View sate not saved');
+			writeFileSync(process.cwd() + '/debug/html/view_state_error.hmtl', data);
+			throw {
+				message: 'Couldn\'t find any view state data.',
+				cause: 'Possibly an invalid viewstate was used'
+			};
 		}
 	}
 
@@ -2026,62 +2105,62 @@ export class Nemis {
 			},
 			error => {
 				//logger.warn(error);
-				let response: ErrorResponse = {
-					time: new Date(Date.now()).toLocaleTimeString(),
-					error: error
-				};
-				if (error?.code === 'ETIMEDOUT') {
-					response.message = 'Request has timed out';
-					response.type = 'request_timeout';
-				}
-				if (error?.code === 'ECONNRESET') {
-					response.message = 'Connection has reset';
-					response.type = 'connection_reset';
-				}
-				//handle no ENOTFOUND
-				if (!error.response?.data || !error.response?.status) {
-					delete response.data;
-					if (error.code === 'ENOTFOUND') {
-						response.message = `The requested address ${error.hostname} was not found.`;
-						response.type = 'address_not_found';
-					} else if (error.code === 'ECONNRESET') {
-						response.message = error.message || `Connection has reset`;
-						response.type = 'connection_reset';
-					} else {
-						response.message = error.message;
-						response.type = error.code;
-					}
-				} else {
-					switch (error.response?.status) {
-						case 400:
-							if (error.response.statusText === 'Bad Request') {
-								if (error.response?.data?.startsWith('No Form One Admission for')) {
-									response.message = error.response?.data;
-									response.type = 'learner_not_found';
-								}
-							}
+				let response: ErrorResponse = error;
+				if (!error?.response) {
+					switch (error.code) {
+						case 'ETIMEDOUT':
+							response.message = 'Request has timed out';
+							response.type = 'request_timeout';
 							break;
-						case 500:
-							response.message = 'Internal server error';
-							response.type = 'internal_server_error';
+						case 'ECONNRESET':
+							response.message = 'Connection has reset while trying to reach ' + error?.config?.baseURL + error?.config?.url;
+							response.type = 'connection_reset';
 							break;
-						case 404:
-							response.message = 'Page not found';
-							response.type = 'page_not_found';
+						case 'ECONNABORTED':
+							response.message = 'Connection was aborted while tryng to reach ' + error?.config?.baseURL + error?.config?.url;
+							response.type = 'connection_aborted';
 							break;
-						case 403:
-							response.message = 'Forbidden';
-							response.type = 'forbidden';
-							break;
-						case 504:
-							response.message = 'Gateway timeout';
-							response.type = 'gateway_timeout';
+						case 'ENOTFOUND':
+							response.message = `The requested address ${error?.config?.baseURL + error?.config?.url} was not found.`;
+							response.type = 'address_not_found';
 							break;
 						default:
-							response.message = error.response?.data || 'Unknown error';
-							response.type = error?.code?.toLowerCase() || 'unknown_error';
+							response.message = error.message;
+							response.type = error.code;
 							break;
 					}
+					return Promise.reject(response);
+				}
+				//handle no ENOTFOUND
+				switch (error.response?.status) {
+					case 400:
+						if (error.response.statusText === 'Bad Request') {
+							if (error.response?.data?.startsWith('No Form One Admission for')) {
+								response.message = error.response?.data;
+								response.type = 'learner_not_found';
+							}
+						}
+						break;
+					case 500:
+						response.message = 'Internal server error';
+						response.type = 'internal_server_error';
+						break;
+					case 404:
+						response.message = 'Page not found';
+						response.type = 'page_not_found';
+						break;
+					case 403:
+						response.message = 'Forbidden';
+						response.type = 'forbidden';
+						break;
+					case 504:
+						response.message = 'Gateway timed out while try to reach ' + error.config?.baseURL + error.config?.url;
+						response.type = 'gateway_timeout';
+						break;
+					default:
+						response.message = error.response?.data || 'Unknown error';
+						response.type = error?.code?.toLowerCase() || 'unknown_error';
+						break;
 				}
 				return Promise.reject(response);
 			}

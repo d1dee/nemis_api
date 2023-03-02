@@ -260,3 +260,56 @@ export interface ApprovedLearner {
 	};
 	status: string;
 }
+
+export interface ContinuingLearnerApiResponse {
+	xcat?: string;
+	isLearner: boolean;
+	isLearnerDescription?: string;
+	upi?: string;
+	names?: string;
+	surname?: string;
+	firstName?: string;
+	otherNames?: string;
+	institutionName?: string;
+	phoneNumber?: string;
+	emailAddress?: string;
+	postalAddress?: string;
+	fatherUpi?: string;
+	motherUpi?: string;
+	guardianUpi?: string;
+	fatherName?: string;
+	fatherIdno?: string;
+	fatherContacts?: string;
+	motherName?: string;
+	motherIdno?: string;
+	motherContacts?: string;
+	guardianContacts?: string;
+	guardianIdno?: string;
+	guardianName?: string;
+	specialMedicalCondition?: string;
+	anySpecialMedicalCondition?: string;
+	institutionCode?: string;
+	subCountyCode?: string;
+	nationality?: string;
+	gender?: string;
+	lgender?: string;
+	dob?: string;
+	doB2?: string;
+	isDateDOB?: string;
+	birthCertificateNo?: string;
+	idNo?: string;
+	disabilityCode?: string;
+	classCode?: string;
+	countyCode?: string;
+	countyLearner?: string;
+	subCountyLearner?: string;
+	specialNeedsList?: string;
+	fatherEmail?: string;
+	motherEmail?: string;
+	guardianEmail?: string;
+	institutionType?: string;
+	institutionLevelCode?: string;
+	nhifNo?: string;
+	className?: string;
+	levelName?: string;
+}

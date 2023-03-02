@@ -3,6 +3,7 @@
  */
 
 import {AxiosError} from 'axios';
+import {Promise} from 'mongoose';
 import learner from '../../../database/learner';
 import {ExtendedRequest, NemisLearnerFromDb} from '../../../interfaces';
 import {ListLearner} from '../../../libs/interface';
@@ -17,7 +18,10 @@ const captureBiodata = async (req: ExtendedRequest) => {
 		let learnerToCapture = (
 			await learner
 				.find({
-					indexNo: {$in: awaitingBiodataCapture.map(x => x.indexNo)}
+					$and: [
+						{indexNo: {$in: awaitingBiodataCapture.map(x => x.indexNo)}},
+						{birthCertificateNo: {$exists: true, $ne: null, $type: 'string'}},
+						{institutionId: req.institution?._id}]
 				})
 				.lean()
 		)
@@ -37,7 +41,7 @@ const captureBiodata = async (req: ExtendedRequest) => {
 					y => x.indexNo === y.indexNo
 				);
 				if (awaitingBiodataFilter.length === 1) {
-					return {...x, ...awaitingBiodataFilter[0]};
+					return {...x as unknown as NemisLearnerFromDb, ...awaitingBiodataFilter[0]};
 				}
 			})
 			.filter(x => x);
@@ -47,7 +51,7 @@ const captureBiodata = async (req: ExtendedRequest) => {
 		if (Object.keys(req.queryParams).includes('await') && req.queryParams?.await === false) {
 			req.response.respond(
 				learnerToCapture,
-				"Below learners' biodata will be captured in" + ' the background'
+				'Below learners\' biodata will be captured in' + ' the background'
 			);
 		}
 		await Promise.allSettled(
@@ -67,10 +71,7 @@ const captureBiodata = async (req: ExtendedRequest) => {
 		let capturedResults = (
 			await Promise.allSettled(
 				(
-					await Promise.allSettled(
-						// @ts-ignore
-						learnerToCapture.map(x => req.nemis.captureJoiningBiodata(x))
-					)
+					await Promise.allSettled(learnerToCapture.map(x => req.nemis.captureJoiningBiodata(x)))
 				).map((x, i) => {
 					if (x.status === 'fulfilled')
 						return learner.findOneAndUpdate(

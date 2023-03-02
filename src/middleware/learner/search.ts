@@ -10,7 +10,7 @@ export default async (req: ExtendedRequest) => {
 		const nemis = req.nemis;
 		let birthCertOrUpi = req.queryParams?.birthCertOrUpi;
 		if (!birthCertOrUpi?.length) {
-			throw {code: 400, message: "Learner's upi or birthCertificateNo was not supplied"};
+			throw {code: 400, message: 'Learner\'s upi or birthCertificateNo was not supplied'};
 		}
 		let searchResult = await Promise.allSettled(
 			birthCertOrUpi.map(x => nemis.searchLearner(x))
@@ -19,7 +19,7 @@ export default async (req: ExtendedRequest) => {
 			searchResult
 				.filter(x => x.status === 'fulfilled')
 				.map(x => (x.status !== 'rejected' ? x?.value : {})),
-			'Total selected' + ' learners: ' + searchResult.length
+			'Returned learners from search: ' + searchResult.length
 		);
 	} catch (err) {
 		req.response.error(
