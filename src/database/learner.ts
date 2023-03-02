@@ -27,6 +27,7 @@ export default mongoose.model(
 		dob: Date,
 		marks: Number,
 		grade: {
+			required: true,
 			type: String,
 			enum: [
 				'form 1',
@@ -56,6 +57,7 @@ export default mongoose.model(
 				partialFilterExpression: {indexNo: {$exists: true, $type: 'string'}}
 			}
 		},
+		continuing: Boolean,
 		upi: {
 			type: String,
 			index: {
@@ -164,6 +166,11 @@ export default mongoose.model(
 		reported: Boolean,
 		isSpecial: Boolean,
 		medicalCondition: String,
-		error: String
+		kcpeYear: Number,
+		error: {
+			type: String,
+			index: true,
+			collation: {locale: 'en', strength: 2}
+		}
 	})
 );

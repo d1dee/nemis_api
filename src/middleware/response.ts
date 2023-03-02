@@ -176,9 +176,6 @@ export default class {
 		if (this.#response?.headersSent) {
 			return logger.warn('Headers sent');
 		}
-		if (!message) {
-			message = undefined;
-		}
 		//check if response is an error
 		if (data instanceof Error) {
 			//logger.error(data);
@@ -192,7 +189,7 @@ export default class {
 			this.#response.status(statusCode).send({
 				success: true,
 				message: message || 'Operation complete successfully',
-				data: data
+				data: data || []
 			});
 		}
 	}

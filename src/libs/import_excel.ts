@@ -16,7 +16,15 @@ import logger from './logger';
 // Covert an Excel file to json and sanitize its data
 export default (
 	filePath: string
-): Array<{validDataObject: NemisLearner[]; invalidDataObject: Partial<NemisLearner>[]}> => {
+): Array<{
+	validDataObject: NemisLearner[]; invalidDataObject: (Partial<NemisLearner> & {
+		errors: {
+			validationErrors: {
+				[Property in keyof NemisLearner]: string;
+			}
+		}
+	})[]
+}> => {
 	try {
 		accessSync(filePath, constants.R_OK);
 		let workBook: WorkBook = xlsx.readFile(filePath, {cellDates: true});
@@ -53,7 +61,7 @@ export function validateRequestingLearner(requestingLearners: unknown[]): Reques
 		if (!Array.isArray(requestingLearners)) {
 			throw new Error(
 				'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-					' object.'
+				' object.'
 			);
 		}
 
@@ -112,12 +120,18 @@ export function validateRequestingLearner(requestingLearners: unknown[]): Reques
 export function validateLearnerJson(sheetData: any[]): {
 	// todo: massive rewrite here
 	validDataObject: NemisLearner[];
-	invalidDataObject: unknown[];
+	invalidDataObject: (Partial<NemisLearner> & {
+		errors: {
+			validationErrors: {
+				[Property in keyof NemisLearner]: string;
+			}
+		}
+	})[];
 } {
 	if (!Array.isArray(sheetData)) {
 		throw new Error(
 			'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-				' object.'
+			' object.'
 		);
 	}
 	// Register custom validation rules
@@ -149,13 +163,13 @@ export function validateLearnerJson(sheetData: any[]): {
 		} catch (e) {
 			return false;
 		}
-	});
+	}, 'Invalid form/grade. Example of correct form: form 1 or grade 3');
 
 	const rules = {
-		adm: 'string|required',
+		adm: ['string', 'required'],
 		name: ['string', 'fullName'], ///^[a-zA-Z]+(?:\s[a-zA-Z]+)+$/ Add regex validation for names separated by space. Valid if groups less than three throw error
-		grade: ['form'],
-		form: ['form'],
+		grade: ['form', 'required_without:form'],
+		form: ['form', 'required_without:grade'],
 		stream: ['string'],
 		upi: ['string', 'min:4', 'required_without_all:birthCertificateNo'],
 		gender: [
@@ -175,13 +189,15 @@ export function validateLearnerJson(sheetData: any[]): {
 		address: ['string'],
 		county: ['string'],
 		subCounty: ['string'],
-		birthCertificateNo: ['string', 'required_without_all:upi'],
+		birthCertificateNo: ['string', 'required_without_all:upi', 'required_with:continuing'],
 		medicalCondition: ['string'], // Add includes array of all allowed medical  conditions
 		isSpecial: ['boolean'],
 		marks: ['integer', 'min:0', 'max:500'],
 		// Index is a string to maintain starting zeros in some schools indexNo numbers
 		indexNo: ['string', 'required'],
-		nationality: ['string']
+		nationality: ['string'],
+		continuing: ['boolean'],
+		kcpeYear: ['required_with:continuing']
 	};
 	const allowedKeys = [
 		'adm',
@@ -209,11 +225,19 @@ export function validateLearnerJson(sheetData: any[]): {
 		'isSpecial',
 		'marks',
 		'indexNo',
-		'nationality'
+		'nationality',
+		'continuing',
+		'kcpeYear'
 	];
 
 	let validDataObject: NemisLearner[] = [],
-		invalidDataObject: unknown[] = [];
+		invalidDataObject: (Partial<NemisLearner> & {
+			errors: {
+				validationErrors: {
+					[Property in keyof NemisLearner]: string;
+				}
+			}
+		})[] = [];
 
 	sheetData.forEach(dataObject => {
 		Object.keys(dataObject).forEach(key => {
@@ -260,7 +284,7 @@ export function validateLearnerJson(sheetData: any[]): {
 				['fatherId', 'motherId', 'guardianId'].every(key => delete validationError[key]);
 				validationError.id = [
 					'All contacts are missing Id numbers. At least one contact must have a name,' +
-						' id and telephone number.'
+					' id and telephone number.'
 				];
 			}
 			if (
@@ -271,8 +295,8 @@ export function validateLearnerJson(sheetData: any[]): {
 				['fatherTel', 'motherTel', 'guardianTel'].every(key => delete validationError[key]);
 				validationError.id = [
 					'All contacts are missing Telephone numbers. At least one contact must have' +
-						' a name,' +
-						' id and telephone number.'
+					' a name,' +
+					' id and telephone number.'
 				];
 			}
 			if (
@@ -285,8 +309,8 @@ export function validateLearnerJson(sheetData: any[]): {
 				);
 				validationError.id = [
 					'All contacts are missing names. At least one contact must have a' +
-						' name,' +
-						' id and telephone number.'
+					' name,' +
+					' id and telephone number.'
 				];
 			}
 		} else {
@@ -310,14 +334,15 @@ export function validateLearnerJson(sheetData: any[]): {
 					}
 				});
 			}
-			if (!countyToNo(dataObject.county, dataObject.subCounty)) {
-				invalidDataObject.push({
-					...dataObject,
-					errors: {
-						validationErrors: 'Invalid county or subCounty name'
-					}
-				});
-			}
+
+		}
+		if (!countyToNo(dataObject.county, dataObject.subCounty)) {
+			invalidDataObject.push({
+				...dataObject,
+				errors: {
+					validationErrors: 'Invalid county or subCounty name'
+				}
+			});
 		}
 	});
 	return {validDataObject, invalidDataObject};
@@ -328,7 +353,7 @@ export function validateCaptureRequest(requestingLearners): CaptureRequestingLea
 		if (!Array.isArray(requestingLearners)) {
 			throw new Error(
 				'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-					' object.'
+				' object.'
 			);
 		}
 

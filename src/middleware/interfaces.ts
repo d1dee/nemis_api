@@ -42,6 +42,7 @@ export interface QueryParams {
 	approved?: boolean;
 	indexNo?: string[];
 	await?: boolean;
+	ignoreNonEssentialBlanks?: boolean;
 }
 
 export interface SetCookie {
@@ -58,7 +59,7 @@ export interface SetCookie {
 }
 
 export interface RequestingLearner extends BasicName {
-	no: number;
+	no?: number;
 	name: string;
 	adm: string;
 	gender: string;

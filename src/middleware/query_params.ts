@@ -32,7 +32,8 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 			'nhif',
 			'index',
 			'await',
-			'approved'
+			'approved',
+			'ignoreNonEssentialBlanks'
 		];
 		const queryKeys = Object.keys(req.query);
 		const invalidParams = queryKeys.filter(param => !allowedParams.includes(param));
@@ -149,8 +150,9 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 				case 'nhif':
 				case 'await':
 				case 'approved':
+				case 'ignoreNonEssentialBlanks':
 					let keyValue = req.query[queryKeys[key]];
-					if (!keyValue) {
+					if (keyValue === undefined) {
 						break;
 					}
 					keyValue = String(keyValue)?.toLowerCase();
@@ -160,7 +162,7 @@ export default (req: ExtendedRequest, res: Response, next: NextFunction) => {
 							message: `${queryKeys[key]} should be a boolean`,
 							cause: `${queryKeys[key]} is not a valid boolean, ${keyValue} is not a boolean`
 						};
-					logger.debug('Setting ' + key + ' to ' + keyValue);
+					logger.debug('Setting ' + queryKeys[key] + ' to ' + keyValue);
 					query[queryKeys[key]] = keyValue === 'true';
 					break;
 				case 'dob':

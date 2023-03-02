@@ -1535,10 +1535,9 @@ export const form = (grade: Grades): number => {
 				case 'form 4':
 					return 15;
 				default:
-					throw new Error(grade + ' is out of range');
+					throw {message: grade + ' is out of range'};
 			}
-		}
-		if (grade.startsWith('grade')) {
+		} else if (grade.startsWith('grade')) {
 			switch (grade) {
 				case 'pp 1':
 					return 16;
@@ -1567,9 +1566,9 @@ export const form = (grade: Grades): number => {
 				case 'grade 11':
 					return 28;
 				default:
-					throw new Error(grade + ' is out of range');
+					throw  {message: grade + ' is out of range'};
 			}
-		}
+		} else throw{message: 'Invalid grade or form'};
 	}
 };
 
@@ -1636,6 +1635,7 @@ export function parseLearner(
 	extraData?: {}
 ): NemisLearnerFromDb[] {
 	try {
+		if (!learnerJsonArray) throw {message: 'learnerJsonArray is undefined'};
 		let cleanLearner = [];
 		learnerJsonArray.forEach(learner => {
 			let pushLearner = {
@@ -1684,8 +1684,8 @@ export function parseLearner(
 							learner.county,
 							learner.subCounty
 						);
-						pushLearner.countyNo = countyNo.countyNo;
-						pushLearner.subCountyNo = countyNo.subCountyNo;
+						pushLearner.countyNo = countyNo?.countyNo;
+						pushLearner.subCountyNo = countyNo?.subCountyNo;
 						break;
 					case 'form':
 					case 'grade':
@@ -1698,6 +1698,10 @@ export function parseLearner(
 						pushLearner.gender = learner[key]?.toLowerCase();
 						delete learner[key];
 						break;
+					case 'errors':
+						if (!learner[key]) break;
+						pushLearner.error = learner[key]?.toLowerCase();
+						delete learner[key];
 				}
 			});
 			pushLearner.institutionId = institutionId.toString();
@@ -1716,3 +1720,14 @@ export function parseLearner(
 		throw {message: err?.message || 'failed to parse learner details', cause: err};
 	}
 }
+
+/**
+ * total = oname.length
+ * positional match = total
+ * at least 2 names follow order to be considered a match
+ * break down to individual names
+ *  maina derrick muraya
+ *  maina derrick kimani
+ *  if oname[0] === cname[0]... check others
+ *
+ */

@@ -4,12 +4,7 @@
 
 import {Router} from 'express';
 import {ExtendedRequest} from '../../interfaces';
-import {
-	addContinuingLearner,
-	captureContinuingLearner,
-	deleteContinuingLearner,
-	getContinuingLearner
-} from '../../middleware/learner/continuing';
+import {captureContinuingLearner, getContinuingLearner} from '../../middleware/learner/continuing';
 
 const continuing = Router();
 continuing.use((req: ExtendedRequest, res, next) => {
@@ -24,8 +19,6 @@ continuing.use((req: ExtendedRequest, res, next) => {
 
 // get learners pending continuing learners awaiting approval
 continuing.get('/', getContinuingLearner);
-//add continuing learner using post
-continuing.post('/', addContinuingLearner);
-continuing.post('/', deleteContinuingLearner);
-continuing.post('/capture', captureContinuingLearner);
+//continuing.post('/', deleteContinuingLearner);
+continuing.post('/', captureContinuingLearner);
 export default continuing;
