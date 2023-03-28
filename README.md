@@ -11,7 +11,7 @@ between institution and other functionalities supported on the NEMIS website.
    cluster [here](https://cloud.mongodb.com)
 2. Clone the repository using `git clone https://github.com/d1dee/nemis_api.git`
 3. Install dependencies using `npm install`
-4. Set up environment variables by renaming `.env.example` to `.env` and edit the .env file to
+4. Set up environment variables by renaming `.env.example` to `.env` and edit the `.env` file to
    include the necessary variables.
 5. Run the server using `npm start`.
 
