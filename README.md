@@ -74,7 +74,7 @@ between institution and other functionalities supported on the NEMIS website.
 > >         guardianTel:"string",
 > >         guardianId:"string",
 > >         county:"string",
-> >         subOunty:"string",
+> >         subCounty:"string",
 > >         kcpeYear:"string",
 > >         continuing:"boolean"
 > >         
