@@ -24,7 +24,7 @@ between institution and other functionalities supported on the NEMIS website.
 > > ```js
 > >  {
 > >    username: "string",
-> >    passwrod: "string"
+> >    password: "string"
 > > }
 > >
 
@@ -43,7 +43,7 @@ between institution and other functionalities supported on the NEMIS website.
 > > ```js
 > > {
 > >    username: "string",
-> >    passwrod: "string"
+> >    password: "string"
 > > }
 > >
 > **`DELETE`** - Deletes institution linked to the JWT token
