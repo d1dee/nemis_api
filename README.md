@@ -21,10 +21,10 @@ between institution and other functionalities supported on the NEMIS website.
 > **`POST`** - This endpoint allows registration of new institutions to the API
 >
 > > **Body:**
-> > ```json
+> > ```js
 > >  {
 > >    username: "string",
-> >     passwrod: "string"
+> >    passwrod: "string"
 > > }
 > >
 
@@ -40,7 +40,7 @@ between institution and other functionalities supported on the NEMIS website.
 > **`PATCH`** - Used to update institution information in the database
 >
 > > **Body:**
-> > ```json
+> > ```js
 > > {
 > >    username: "string",
 > >    passwrod: "string"
@@ -53,7 +53,7 @@ between institution and other functionalities supported on the NEMIS website.
 > **`POST`** - Add a learners using json
 >
 > > **Body:**
-> > ```json
+> > ```js
 > > [
 > >     {
 > >         adm:"string",
