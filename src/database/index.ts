@@ -4,47 +4,39 @@
 
 import mongoose from 'mongoose';
 import logger from '../libs/logger';
-import archive_institution_model from './archive_institution';
 import continuing_learner from './continuing_learner';
 import institution_model from './institution';
 import learner_model from './learner';
 import token_model from './token';
-
-if (!process.env.DB_URL) throw new Error('DB_URL not found');
 
 mongoose.set('bufferCommands', false);
 mongoose.set('strictQuery', true);
 mongoose.set('autoIndex', true);
 
 // @ts-ignore
-export default async () =>
-	await mongoose
-		.connect(process.env.DB_URL)
-		.then(async db => {
-			const models = [
-				token_model,
-				learner_model,
-				institution_model,
-				archive_institution_model,
-				continuing_learner
-			];
-			const syncIndexes = await Promise.allSettled(models.map(x => x.createIndexes()));
-			let erroredIndexes = [],
-				i = 0;
-			for (const x of syncIndexes) {
-				if (x.status != 'rejected') continue;
-				if (x.reason?.code === 86) {
-					logger.debug('Dropping indexes');
-					await models[i].collection.dropIndexes();
-					erroredIndexes.push(models[i].createIndexes());
-				}
-				i++;
+export default async (dbUrl: string) => {
+	try {
+		// Connect db
+		await mongoose.connect(dbUrl);
+		// Sync indexes
+		const models = [token_model, learner_model, institution_model, continuing_learner];
+		const syncIndexes = await Promise.allSettled(models.map(x => x.createIndexes()));
+		let indexSyncErrors = [],
+			i = 0;
+		for (const x of syncIndexes) {
+			if (x.status != 'rejected') continue;
+			if (x.reason?.code === 86) {
+				// If indexes failed, drop indexes and create new indexes
+				logger.debug('Dropping indexes');
+				await models[i].collection.dropIndexes();
+				indexSyncErrors.push(models[i].createIndexes());
 			}
-			await Promise.all(erroredIndexes);
-			logger.info('indexes synced');
-			return db;
-		})
-		.catch(err => {
-			logger.error(err);
-			process.exit(1);
-		});
+			i++;
+		}
+		// Await new indexes to be created
+		await Promise.all(indexSyncErrors);
+		logger.info('indexes synced');
+	} catch (err) {
+		throw err;
+	}
+};

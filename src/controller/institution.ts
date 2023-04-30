@@ -4,92 +4,122 @@
 
 import * as jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import {randomFillSync} from 'node:crypto';
-import archivedInstitutionModel from '../database/archive_institution';
+import { randomFillSync } from 'node:crypto';
 import institutionModel from '../database/institution';
 import tokenModel from '../database/token';
-import {DbInstitution} from '../interfaces';
-import logger from '../libs/logger';
-import {Nemis} from '../libs/nemis';
-import {TokenFromDb} from '../middleware/interfaces';
+import { Nemis } from '../libs/nemis';
+import CustomError from '../libs/error_handler';
+import { Institution, RegisterNewInstitution } from '../../types/nemisApiTypes';
+import learner from '../database/learner';
 
-async function __getInst(username: string, password: string): Promise<DbInstitution> {
-	// noinspection ExceptionCaughtLocallyJS
+async function __getInst(
+	username: string,
+	password: string
+): Promise<
+	Institution & {
+		username: string;
+		password: string;
+		cookie: { value: string; expires: number };
+	}
+> {
 	try {
 		const nemis = new Nemis();
 		const cookie = await nemis.login(username, password);
 
-		let institution: DbInstitution = await nemis.getInstitution();
-
+		let institution = await nemis.getInstitution();
 		if (!institution || typeof institution !== 'object') {
-			throw new Error('Institution info not found, Invalid institution info.');
+			throw new CustomError(
+				'No valid institution information was returned, check your credentials and try again',
+				401,
+				'Unauthorized'
+			);
 		}
-		institution.username = username;
-		institution.password = password;
-		institution.cookie = {value: cookie, expires: Date.now() + 3.6e6};
-		return institution;
+		return {
+			...institution,
+			username: username,
+			password: password,
+			cookie: { value: cookie, expires: Date.now() + 3.6e6 }
+		};
 	} catch (err) {
 		throw err;
 	}
 }
 
-const registerInstitution = async (
-	username: string,
-	password: string
-): Promise<{institution: DbInstitution; token: TokenFromDb}> => {
+const registerInstitution = async (registerInstitutionObject: RegisterNewInstitution) => {
 	try {
+		const { username, password, _id } = registerInstitutionObject;
 		let institution = await __getInst(username, password);
-		// Check if the institution is already registered and archived
-		let archivedInstitution = await institutionModel.findOne({
-			username: username,
-			archived: true
-		});
-		let institutionDoc;
-		if (archivedInstitution) {
-			institutionDoc = await institutionModel.findByIdAndUpdate(archivedInstitution._id, {
-				archived: false,
-				password: password,
-				cookie: institution.cookie
-			});
+
+		let institutionDocument;
+		if (_id) {
+			let reRegisterDocument = await Promise.all([
+				institutionModel
+					.findByIdAndUpdate(_id, {
+						isArchived: false,
+						username: username,
+						password: password,
+						cookie: institution.cookie
+					})
+					.lean()
+			]);
+			institutionDocument = reRegisterDocument.shift();
 		} else {
-			institutionDoc = await institutionModel.create(institution);
+			institutionDocument = await institutionModel.create({
+				...institution,
+				username: username,
+				password: password,
+				isArchived: false
+			});
 		}
-
-		if (!institutionDoc) {
-			throw new Error('Institution not created, Invalid institution info');
+		if (!institutionDocument) {
+			throw new CustomError(
+				'Institution not created, Invalid institution info',
+				500,
+				'database_error'
+			);
 		}
+		let tokenSecret = randomFillSync(Buffer.alloc(32)).toString('hex'); //todo: hash token secret
 
-		logger.debug(`Institution created ${institutionDoc.code}`);
-		let tokenSecret = randomFillSync(Buffer.alloc(32)).toString('hex');
-		logger.trace('Token secret: ' + tokenSecret);
-
-		let tokenDoc = await tokenModel.create({
+		let tokenDocument = await tokenModel.create({
 			token: '',
 			tokenSecret: tokenSecret,
-			institutionId: institutionDoc._id
+			institutionId: institutionDocument._id
 		});
 
 		let token = jwt.sign(
 			{
-				username: institutionDoc.username,
-				id: tokenDoc._id
+				id: tokenDocument._id
 			},
 			tokenSecret,
-			{expiresIn: '30 d'}
+			{ expiresIn: '30 d' }
 		);
 
-		await tokenDoc.updateOne({token: token});
-		logger.trace('Token doc: ' + tokenDoc);
-		await institutionDoc.updateOne({token: tokenDoc._id});
-
-		return {
-			institution: {...institutionDoc.toObject(), archived: false},
-			token: {...tokenDoc.toObject(), token: token}
-		};
+		let returnPromise = await Promise.all([
+			tokenModel
+				.findByIdAndUpdate(tokenDocument._id, { token: token }, { returnDocument: 'after' })
+				.lean(),
+			institutionModel
+				.findByIdAndUpdate(
+					institutionDocument._id,
+					{ token: tokenDocument._id },
+					{ returnDocument: 'after' }
+				)
+				.lean()
+		]);
+		let tokenUpdate = returnPromise[0];
+		let institutionUpdate = returnPromise[1];
+		if (tokenUpdate?._id && institutionUpdate?._id) {
+			return {
+				...institutionUpdate,
+				...tokenUpdate
+			};
+		} else
+			throw new CustomError(
+				'Failed to save hashed token and institution info',
+				500,
+				'database_error'
+			);
 	} catch (err) {
-		/*if(err?.code=== 11000){
-			throw new Error(err?.message)
-		}*/
 		throw err;
 	}
 };
@@ -98,20 +128,15 @@ const updateInstitution = async (
 	username: string,
 	password: string,
 	institutionId: string
-): Promise<DbInstitution> => {
+): Promise<
+	Institution & { username: string; password: string; cookie: { value: string; expires: number } }
+> => {
 	try {
 		let institution = await __getInst(username, password);
-		institution = (await institutionModel
-			.findByIdAndUpdate(institutionId, institution)
-			.lean()) as DbInstitution;
+		await institutionModel.findByIdAndUpdate(institutionId, institution).lean();
 		if (!institution) {
 			throw new Error('Institution not updated, Invalid institution info');
 		} else {
-			delete institution.password;
-			delete institution.cookie;
-			delete institution.__v;
-			delete institution._id;
-
 			return institution;
 		}
 	} catch (err) {
@@ -119,18 +144,26 @@ const updateInstitution = async (
 	}
 };
 
-const archiveInstitution = async (institutionId: string, tokenId: string): Promise<boolean> => {
+const archiveInstitution = async (
+	institutionId: mongoose.Types.ObjectId,
+	tokenId: mongoose.Types.ObjectId
+): Promise<boolean> => {
 	try {
 		if (mongoose.isValidObjectId(institutionId) && mongoose.isValidObjectId(tokenId)) {
-			await institutionModel.findByIdAndUpdate(institutionId, {
-				archived: true
-			});
-			await tokenModel.findByIdAndUpdate(tokenId, {archived: true});
-			await archivedInstitutionModel.create({
-				institutionId: institutionId,
-				tokenId: tokenId
-			});
-
+			await Promise.all([
+				institutionModel.findByIdAndUpdate(institutionId, {
+					isArchived: true
+				}),
+				tokenModel.findByIdAndUpdate(tokenId, {
+					archived: true,
+					revoked: {
+						on: Date.now(),
+						by: institutionId,
+						reason: 'institution was archived'
+					}
+				}),
+				learner.update({ institutionId: institutionId }, { archived: true })
+			]);
 			return true;
 		} else {
 			return false;
@@ -140,4 +173,4 @@ const archiveInstitution = async (institutionId: string, tokenId: string): Promi
 	}
 };
 
-export {updateInstitution, registerInstitution, archiveInstitution};
+export { updateInstitution, registerInstitution, archiveInstitution };

@@ -3,7 +3,7 @@
 This repository contains a set of API endpoints that interface with the National Education
 Management Information System (NEMIS) in Kenya. The endpoints allow users to perform various
 operations such as bulk admitting learners, bulk submitting learners to NHIF, transfer learners
-between institution and other functionalities supported on the NEMIS website.
+between an institution and other functionalities supported on the NEMIS website.
 
 ## **Usage**
 
@@ -33,9 +33,10 @@ between institution and other functionalities supported on the NEMIS website.
 > returns the same token.
 
 `/api/institution`
-> **`GET`** - Returns institution details stored in the database. Tis data is
+> **`GET`** - Returns institution details stored in the database.
+> This data is
 > first scrapped from
-> the  [Institution's bio-data page](http://nemis.education.go.ke/Institution/Institution.aspx)
+> the [Institution's bio-data page](http://nemis.education.go.ke/Institution/Institution.aspx)
 >
 > **`PATCH`** - Used to update institution information in the database
 >
@@ -48,7 +49,7 @@ between institution and other functionalities supported on the NEMIS website.
 > >
 > **`DELETE`** - Deletes institution linked to the JWT token
 
-`/api/learner`
+`/api/learner_router`
 
 > **`POST`** - Add a learners using json
 >
@@ -87,48 +88,48 @@ between institution and other functionalities supported on the NEMIS website.
 > > >
 > > > [Excel Template]()
 
-`/api/learner/admit`
+`/api/learner_router/admit`
 >
 > **`GET`** - Returns admitted form 1
 > learners [_without UPI_](http://nemis.education.go.ke/Admission/Listlearnersrep.aspx)
 > or [_with UPI_](http://nemis.education.go.ke/Learner/Listlearners.aspx) as return from the NEMIS
 > website.
 >
-> **`POST`** - Admit joining form one learners using [_this
+> **`POST`** - Admit joining form one learner_router using [_this
 page_](http://nemis.education.go.ke/Learner/Studindex.aspx)
 >
-`/api/learner/admit/capture`
+`/api/learner_router/admit/capture`
 >
-> **`GET`** - This end point returns already captured learner. This end point differs from
-> `/api/learner/admit` in that it returns api's record including errors encountered during the
+> **`GET`** - This end point returns already captured learner_router. This end point differs from
+> `/api/learner_router/admit` in that it returns APIs record including errors encountered during the
 > admission process.
 >
-> **`POST`** - Captures biodata for all joining form one learners in the database
+> **`POST`** - Captures biodata for all joining form one learner_router in the database
 >
 >
-`/api/learner/nhif/:grade`
+`/api/learner_router/nhif/:grade`
 >
-> **`GET`** - By default this end point returns a list of all learners with or without nhif
+> **`GET`** - By default, this end point returns a list of all learners with or without nhif
 > numbers. This behaviour can be changed by when calling with param `{nhif:true}` to return
 > only learners with NHIF number or `nhif:false` to return those without NHIF numbers
 >
-> **`POST`** - Captures biodata for all joining form one learners in the database
+> **`POST`** - Captures biodata for all joining form one learner_router in the database
 >
-`/api/learner/selected`
+`/api/learner_router/selected`
 >
-> **`GET`** - This end point returns learners selected to the institution, it is an exact list
+> **`GET`** - This end point returns learners selected to the institution; it is an exact list
 > [_found here_](http://nemis.education.go.ke/Institution/schoolselectionlist.aspx)
 
-`/api/learner/continuing`
+`/api/learner_router/continuing`
 > **`GET`** - Returns continuing learners, those who are awaiting approval and those awaiting bio
 > data capture
 >
-> **`POST`** - Captures as continuing learner and submits bio data, _if the learner has been
+> **`POST`** - Captures as continuing learner_router and submits bio data, _if the learner_router has been
 > approved by NEMIS_, for all learners with `continuing` set to `true` in the database
 
-`/api/learner/search?upi=${upiOrBirthCertificateNumber}`
+`/api/learner_router/search?upi=${upiOrBirthCertificateNumber}`
 
-> **`GET`** - This endpoint searches for learner details on NEMIS using their UPI or birth
+> **`GET`** - This endpoint searches for learner_router details on NEMIS using their UPI or birth
 > certificate number.
 
 ## Contributing

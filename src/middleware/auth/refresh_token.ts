@@ -6,11 +6,11 @@ import {randomFillSync} from 'crypto';
 import {JsonWebTokenError, sign, TokenExpiredError, verify} from 'jsonwebtoken';
 import institution_schema from '../../database/institution';
 import token_schema from '../../database/token';
-import {ExtendedRequest} from '../../interfaces';
 import logger from '../../libs/logger';
+import{Request} from	"express"
 
-export default (req: ExtendedRequest) => {
-	let response = req.response;
+export default (req: Request) => {
+	let response = req.sendResponse;
 	try {
 		let token = req.token;
 		let decodedToken = req.decodedToken;
@@ -30,7 +30,7 @@ export default (req: ExtendedRequest) => {
 				if (err instanceof TokenExpiredError) {
 					//Token refresh
 
-					logger.trace(
+					logger.debug(
 						JSON.stringify(decodedToken) + ' has expired and is being refreshed'
 					);
 					logger.debug('Token expired, sending a new token');
@@ -93,12 +93,12 @@ export default (req: ExtendedRequest) => {
 				});
 			}
 		});
-	} catch (err) {
+	} catch (err:any) {
 		logger.error(err);
-		req.response.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || ''
+		req.sendResponse.error(
+			err?.code || 500,
+			err?.message || 'Internal server error',
+			err?.cause || ''
 		);
 	}
 };

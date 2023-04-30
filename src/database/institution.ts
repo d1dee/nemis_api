@@ -3,6 +3,20 @@
  */
 
 import * as mongoose from 'mongoose';
+import {
+	EDUCATION_SYSTEM,
+	GRADES,
+	INSTITUTION_ACCOMMODATION_TYPE,
+	INSTITUTION_CATEGORY,
+	INSTITUTION_GENDER,
+	INSTITUTION_LEVEL,
+	INSTITUTION_MOBILITY_TYPE,
+	INSTITUTION_OWNER_TYPE,
+	INSTITUTION_REGISTRATION_STATUS,
+	INSTITUTION_RESIDENCE,
+	OWNERSHIP_DOCUMENT_TYPE
+} from '../libs/zod_validation';
+import { decryptString, encryptString } from '../libs/crypt';
 
 export default mongoose.model(
 	'institution',
@@ -14,76 +28,93 @@ export default mongoose.model(
 			required: true,
 			index: {
 				unique: true,
-				partialFilterExpression: {username: {$exists: true, $type: 'string'}}
+				partialFilterExpression: { username: { $exists: true, $type: 'string' } }
 			}
 		},
-		password: {type: String, required: true},
-		// Last received cookie from nemis website
-		cookie: {
-			value: {type: String, index: true},
-			expires: {
-				type: Date,
-				default: Date.now() + 3.6e6
-			}
-		},
-		createdAt: {type: Date, default: Date.now()},
-		lastLogin: {type: Date, default: Date.now()},
+		password: { type: String, required: true },
+		createdAt: { type: Date, default: Date.now() },
+		lastLogin: { type: Date, default: Date.now() },
 		// Current token
 		token: {
 			index: true,
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'token'
 		},
-		// Ids of all previous tokens
-		revokedToken: {
-			type: mongoose.Schema.Types.ObjectId,
-			ref: 'token'
+		cookie: {
+			value: String,
+			expires: Number
 		},
-		// Inferred from other pages
-		learners: [
+		// Ids of all previous tokens
+		revokedTokens: [
 			{
 				type: mongoose.Schema.Types.ObjectId,
-				ref: 'learner'
-			}
-		],
-		teachers: [
-			{
-				type: mongoose.Schema.Types.ObjectId,
-				ref: 'teacher'
-			}
-		],
-		nonTeaching: [
-			{
-				type: mongoose.Schema.Types.ObjectId,
-				ref: 'nonTeaching'
+				ref: 'token'
 			}
 		],
 		// Populated form http://nemis.education.go.ke/Institution/Institution.aspx
-		name: {type: String, index: true},
-		code: {type: String, index: true},
-		gender: String,
+		name: { type: String, index: true },
+		code: { type: String, index: true },
+		gender: {
+			type: String,
+			enum: INSTITUTION_GENDER
+		},
+		supportedGrades: [
+			{
+				required: true,
+				type: String,
+				enum: GRADES,
+				index: true
+			}
+		],
 		knecCode: String,
 		type: String,
 		registrationNumber: String,
 		cluster: String,
-		accommodation: String,
+		accommodation: {
+			type: String,
+			enum: INSTITUTION_ACCOMMODATION_TYPE
+		},
 		constituency: String,
 		zone: String,
 		ward: String,
 		kraPin: String,
 		plusCode: String,
-		registrationStatus: String,
+		registrationStatus: {
+			type: String,
+			enum: INSTITUTION_REGISTRATION_STATUS
+		},
 		tscCode: String,
-		category: String,
-		educationLevel: String,
-		institutionMobility: String,
-		residence: String,
-		educationSystem: String,
+		category: {
+			type: String,
+			enum: INSTITUTION_CATEGORY
+		},
+		educationLevel: {
+			type: String,
+			enum: INSTITUTION_LEVEL
+		},
+		institutionMobility: {
+			type: String,
+			enum: INSTITUTION_MOBILITY_TYPE
+		},
+		residence: {
+			type: String,
+			enum: INSTITUTION_RESIDENCE
+		},
+		educationSystem: {
+			type: String,
+			enum: EDUCATION_SYSTEM
+		},
 		registrationDate: String,
 		county: String,
 		subCounty: String,
-		ownership: String,
-		ownershipDocument: String,
+		ownership: {
+			type: String,
+			enum: INSTITUTION_OWNER_TYPE
+		},
+		ownershipDocument: {
+			type: String,
+			enum: OWNERSHIP_DOCUMENT_TYPE
+		},
 		owner: String,
 		incorporationCertificateNumber: String,
 		nearestPoliceStation: String,
@@ -97,7 +128,18 @@ export default mongoose.model(
 		email: String,
 		website: String,
 		socialMediaHandles: String,
-		// If the institution has been archived
-		archived: Boolean
+		isArchived: { type: Boolean, default: false }
 	})
+		.pre('save', function (next) {
+			// Encrypt password before saving
+			this.password = encryptString(this.password);
+			return next();
+		})
+		.post('findOne', function (doc, next) {
+			if (doc) {
+				// Decrypt password before returning doc
+				doc.password = decryptString(doc.password);
+			}
+			next();
+		})
 );

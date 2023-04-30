@@ -3,16 +3,31 @@
  */
 
 import mongoose from 'mongoose';
+import { GRADES, MEDICAL_CONDITIONS, NATIONALITY } from '../libs/zod_validation';
+
+const parentContact = {
+	name: {
+		type: String,
+		index: true,
+		collation: {
+			locale: 'en',
+			strength: 2
+		}
+	},
+	tel: String,
+	id: String
+};
 
 export default mongoose.model(
 	'learner',
 	new mongoose.Schema({
 		adm: {
 			type: String,
+			unique: true,
+			sparse: true,
 			required: true,
-			index: {
-				unique: true,
-				partialFilterExpression: {adm: {$exists: true, $type: 'string'}}
+			partialFilterExpression: {
+				adm: { $exists: true, $type: 'string', $nin: ['', 0, null] }
 			}
 		},
 		name: {
@@ -24,59 +39,42 @@ export default mongoose.model(
 				strength: 2
 			}
 		},
-		dob: Date,
+		dob: { type: Date, required: true },
 		marks: Number,
 		grade: {
 			required: true,
 			type: String,
-			enum: [
-				'form 1',
-				'form 2',
-				'form 3',
-				'form 4',
-				'pp 1',
-				'pp 2',
-				'grade 1',
-				'grade 2',
-				'grade 3',
-				'grade 4',
-				'grade 5',
-				'grade 6',
-				'grade 7',
-				'grade 8',
-				'grade 9',
-				'grade 10',
-				'grade 11'
-			],
+			enum: GRADES,
 			index: true
 		},
 		indexNo: {
 			type: String,
-			index: {
-				unique: true,
-				partialFilterExpression: {indexNo: {$exists: true, $type: 'string'}}
+			sparse: true,
+			partialFilterExpression: {
+				indexNo: { $exists: true, $type: 'string', $nin: ['', 0, null] }
 			}
 		},
-		continuing: Boolean,
+		continuing: { type: Boolean, required: true, default: false },
 		upi: {
 			type: String,
-			index: {
-				unique: true,
-				partialFilterExpression: {upi: {$exists: true, $type: 'string'}}
+			sparse: true,
+			unique: true,
+			partialFilterExpression: {
+				upi: { $exists: true, $type: 'string', $nin: ['', 0, null] }
 			},
-			collation: {locale: 'en', strength: 2}
+			collation: { locale: 'en', strength: 2 }
 		},
 		stream: {
 			type: String,
 			index: true,
-			collation: {locale: 'en', strength: 2}
+			collation: { locale: 'en', strength: 2 }
 		},
 		institutionId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'institution',
 			required: true
 		},
-		// A link between all scrapped data from nemis and api's data
+		// A link between all scrapped data from nemis and APIs data
 		nemisId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'nemisLearner'
@@ -93,84 +91,56 @@ export default mongoose.model(
 				name: String
 			}
 		},
-		// If learner was added as a continuing learner
+		// If learner_router was added as a continuing learner_router
 		continuingId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'continuingLearner'
 		},
-		// A score of how accurate our match algorithm matches api learner name to nemis learner name
+		// A score of how accurate our match algorithm matches api learner_router name to nemis learner_router name
 		nemisScore: Number,
 		// Contacts details
-		father: {
-			name: {
-				type: String,
-				index: true,
-				collation: {
-					locale: 'en',
-					strength: 2
-				}
-			},
-			tel: String,
-			id: String
-		},
-		mother: {
-			name: {
-				type: String,
-				index: true,
-				collation: {
-					locale: 'en',
-					strength: 2
-				}
-			},
-			tel: String,
-			id: String
-		},
-		guardian: {
-			name: {
-				type: String,
-				index: true,
-				collation: {
-					locale: 'en',
-					strength: 2
-				}
-			},
-			tel: String,
-			id: String
-		},
+		father: parentContact,
+		mother: parentContact,
+		guardian: parentContact,
 		address: String,
 		birthCertificateNo: {
 			type: String,
+			unique: true,
+			sparse: true,
 			index: true,
-			collation: {locale: 'en', strength: 2, numericOrdering: true}
+			collation: { locale: 'en', strength: 2, numericOrdering: true }
 		},
 		// County and sub-county details
 		county: {
 			type: String,
 			index: true,
-			collation: {locale: 'en', strength: 2}
+			collation: { locale: 'en', strength: 2 }
 		},
 		subCounty: {
 			type: String,
 			index: true,
-			collation: {locale: 'en', strength: 2}
+			collation: { locale: 'en', strength: 2 }
 		},
 		countyNo: Number,
 		subCountyNo: Number,
 		gender: {
 			type: String,
 			index: true,
-			enum: ['male', 'female', 'm', 'f']
+			required: true,
+			enum: ['m', 'f'] as const
 		},
-		nationality: String,
-		admitted: Boolean,
-		reported: Boolean,
-		isSpecial: Boolean,
-		medicalCondition: String,
-		kcpeYear: Number,
+		nationality: { type: String, enum: NATIONALITY, default: 'kenya' },
+		admitted: { type: Boolean, default: false },
+		reported: { type: Boolean, default: false },
+		isSpecial: { type: Boolean, required: true, default: false },
+		medicalCondition: { type: String, enum: MEDICAL_CONDITIONS, default: 'none' },
+		nhifNo: Number,
+		kcpeYear: { type: Number, default: new Date().getFullYear(), required: true },
+		archived: { type: Boolean, default: false },
 		error: {
 			type: String,
 			index: true,
-			collation: {locale: 'en', strength: 2}
+			collation: { locale: 'en', strength: 2 }
 		}
 	})
 );
