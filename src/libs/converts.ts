@@ -1590,7 +1590,7 @@ export const splitNames = (name: string): BasicName => {
 	}
 };
 
-export const setMedicalCondition = (medicalCondition: string): number => {
+export const medicalConditionCode = (medicalCondition: string): number => {
 	//set medical condition
 	// 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabetes, 5 = epilepsy, 0 = none
 	let condition = 0;
@@ -1614,8 +1614,34 @@ export const setMedicalCondition = (medicalCondition: string): number => {
 	return condition;
 };
 
-export function lowerCaseAllValues(obj: any): unknown {
-	if (typeof obj !== 'object') return obj;
+export const medicalConditionDesc = (medicalCondition: number): string => {
+	//set medical condition
+	// 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabetes, 5 = epilepsy, 0 = none
+	let condition = 'none';
+	switch (medicalCondition) {
+		case 1:
+			condition = 'anaemia';
+			break;
+		case 2:
+			condition = 'asthma';
+			break;
+		case 3:
+			condition = 'convulsions';
+			break;
+		case 4:
+			condition = 'diabetes';
+			break;
+		case 5:
+			condition = 'epilepsy';
+			break;
+	}
+	return condition;
+};
+
+export function lowerCaseAllValues(obj: any, opts?: { keys: boolean }): any {
+	// Check if obj is a POJO
+	if (!obj || typeof obj !== 'object' || obj.constructor.name !== 'Object') return obj;
+
 	let lowerCased = Object.entries(obj).map(keyValuePair => {
 		if (typeof keyValuePair[1] === 'string')
 			if (opts?.keys) {
