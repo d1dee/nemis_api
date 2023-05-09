@@ -1618,7 +1618,23 @@ export function lowerCaseAllValues(obj: any): unknown {
 	if (typeof obj !== 'object') return obj;
 	let lowerCased = Object.entries(obj).map(keyValuePair => {
 		if (typeof keyValuePair[1] === 'string')
-			return [keyValuePair[0], keyValuePair[1]?.toLowerCase()];
+			if (opts?.keys) {
+				return [
+					keyValuePair[0]?.toLowerCase()?.trim(),
+					!!keyValuePair[1] ? keyValuePair[1]?.toLowerCase()?.trim() : undefined
+				];
+			} else {
+				return [
+					keyValuePair[0],
+					!!keyValuePair[1] ? keyValuePair[1]?.toLowerCase()?.trim() : undefined
+				];
+			}
+		if (typeof keyValuePair[1] === 'object') {
+			return [
+				keyValuePair[0]?.toLowerCase()?.trim(),
+				lowerCaseAllValues(keyValuePair[1], opts)
+			];
+		}
 		return keyValuePair;
 	});
 	return Object.fromEntries(lowerCased);
