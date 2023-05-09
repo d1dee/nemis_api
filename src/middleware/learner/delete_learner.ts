@@ -1,6 +1,7 @@
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 import { Request } from 'Express';
-import { GRADES, uniqueIdentifierSchema, zod } from '../../libs/zod_validation';
+import { GRADES, uniqueIdentifierSchema } from '../../libs/zod_validation';
+import { z as zod } from 'zod';
 import learner from '../../database/learner';
 import CustomError from '../../libs/error_handler';
 
