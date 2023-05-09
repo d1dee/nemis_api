@@ -4,10 +4,10 @@
 
 import { accessSync, constants } from 'fs';
 import { readFile, utils, WorkBook } from 'xlsx';
-import { ZodIssue } from 'zod';
+import { z as zod, ZodIssue } from 'zod';
 import { CompleteLearner } from '../../types/nemisApiTypes';
 import { lowerCaseAllValues } from './converts';
-import { completeLearnerSchema, zod } from './zod_validation';
+import { completeLearnerSchema } from './zod_validation';
 import CustomError from './error_handler';
 
 // Convert an Excel file to json and sanitize its data
@@ -20,14 +20,14 @@ const validateExcel = (
 		if (workBook.SheetNames.length < 1) {
 			throw new CustomError(
 				'Invalid file format. No sheets with data were found.' +
-					'The workbook should have at least one sheet containing learner data.',
+				'The workbook should have at least one sheet containing learner data.',
 				400
 			);
 		}
 		if (workBook.SheetNames.length > 1) {
 			throw new CustomError(
 				'Invalid file format. More than one sheet was found.' +
-					'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
+				'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
 				400
 			);
 		}
@@ -87,8 +87,8 @@ const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: Zo
 			dob:
 				obj.dob instanceof Date
 					? (() =>
-							// Fix off by 1 Date error
-							obj.dob.setDate(obj.dob.getDate() + 1))()
+						// Fix off by 1 Date error
+						obj.dob.setDate(obj.dob.getDate() + 1))()
 					: obj.dob,
 			father: {
 				name: obj?.fatherName,
