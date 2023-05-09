@@ -3,9 +3,9 @@
  */
 
 import { JwtPayload } from 'jsonwebtoken';
-import { Nemis } from '../../src/libs/nemis';
 import send_response from '../../src/middleware/utils/send_response';
 import { DbInstitution, QueryParams, TokenFromDb } from '../nemisApiTypes';
+import { NemisWebService } from '../../src/libs/nemis/nemis_web_handler';
 
 declare module 'express-serve-static-core' {
 	export interface Request {
@@ -19,7 +19,7 @@ declare module 'express-serve-static-core' {
 		 * diagnose and troubleshoot issues. Overall, this class provides a convenient and reliable way to interact
 		 * with the NEMIS website and automate tasks related to managing education data.
 		 */
-		nemis: Nemis;
+		nemis: NemisWebService;
 		isValidToken: boolean;
 		decodedToken: JwtPayload;
 		institution: DbInstitution;
