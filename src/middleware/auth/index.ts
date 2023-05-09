@@ -10,6 +10,7 @@ import tokenSchema from '../../database/token';
 import { DbInstitution, TokenFromDb } from '../../../types/nemisApiTypes';
 import logger from '../../libs/logger';
 import CustomError from '../../libs/error_handler';
+import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 
 export default async (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -46,11 +47,7 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 			!decodedToken?.id ||
 			!mongoose.isValidObjectId(decodedToken.id)
 		) {
-			throw {
-				code: 403,
-				message: 'Forbidden. Invalid token',
-				cause: 'Token does not contain an id or id is an invalid mongoose _id'
-			};
+			throw new CustomError('Forbidden. Invalid token. Token does not contain an id or id is an invalid mongoose _id', 403);
 		}
 		let tokenFromDb = <TokenFromDb | undefined>(
 			await tokenSchema.findById(decodedToken.id).lean()
@@ -82,11 +79,7 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 		//Verify the token
 		let verifiedToken = verify(token, tokenFromDb.tokenSecret);
 		if (!verifiedToken || typeof verifiedToken === 'string') {
-			throw {
-				code: 403,
-				message: 'Forbidden. Invalid token',
-				cause: 'Token must be of type' + ' Bearer'
-			};
+			throw new CustomError('Forbidden. Invalid token. Token must be of type Bearer', 403);
 		}
 		logger.debug('Token verifiedToken');
 		logger.debug('Token: ' + JSON.stringify(verifiedToken));
@@ -95,11 +88,8 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 			await institution_schema.findById(tokenFromDb?.institutionId).lean()
 		);
 		if (!institution) {
-			throw {
-				code: 404,
-				message: 'Institution not found',
-				cause: `Institution with id ${tokenFromDb?.institutionId?.toString()} not found`
-			};
+			throw new CustomError(`Institution not found Institution with id ${tokenFromDb?.institutionId?.toString()} not found.`
+				, 404);
 		}
 		// todo: Make sure to remove sensitive data from endpoints that
 		//  do not need it
@@ -123,10 +113,6 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 			logger.error(err);
 			err = { code: 500, message: 'Internal Server Error', cause: err.message };
 		}
-		req.sendResponse.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || ''
-		);
+		sendErrorMessage(req, err);
 	}
 };
