@@ -1520,7 +1520,9 @@ export const nationalities = (nationality: number | string): number | string => 
 //converts classes as per nemis
 export const form = (grade: Grades) => {
 	if (!grade) throw new Error('Grade was not defined.');
-	switch (grade as unknown as string) {// We already know grade is a string
+	switch (
+		grade as unknown as string // We already know grade is a string
+	) {
 		case 'form 1':
 			return 12;
 		case 'form 2':
