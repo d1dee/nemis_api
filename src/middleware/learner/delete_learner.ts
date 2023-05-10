@@ -1,5 +1,5 @@
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
-import { Request } from 'Express';
+import { Request } from 'express';
 import { GRADES, uniqueIdentifierSchema } from '../../libs/zod_validation';
 import { z as zod } from 'zod';
 import learner from '../../database/learner';
