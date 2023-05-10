@@ -2,12 +2,14 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import {randomFillSync} from 'crypto';
-import {JsonWebTokenError, sign, TokenExpiredError, verify} from 'jsonwebtoken';
+import { randomFillSync } from 'crypto';
+import { sign, TokenExpiredError, verify } from 'jsonwebtoken';
 import institution_schema from '../../database/institution';
 import token_schema from '../../database/token';
 import logger from '../../libs/logger';
-import{Request} from	"express"
+import { Request } from 'express';
+import CustomError from '../../libs/error_handler';
+import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 
 export default (req: Request) => {
 	let response = req.sendResponse;
@@ -15,15 +17,11 @@ export default (req: Request) => {
 		let token = req.token;
 		let decodedToken = req.decodedToken;
 		if (!token || !decodedToken) {
-			throw {code: 403, message: 'Forbidden. No token provided'};
+			throw new CustomError('Forbidden. No token was received by the API.', 403);
 		}
 		//Get token value to check if it's revoked
 		if (!decodedToken?.id) {
-			throw {
-				code: 403,
-				message: 'Forbidden. Invalid token',
-				cause: 'Token does not contain an id'
-			};
+			throw new CustomError('Forbidden. Invalid token. Token does not contain an id.', 403);
 		}
 		verify(token.token, token.tokenSecret, async err => {
 			if (err) {
@@ -69,17 +67,10 @@ export default (req: Request) => {
 					return response.respond({
 						success: true,
 						message: 'Token refreshed',
-						data: {token: tokenDb.token}
+						data: { token: tokenDb.token }
 					});
-				} else if (err instanceof JsonWebTokenError) {
-					throw {code: 403, message: 'Forbidden. Invalid token', cause: err};
 				} else {
-					logger.error(err);
-					throw {
-						code: 500,
-						message: 'Internal Server Error',
-						cause: 'An unknown error occurred'
-					};
+					throw new CustomError('Forbidden. Invalid token', 403);
 				}
 			} else {
 				return response.respond({
@@ -93,12 +84,8 @@ export default (req: Request) => {
 				});
 			}
 		});
-	} catch (err:any) {
+	} catch (err: any) {
 		logger.error(err);
-		req.sendResponse.error(
-			err?.code || 500,
-			err?.message || 'Internal server error',
-			err?.cause || ''
-		);
+		sendErrorMessage(req, err);
 	}
 };
