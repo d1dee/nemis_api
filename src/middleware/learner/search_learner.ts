@@ -1,8 +1,8 @@
 import { Request } from 'express';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
-import { zod } from '../../libs/zod_validation';
 import learner from '../../database/learner';
 import CustomError from '../../libs/error_handler';
+import { z as zod } from 'zod';
 
 const searchLearner = async (req: Request) => {
 	try {
