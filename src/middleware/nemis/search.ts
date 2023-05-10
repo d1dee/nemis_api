@@ -2,29 +2,24 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import { Request } from "express";
+import { Request } from 'express';
+import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
+import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import CustomError from '../../libs/error_handler';
 
 export default async (req: Request) => {
-    try {
-        if (!req?.params?.uniqueIdentifier) {
-            throw{
-                code: 400,
-                message: "Expected learners upi or birth certificate number as a query parameter.",
-                cause: "Learners birth certificate number or upi was not provided"
-            };
-        }
+	try {
+		if (!req?.params?.uniqueIdentifier) {
+			throw new CustomError(
+				'Expected learners upi or birth certificate number as a query parameter. Learners birth certificate number or upi was not provided',
+				400
+			);
+		}
 
-        let searchResults = await req.nemis.searchLearner(req.params.uniqueIdentifier);
+		let searchResults = await new NemisApiService().searchLearner(req.params.uniqueIdentifier);
 
-        return req.sendResponse.respond(
-            searchResults,
-            "Query was successful."
-        );
-    } catch (err: any) {
-        req.sendResponse.error(
-            err.code || 500,
-            err.message || "Internal server error",
-            err.cause || ""
-        );
-    }
+		return req.sendResponse.respond(searchResults, 'Query was successful.');
+	} catch (err: any) {
+		sendErrorMessage(req, err);
+	}
 };
