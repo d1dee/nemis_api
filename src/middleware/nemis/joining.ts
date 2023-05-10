@@ -2,169 +2,157 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-// @ts-nocheck
-import { AxiosError } from 'axios';
-import { Promise } from 'mongoose';
-import { NemisLearnerFromDb } from '../../../interfaces';
+import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 import { Request } from 'express';
 import learner from '../../database/learner';
-import { ListAdmittedLearner, ListLearner } from '../../../types/nemisApiTypes';
+import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
+import CustomError from '../../libs/error_handler';
+import { CaptureBiodataResponse, ListAdmittedLearner } from '../../../types/nemisApiTypes';
 
 const captureJoiningLearner = async (req: Request) => {
 	try {
-		let listLearner: ListLearner[] = await req.nemis.listLearners('form 1');
-		let awaitingBiodataCapture: ListAdmittedLearner[] =
-			await req.nemis.getAdmittedJoiningLearners();
-		if (awaitingBiodataCapture.length === 0)
-			req.sendResponse.respond([], 'There is no learner left to capture biodata.');
-		let updateUpi = <(NemisLearnerFromDb & ListLearner)[]>[];
-		// Learner admitted and has birth certificate
-		let admittedHasBirthCertificate = await learner
+		// Get learner who aren't captured from the database
+		const learnerNotCaptured = await learner
 			.find({
-				$and: [
-					{ indexNo: { $in: awaitingBiodataCapture.map(x => x.indexNo) } },
-					{ birthCertificateNo: { $exists: true, $ne: null, $type: 'string' } },
-					{ institutionId: req.institution?._id }
-				]
+				continuing: false, // Only admit joining learners,
+				institutionId: req.institution._id,
+				indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
+				admitted: true,
+				upi: { $exists: false, $in: [null, undefined, 0, ''] },
+				birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
+				archived: false
 			})
-			.lean();
-		/**
-		 * To optimize search functionality, it would be beneficial to sort both
-		 * listLearners and awaitingBiodataCapture arrays using the same criteria
-		 * as admittedHasBirthCertificate, which is birth certificate number and index number respectively.
-		 * This would streamline the search process and enhance overall performance
-		 * for more efficient and accurate results.
-		 */
-		listLearner.sort((a, b) => (a.birthCertificateNo > b.birthCertificateNo ? 1 : -1));
-		awaitingBiodataCapture.sort((a, b) => (a.indexNo > b.index ? 1 : -1));
+			.sort({ birthCertificateNo: 1 });
 
-		let learnerToCapture = [];
-		// Match each Learner to their specific UPI only remaining with those without UPI linked
-		for (let i = 0; i < admittedHasBirthCertificate.length; i++) {
-			if (admittedHasBirthCertificate[i]?.upi) continue;
-			let filter = listLearner.filter(
-				x => x.birthCertificateNo === admittedHasBirthCertificate[i]?.birthCertificateNo
+		// Get list of captured learners frm Nemis website
+		const nemis = new NemisWebService();
+		let cookie = await nemis.login(req.institution.username, req.institution.password);
+
+		let listCapturedLearners = await nemis.listLearners('form 1');
+
+		// Sort to reduce search time
+		if (listCapturedLearners.length > 10) {
+			listCapturedLearners.sort((a, b) =>
+				a.birthCertificateNo.localeCompare(b.birthCertificateNo)
 			);
-			if (filter.length > 0) {
-				updateUpi.push({
-					...admittedHasBirthCertificate[i],
-					...filter[0]
-				});
-				continue;
-			}
-			filter = awaitingBiodataCapture.filter(
-				x => x.indexNo === admittedHasBirthCertificate[i].indexNo
+		}
+
+		// Filter out learner who aren't captured on Nemis
+		let learnerToCapture: typeof learnerNotCaptured = [];
+		for (const learner of learnerNotCaptured) {
+			let listLearner = listCapturedLearners.filter(
+				x => x.birthCertificateNo === learner.birthCertificateNo
 			);
-			if (filter.length > 0) {
-				learnerToCapture.push({ ...admittedHasBirthCertificate[i], ...filter[0] });
+			if (listLearner.length === 1) {
+				learner.upi = listLearner[0].upi;
+				learner.reported = true;
+				learner.error = undefined;
+			} else if (listLearner.length > 1) {
+				learner.error = `WARNING: Learner has been has been captured ${listLearner.length} times.`;
+				learnerToCapture.push(learner);
+			} else {
+				learnerToCapture.push(learner);
 			}
 		}
 
-		if (learnerToCapture.length === 0) {
-			req.sendResponse.respond([], 'No learner_router to capture biodata.');
-		}
-		/* if (Object.keys(req.queryParams).includes("await") && req.queryParams?.await === false) {
-			 req.sendResponse.respond(
-				 learnerToCapture,
-				 "Below learners' biodata will be captured in" + " the background"
-			 );
-		 }*/
-		await Promise.allSettled(
-			updateUpi.map(x =>
-				learner.findByIdAndUpdate(
-					x._id,
-					{
-						upi: x?.upi,
-						reported: true,
-						error: null
-					},
-					{ new: true }
-				)
-			)
-		);
+		// Update database to match with Nemis
+		await Promise.all(learnerNotCaptured.map(x => (x.reported ? x.save() : Promise.resolve())));
 
-		let capturedResults = (
-			await Promise.allSettled(
-				(
-					await Promise.allSettled(
-						learnerToCapture.map(x => req.nemis.captureJoiningBiodata(x))
-					)
-				).map(
-					(
-						x: { status: string; value: { upi: any }; reason: { message: any } },
-						i: number
-					) => {
-						if (x.status === 'fulfilled') {
-							return learner.findOneAndUpdate(
-								{ indexNo: learnerToCapture[i].indexNo },
-								{ upi: x.value?.upi, reported: true, admitted: true, error: null },
-								{ new: true }
-							);
-						}
-						return learner.findOneAndUpdate(
-							{ indexNo: learnerToCapture[i].indexNo },
-							{ error: x.reason?.message },
-							{ new: true }
-						);
+		// Get list of admitted learner to get learner Postback values
+		let learnerWithPostback = [] as unknown as [
+			[(typeof learnerNotCaptured)[number], ListAdmittedLearner | CustomError]
+		];
+
+		if (learnerToCapture.length > 0) {
+			// Match learnerToCapture with their respective postback
+			let admittedLearner = await nemis.listAdmittedJoiningLearners();
+
+			for (let i = 0; i < learnerToCapture.length; i++) {
+				let admitted = admittedLearner.filter(
+					x => x.indexNo === learnerToCapture[i].indexNo
+				);
+				if (admitted.length === 1) {
+					learnerWithPostback.push([learnerToCapture[i], admitted[0]]);
+				} else {
+					learnerWithPostback.push([
+						learnerToCapture[i],
+						new CustomError('Learner is not admitted yet', 400)
+					]);
+				}
+			}
+		}
+
+		// Capture biodata for the filtered learners
+		let captureResults = await Promise.allSettled(
+			learnerWithPostback.map(learner => {
+				return new Promise((resolve, reject) => {
+					if (learner[1] instanceof CustomError) {
+						reject([learner]);
+					} else {
+						new NemisWebService(cookie, nemis.getState())
+							.captureJoiningBiodata(learner[0], learner[1])
+							.then(captureResults => {
+								resolve([learner[0], captureResults]);
+							})
+							.catch(err => {
+								reject([learner[0], err]);
+							});
 					}
-				)
-			)
-		).map((x: { status: string; value: any; reason: any }) =>
-			x.status === 'fulfilled' ? x?.value : x?.reason
+				});
+			})
 		);
 
-		req.sendResponse.respond(
-			capturedResults,
-			'Processing biodata capture finished with the below' + ' results'
+		// Update database with any errors and upi's captured
+		let results = await Promise.all(
+			captureResults.map(x => {
+				if (x.status === 'fulfilled') {
+					let value = x.value as [
+						(typeof learnerNotCaptured)[number],
+						CaptureBiodataResponse
+					];
+
+					value[0].upi = value[1].upi;
+					value[0].error = undefined;
+					value[0].reported = true;
+
+					return value[0].save();
+				} else {
+					let value = x.reason as [(typeof learnerNotCaptured)[number], CustomError];
+
+					value[0].error = value[1].message;
+
+					return value[0].save();
+				}
+			})
+		);
+
+		// Check if we have learner without birth certificate and report to user before returning
+		let learnerWithoutBCert = await learner.find({
+			continuing: false, // Only admit joining learners,
+			institutionId: req.institution._id,
+			indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
+			admitted: true,
+			upi: { $exists: false, $in: [null, undefined, 0, ''] },
+			birthCertificateNo: { $exists: false, $in: [null, undefined, 0, ''] },
+			archived: false
+		});
+
+		if (learnerWithoutBCert.length > 0) {
+			return req.sendResponse.respond(
+				learnerWithoutBCert.map(x => ({
+					...x.toJSON,
+					error: 'Learner has no birth certificate assigned'
+				})),
+				'All learners have already been captured'
+			);
+		}
+		return req.sendResponse.respond(
+			[...results, ...learnerWithoutBCert],
+			'All learners have already been captured'
 		);
 	} catch (err: any) {
-		req.sendResponse.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || err instanceof AxiosError ? 'axios error' : err
-		);
+		sendErrorMessage(req, err);
 	}
 };
-/*const getCapturedBiodata = async (req: Request) => {
-    try {
-        let listLearner = await req.nemis.listLearners('form 1');
-        if (Object.keys(req.queryParams).includes('admitted') && !req.queryParams.admitted) {
-            let awaitingBiodataCapture = await req.nemis.getAdmittedJoiningLearners();
-            if (awaitingBiodataCapture.length === 0)
-                return req.sendResponse.respond(
-                    awaitingBiodataCapture,
-                    'Admitted' + ' learner_router list retrieved successfully'
-                );
-            let notCaptured = awaitingBiodataCapture.filter(
-                x => listLearner?.filter(y => y.upi === x.upi).length === 0
-            );
-            if (notCaptured.length > 0) {
-                let notCapturedFromDb = await learner_router
-                    .find({
-                        $or: notCaptured.map(x => {
-                            return { indexNo: x.indexNo };
-                        })
-                    })
-                    .lean();
-                if (Array.isArray(notCapturedFromDb) && notCapturedFromDb.length > 0) {
-                    notCaptured = notCaptured.map(x => {
-                        let z = notCapturedFromDb.filter(y => x.indexNo === y.indexNo)[0];
-                        return z ? { ...x, ...z } : x;
-                    });
-                }
-            }
-            return req.sendResponse.respond(
-                notCaptured,
-                'Below are the learners awaiting Biodata' + 'Capture on the Nemis website.'
-            );
-        }
-        return req.sendResponse.respond(listLearner, 'Admitted learner_router list retrieved successfully');
-    } catch (err:any) {
-        req.sendResponse.error(
-            err.code || 500,
-            err.message || 'Internal server error',
-            err.cause || err
-        );
-    }
-};*/
+
 export { captureJoiningLearner };
