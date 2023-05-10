@@ -5,10 +5,10 @@
 import { Request } from 'express';
 import { archiveInstitution, updateInstitution as updateInstitutionController } from '../../controller/institution';
 import logger from '../../libs/logger';
-import { Nemis } from '../../libs/nemis';
 import CustomError from '../../libs/error_handler';
 import { usernamePasswordSchema } from '../../libs/zod_validation';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
 
 const getInstitution = (req: Request) => {
 	const response = req.sendResponse;
@@ -69,7 +69,7 @@ const updateInstitution = async (req: Request) => {
 				'bad_request'
 			);
 		}
-		const nemis = new Nemis();
+		const nemis = new NemisWebService();
 		let cookie = await nemis.login(body.username, body.password);
 
 		if (!cookie) {
