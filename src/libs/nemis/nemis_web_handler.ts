@@ -1005,6 +1005,9 @@ class NemisWebService {
 						'Can not capture biodata without learners birth certificate number',
 					400
 				);
+			if (!learner.dob) {
+				throw new CustomError('Date of birth was not submitted for the learner', 400);
+			}
 
 			// Initial POST to set county
 			await this.axiosInstance.get('/Learner/alearner.aspx');

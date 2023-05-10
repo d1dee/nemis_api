@@ -20,6 +20,7 @@ const captureJoiningLearner = async (req: Request) => {
 				admitted: true,
 				upi: { $exists: false, $in: [null, undefined, 0, ''] },
 				birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
+				dob: { $exists: true },
 				archived: false
 			})
 			.sort({ birthCertificateNo: 1 });
