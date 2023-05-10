@@ -33,6 +33,7 @@ import { countyToNo, form, medicalConditionCode, nationalities, splitNames } fro
 import { Error } from 'mongoose';
 import buffer from 'buffer';
 import FormData from 'form-data';
+import { NemisApiService } from './nemis_api_handler';
 
 type ParentContact = {
 	name?: string;
@@ -144,13 +145,13 @@ class NemisWebService {
 	 * @returns {Promise<Institution>} An object containing institution information.
 	 * @throws Error object if the institution page is not found.
 	 */
-	async getInstitution(): Promise<Institution> {
+	async getInstitution(institutionCode: string): Promise<Institution> {
 		try {
 			let institutionHtml = (await this.axiosInstance.get('/Institution/Institution.aspx'))
 				?.data;
 
-			let supportedGrades = (await this.axiosInstance.get('/generic2/api/SchDashboard/XS5M'))
-				.data;
+			let supportedGrades = (await new NemisApiService().homepageApi(institutionCode))
+				.schoolDashboard;
 
 			let document = htmlParser(institutionHtml);
 			return institutionSchema.strip().parse({

@@ -22,6 +22,15 @@ class NemisApiService {
 		}
 	}
 
+	async homepageApi(code: string) {
+		try {
+			let schoolDashboard = (await this.axiosInstance.get('/api/SchDashboard/' + code)).data;
+			return { schoolDashboard: schoolDashboard };
+		} catch (err) {
+			throw new CustomError('Failed to get homepage apis. Try again later.', 500);
+		}
+	}
+
 	/**Asynchronously searches for a learner using either their UPI (Unique Personal Identifier) or
 	 *  birth certificate number.
 	 */
@@ -57,7 +66,7 @@ class NemisApiService {
 		 * http://nemis.education.go.ke/generic2/api/FormOne/ReportedCaptured/F5FFFX
 		 */
 		try {
-			if (!indexNo || typeof indexNo !== 'string' || indexNo.length !== 11) {
+			if (!indexNo || indexNo.length !== 11) {
 				throw new CustomError(
 					'index number is invalid. Valid index number must be 11 characters long.',
 					400

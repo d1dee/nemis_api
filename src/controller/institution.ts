@@ -17,16 +17,16 @@ async function __getInst(
 	password: string
 ): Promise<
 	Institution & {
-	username: string;
-	password: string;
-	cookie: { value: string; expires: number };
-}
+		username: string;
+		password: string;
+		cookie: { value: string; expires: number };
+	}
 > {
 	try {
 		const nemis = new NemisWebService();
 		const cookie = await nemis.login(username, password);
 
-		let institution = await nemis.getInstitution();
+		let institution = await nemis.getInstitution(username);
 		if (!institution || typeof institution !== 'object') {
 			throw new CustomError(
 				'No valid institution information was returned, check your credentials and try again',
