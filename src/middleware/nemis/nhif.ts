@@ -1,6 +1,7 @@
 /*
+/!*
  * Copyright (c) 2023. MIT License.  Maina Derrick
- */
+ *!/
 
 import { Request } from "express";
 
@@ -89,3 +90,4 @@ const getNhif = async (req: Request) => {
     }
 };
 export { submitNhif, getNhif };
+*/

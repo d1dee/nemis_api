@@ -1,3 +1,4 @@
+/*
 import { Request, Response } from 'express';
 import CustomError from '../../libs/error_handler';
 import learner from '../../database/learner';
@@ -5,12 +6,12 @@ import { CaptureBiodataResponse, Grades, ListLearner } from '../../../types/nemi
 
 const syncLearner = async (req: Request, response: Response) => {
 	try {
-		/**
+		/!**
 		 * get all learner from nemis
 		 * get all learners without upi
 		 * match them up
 		 * update db
-		 */
+		 *!/
 
 		//let institutionLevel = req.institution.level;
 
@@ -78,4 +79,4 @@ const syncLearner = async (req: Request, response: Response) => {
 		);
 	}
 };
-export default syncLearner;
+export default syncLearner;*/

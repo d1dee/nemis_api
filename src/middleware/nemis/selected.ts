@@ -1,10 +1,12 @@
 /*
+/!*
  * Copyright (c) 2023. MIT License.  Maina Derrick
- */
+ *!/
 
 import { Request } from 'express';
 import { AdmitApiCall, RequestingJoiningLearner } from '../../../types/nemisApiTypes';
 import { requestingJoiningLearnerSchema } from '../../libs/zod_validation';
+import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
 
 const getSelectedLearners = async (req: Request) => {
 	try {
@@ -70,7 +72,7 @@ const requestAdmission = async (req: Request) => {
 
 		let apiCallResults = (
 			await Promise.allSettled(
-				validRequestingLearner.map(x => nemis.admitApiCalls(x.indexNo))
+				validRequestingLearner.map(x => new NemisApiService().admitApiCalls(x.indexNo))
 			)
 		).map((x, i) => {
 			if (x.status === 'rejected')
@@ -91,9 +93,11 @@ const requestAdmission = async (req: Request) => {
 		let requestingApiLearner: (RequestingJoiningLearner & AdmitApiCall)[];
 
 		if (apiErrors.length > 0)
+			// @ts-ignore
 			requestingApiLearner = apiCallResults.filter(
 				x => !x?.error
 			) as (RequestingJoiningLearner & AdmitApiCall)[];
+		// @ts-ignore
 		else requestingApiLearner = apiCallResults as (RequestingJoiningLearner & AdmitApiCall)[];
 
 		if (requestingApiLearner.length === 0) {
@@ -149,3 +153,4 @@ const getRequestedLearner = async (req: Request) => {
 };
 
 export { requestAdmission, getSelectedLearners, getRequestedLearner };
+*/

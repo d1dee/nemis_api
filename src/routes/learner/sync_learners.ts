@@ -1,7 +1,6 @@
-import { Router } from "express";
-import syncLearner from "../../middleware/learner/sync_learner";
+import { Router } from 'express';
 
 const syncLearnersRoute = Router();
 
-syncLearnersRoute.post("/", syncLearner);
+//syncLearnersRoute.post("/", syncLearner);
 export default syncLearnersRoute;
