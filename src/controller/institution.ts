@@ -7,23 +7,23 @@ import mongoose from 'mongoose';
 import { randomFillSync } from 'node:crypto';
 import institutionModel from '../database/institution';
 import tokenModel from '../database/token';
-import { Nemis } from '../libs/nemis';
 import CustomError from '../libs/error_handler';
 import { Institution, RegisterNewInstitution } from '../../types/nemisApiTypes';
 import learner from '../database/learner';
+import { NemisWebService } from '../libs/nemis/nemis_web_handler';
 
 async function __getInst(
 	username: string,
 	password: string
 ): Promise<
 	Institution & {
-		username: string;
-		password: string;
-		cookie: { value: string; expires: number };
-	}
+	username: string;
+	password: string;
+	cookie: { value: string; expires: number };
+}
 > {
 	try {
-		const nemis = new Nemis();
+		const nemis = new NemisWebService();
 		const cookie = await nemis.login(username, password);
 
 		let institution = await nemis.getInstitution();
