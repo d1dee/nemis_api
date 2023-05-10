@@ -1,21 +1,24 @@
 /*
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
-
+import { z as zod } from 'zod';
 import mongoose, { ObjectId } from 'mongoose';
 import {
 	completeLearnerSchema,
 	genderSchema,
 	gradesSchema,
+	nationalitiesSchema,
+	newInstitutionSchema,
+	usernamePasswordSchema
+} from '../../src/libs/zod_validation';
+import {
+	admissionApiResponseSchema,
+	admissionSchema,
 	institutionSchema,
 	listAdmittedLearnerSchema,
 	listLearnerSchema,
-	nationalitiesSchema,
-	newInstitutionSchema,
-	requestingJoiningLearnerSchema,
-	usernamePasswordSchema,
-	zod
-} from '../../src/libs/zod_validation';
+	requestingJoiningLearnerSchema
+} from '../../src/libs/nemis/validations';
 
 /**
  * Continuing learner_router for a database
@@ -65,8 +68,10 @@ export type ListAdmittedLearner = zod.infer<typeof listAdmittedLearnerSchema>;
 export type Grades = zod.infer<typeof gradesSchema>;
 export type Nationalities = zod.infer<typeof nationalitiesSchema>;
 export type Gender = zod.infer<typeof genderSchema>;
-
+export type AdmissionApiResults = zod.infer<typeof admissionSchema>;
 export type Institution = zod.infer<typeof institutionSchema>;
+
+export type AdmitApiResponses = zod.infer<typeof admissionApiResponseSchema>;
 
 export interface JoiningLearnerBiodata extends CompleteLearner {
 	postback: string;
