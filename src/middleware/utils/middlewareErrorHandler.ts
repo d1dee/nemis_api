@@ -4,11 +4,11 @@
 // @ts-nocheck
 import { NextFunction, Request, Response } from 'express';
 
-import { ExtendedRequest } from '../../interfaces';
+
 import CustomError from '../../libs/error_handler';
 import { ZodError } from 'zod';
 
-export default async (err, req: ExtendedRequest, res: Response, next: NextFunction) => {
+export default async (err, req: Request, res: Response, next: NextFunction) => {
 	if (!err) return next();
 	try {
 		if (err instanceof SyntaxError && 'body' in err) {
@@ -50,7 +50,7 @@ export function sendErrorMessage(req: Request, err: any) {
 	// Any other error return an 'Internal server error'
 	return req.sendResponse.error(
 		500,
-		'Internal server error. An unhandled error has been encountered.',
+		err.message || 'Internal server error. An unhandled error has been encountered.',
 		err.cause || { stack: err?.stack }
 	);
 }
