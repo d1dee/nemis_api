@@ -20,14 +20,14 @@ const validateExcel = (
 		if (workBook.SheetNames.length < 1) {
 			throw new CustomError(
 				'Invalid file format. No sheets with data were found.' +
-				'The workbook should have at least one sheet containing learner data.',
+					'The workbook should have at least one sheet containing learner data.',
 				400
 			);
 		}
 		if (workBook.SheetNames.length > 1) {
 			throw new CustomError(
 				'Invalid file format. More than one sheet was found.' +
-				'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
+					'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
 				400
 			);
 		}
@@ -61,13 +61,7 @@ const validateExcel = (
 const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: ZodIssue } => {
 	try {
 		completeLearnerSchema.superRefine((value, ctx) => {
-			if (value.continuing && !value?.birthCertificateNo) {
-				// Require a birth certificate if a continuing learner_router
-				ctx.addIssue({
-					code: zod.ZodIssueCode.custom,
-					message: 'Birth certificate is required when continuing is set to true.'
-				});
-			} else if (
+			if (
 				value.birthCertificateNo &&
 				value?.birthCertificateNo?.length < 7 &&
 				obj?.nationality === 'kenya'
@@ -87,8 +81,8 @@ const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: Zo
 			dob:
 				obj.dob instanceof Date
 					? (() =>
-						// Fix off by 1 Date error
-						obj.dob.setDate(obj.dob.getDate() + 1))()
+							// Fix off by 1 Date error
+							obj.dob.setDate(obj.dob.getDate() + 1))()
 					: obj.dob,
 			father: {
 				name: obj?.fatherName,
@@ -112,7 +106,7 @@ const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: Zo
 		} else {
 			return <CompleteLearner & { validationError: ZodIssue }>{
 				...obj,
-				validationError: validatedObject.error.issues
+				validationError: validatedObject.error.flatten().fieldErrors
 			};
 		}
 	} catch (err: any) {

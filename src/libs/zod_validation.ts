@@ -139,11 +139,12 @@ let completeLearnerSchema = zod.object({
 		.trim()
 		.refine(val => val !== 'undefined', 'Adm number can not be' + ' empty or undefined'),
 	name: fullNameSchema.trim(),
-	dob: zod.coerce.date({
-		required_error: "Learner's date of birth is required",
-		invalid_type_error:
-			'Invalidate dae was provided, make sure date of birth is in the format "YYYY/MM/DD"'
-	}),
+	dob: zod.coerce
+		.date({
+			invalid_type_error:
+				'Invalidate dae was provided, make sure date of birth is in the format "YYYY/MM/DD"'
+		})
+		.optional(),
 	grade: gradesSchema,
 	stream: zod.string().trim().optional(),
 	upi: zod.string().trim().min(4).optional(),
