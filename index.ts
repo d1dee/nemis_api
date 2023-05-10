@@ -38,7 +38,7 @@ app_init()
 			req.sendResponse.error(404, 'No endpoint matching: ' + req.path)
 		);
 		// /start express server and listen on port 3000 exporting the app
-		app.listen(3000, () => logger.debug('Server started on port 3000'));
+		app.listen(process.env.PORT || 3000, () => logger.debug('Server started on port 3000'));
 	})
 	.catch(err => {
 		logger.error(err);
