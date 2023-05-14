@@ -43,11 +43,7 @@ const getInstitution = (req: Request) => {
 	} catch (err: any) {
 		//Handle errors here and return a response
 		logger.error(err);
-		req.sendResponse.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || ''
-		);
+		sendErrorMessage(req, err);
 	}
 };
 
@@ -131,11 +127,7 @@ const deleteInstitution = async (req: Request) => {
 			);
 		}
 	} catch (err: any) {
-		req.sendResponse.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || ''
-		);
+		sendErrorMessage(req, err);
 	}
 };
 
