@@ -29,11 +29,6 @@ const getInstitution = (req: Request) => {
 			tokenExpiresAt: token.expires
 		});
 
-		//delete institution.password;
-		//delete institution._id;
-		//delete institution.__v;
-		//delete institution.cookie;
-
 		return response.respond({
 			...institution,
 			token: token.token,

@@ -12,12 +12,3 @@ institution.patch('/update', updateInstitution);
 institution.delete('/delete', deleteInstitution);
 
 export default institution;
-/**
- /institution (get for info, post for create, put for update, delete for delete)✅
- /list
- /admitted
- /transfer_out
- /transfer_in
- /issues (with specific filters)
- /search
- **/
