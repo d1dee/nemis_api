@@ -1,6 +1,6 @@
 import { Router } from 'express';
 //import { captureContinuingLearner } from "../../middleware/nemis/continuing";
-import { captureJoiningLearner } from '../../middleware/nemis/joining';
+import { captureJoiningLearner, captureSingleJoiningLearner } from '../../middleware/nemis/joining';
 
 const captureRoute = Router();
 /**
@@ -9,4 +9,6 @@ const captureRoute = Router();
 
 //captureRoute.post("/continuing", captureContinuingLearner);
 captureRoute.post('/joining', captureJoiningLearner);
+captureRoute.post('/joining/:uniqueIdentifier', captureSingleJoiningLearner);
+
 export { captureRoute };

@@ -8,6 +8,7 @@ import learner from '../../database/learner';
 import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
 import CustomError from '../../libs/error_handler';
 import { CaptureBiodataResponse, ListAdmittedLearner } from '../../../types/nemisApiTypes';
+import { uniqueIdentifierSchema } from '../../libs/zod_validation';
 
 const captureJoiningLearner = async (req: Request) => {
 	try {
@@ -156,4 +157,109 @@ const captureJoiningLearner = async (req: Request) => {
 	}
 };
 
-export { captureJoiningLearner };
+const captureSingleJoiningLearner = async (req: Request) => {
+	try {
+		let uniqueIdentifier = uniqueIdentifierSchema.parse(req.params?.uniqueIdentifier);
+
+		// Get learner who aren't captured from the database
+		const learnerNotCaptured = await learner.findOne({
+			continuing: false, // Only admit joining learners,
+			institutionId: req.institution._id,
+			indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
+			admitted: true,
+			birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
+			dob: { $exists: true },
+			$or: [
+				{ birthCertificateNo: { $eq: uniqueIdentifier } },
+				{ adm: { $eq: uniqueIdentifier } }
+			],
+			archived: false
+		});
+
+		if (!learnerNotCaptured) {
+			throw new CustomError(
+				'Learner is either not captured or admitted. Capture learner to the API then admit before calling this end point',
+				400
+			);
+		}
+
+		// Report if learner has reported and has upi
+		if (learnerNotCaptured?.upi && learnerNotCaptured?.reported) {
+			req.sendResponse.respond(
+				learnerNotCaptured,
+				"Learner' biodata has already been captured."
+			);
+			return;
+		}
+		// Get list of captured learners frm Nemis website
+		const nemis = new NemisWebService();
+		let cookie = await nemis.login(req.institution.username, req.institution.password);
+
+		let listCapturedLearners = await nemis.listLearners(learnerNotCaptured.grade);
+
+		// Check if learner is already captured
+		let listLearner = listCapturedLearners.filter(
+			x => x.birthCertificateNo === learnerNotCaptured.birthCertificateNo
+		);
+
+		// If learner has already been captured, send response and return
+		if (listLearner.length !== 0) {
+			Object.assign(learnerNotCaptured, {
+				reported: true,
+				upi: listLearner[0].upi,
+				error: undefined
+			});
+			await learnerNotCaptured.save();
+			req.sendResponse.respond(learnerNotCaptured, "Learner's biodata was already captured.");
+			return;
+		}
+
+		// Capture learners biodata if not captured
+		// Match learnerToCapture with respective postback
+		let admittedLearner = await nemis.listAdmittedJoiningLearners();
+
+		let admitted = admittedLearner.filter(x => x.indexNo === learnerNotCaptured.indexNo);
+		if (admitted.length === 0) {
+			Object.assign(learnerNotCaptured, { admitted: false });
+			await learnerNotCaptured.save();
+			throw new CustomError(
+				'Learner is not yet admitted to NEMIS. Make sure learner is admitted before trying to capture biodata',
+				400
+			);
+		}
+
+		// Capture biodata for the filtered learners
+		let res = await Promise.allSettled([
+			new NemisWebService(cookie, nemis.getState()).captureJoiningBiodata(
+				learnerNotCaptured,
+				admitted[0]
+			)
+		]);
+
+		// Update database with any errors and upi's captured
+		if (res[0].status === 'fulfilled') {
+			Object.assign(learnerNotCaptured, {
+				upi: res[0].value.upi,
+				reported: true,
+				error: undefined
+			});
+		} else {
+			Object.assign(learnerNotCaptured, {
+				reported: false,
+				error: res[0].reason?.message || 'Capture biodata failed with unhandled error'
+			});
+		}
+
+		await learnerNotCaptured.save();
+
+		req.sendResponse.respond(
+			learnerNotCaptured,
+			res[0].status === 'fulfilled'
+				? "Learner' biodata was captured successfully"
+				: "There was an error encountered while trying to capture learner' Bio data"
+		);
+	} catch (err: any) {
+		sendErrorMessage(req, err);
+	}
+};
+export { captureJoiningLearner, captureSingleJoiningLearner };
