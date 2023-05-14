@@ -181,7 +181,7 @@ let completeLearnerSchema = zod.object({
 	]),
 	nationality: nationalitiesSchema,
 	continuing: zod.boolean().default(false),
-	kcpeYear: zod.number().optional().default(new Date().getFullYear())
+	kcpeYear: zod.coerce.number(zod.string().min(4)).optional().default(new Date().getFullYear())
 });
 
 const uniqueIdentifierSchema = zod.string({
