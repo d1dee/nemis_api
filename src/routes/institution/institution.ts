@@ -7,18 +7,9 @@ import { deleteInstitution, getInstitution, updateInstitution } from "../../midd
 
 const institution = Router().use(json());
 
-institution.get("/", getInstitution);
-institution.patch("/update", updateInstitution);
-institution.delete("/delete", deleteInstitution);
-institution.use("/", (req: Request, res: Response, next: NextFunction) => {
-    let response = req.sendResponse;
-    if (!["GET", "PATCH", "DELETE"].includes(req.method)) {
-        return response.error(405, "Method not allowed", [
-            "Only GET,PATCH,DELETE requests are allowed on this route"
-        ]);
-    }
-    next();
-});
+institution.get('/', getInstitution);
+institution.patch('/update', updateInstitution);
+institution.delete('/delete', deleteInstitution);
 
 export default institution;
 /**
