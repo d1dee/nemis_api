@@ -42,16 +42,13 @@ const captureJoiningLearner = async (req: Request) => {
 		// Filter out learner who aren't captured on Nemis
 		let learnerToCapture: typeof learnerNotCaptured = [];
 		for (const learner of learnerNotCaptured) {
-			let listLearner = listCapturedLearners.filter(
+			let listLearner = listCapturedLearners.find(
 				x => x.birthCertificateNo === learner.birthCertificateNo
 			);
-			if (listLearner.length === 1) {
-				learner.upi = listLearner[0].upi;
+			if (listLearner) {
+				learner.upi = listLearner.upi;
 				learner.reported = true;
 				learner.error = undefined;
-			} else if (listLearner.length > 1) {
-				learner.error = `WARNING: Learner has been has been captured ${listLearner.length} times.`;
-				learnerToCapture.push(learner);
 			} else {
 				learnerToCapture.push(learner);
 			}
@@ -70,11 +67,9 @@ const captureJoiningLearner = async (req: Request) => {
 			let admittedLearner = await nemis.listAdmittedJoiningLearners();
 
 			for (let i = 0; i < learnerToCapture.length; i++) {
-				let admitted = admittedLearner.filter(
-					x => x.indexNo === learnerToCapture[i].indexNo
-				);
-				if (admitted.length === 1) {
-					learnerWithPostback.push([learnerToCapture[i], admitted[0]]);
+				let admitted = admittedLearner.find(x => x.indexNo === learnerToCapture[i].indexNo);
+				if (admitted) {
+					learnerWithPostback.push([learnerToCapture[i], admitted]);
 				} else {
 					learnerWithPostback.push([
 						learnerToCapture[i],
@@ -198,15 +193,15 @@ const captureSingleJoiningLearner = async (req: Request) => {
 		let listCapturedLearners = await nemis.listLearners(learnerNotCaptured.grade);
 
 		// Check if learner is already captured
-		let listLearner = listCapturedLearners.filter(
+		let listLearner = listCapturedLearners.find(
 			x => x.birthCertificateNo === learnerNotCaptured.birthCertificateNo
 		);
 
 		// If learner has already been captured, send response and return
-		if (listLearner.length !== 0) {
+		if (listLearner) {
 			Object.assign(learnerNotCaptured, {
 				reported: true,
-				upi: listLearner[0].upi,
+				upi: listLearner.upi,
 				error: undefined
 			});
 			await learnerNotCaptured.save();
@@ -218,8 +213,8 @@ const captureSingleJoiningLearner = async (req: Request) => {
 		// Match learnerToCapture with respective postback
 		let admittedLearner = await nemis.listAdmittedJoiningLearners();
 
-		let admitted = admittedLearner.filter(x => x.indexNo === learnerNotCaptured.indexNo);
-		if (admitted.length === 0) {
+		let admitted = admittedLearner.find(x => x.indexNo === learnerNotCaptured.indexNo);
+		if (!admitted) {
 			Object.assign(learnerNotCaptured, { admitted: false });
 			await learnerNotCaptured.save();
 			throw new CustomError(
@@ -232,7 +227,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
 		let res = await Promise.allSettled([
 			new NemisWebService(cookie, nemis.getState()).captureJoiningBiodata(
 				learnerNotCaptured,
-				admitted[0]
+				admitted
 			)
 		]);
 
