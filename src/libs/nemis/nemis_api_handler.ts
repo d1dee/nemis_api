@@ -51,6 +51,16 @@ class NemisApiService {
 
 			return searchLearnerSchema.parse(lowerCaseAllValues(apiResponse, { keys: true }));
 		} catch (err) {
+			if (err instanceof AxiosError) {
+				if (err.response) {
+					throw new CustomError(
+						'Learner not found with a ' + err.response.status + ' HTTP error.',
+						undefined,
+						undefined,
+						err
+					);
+				}
+			}
 			throw err;
 		}
 	}
