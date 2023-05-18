@@ -45,7 +45,7 @@ export function sendErrorMessage(req: Request, err: any) {
 			}
 		);
 	if (err instanceof ZodError)
-		return req.sendResponse.error(422, 'Validation error', err.format());
+		return req.sendResponse.error(422, 'Validation error', err.flatten().fieldErrors);
 	// Any other error return an 'Internal server error'
 	return req.sendResponse.error(
 		500,
