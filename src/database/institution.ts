@@ -90,8 +90,11 @@ export default mongoose.model(
 			enum: INSTITUTION_CATEGORY
 		},
 		educationLevel: {
-			type: String,
-			enum: INSTITUTION_LEVEL
+			description: {
+				type: String,
+				enum: INSTITUTION_LEVEL
+			},
+			code: Number
 		},
 		institutionMobility: {
 			type: String,

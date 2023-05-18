@@ -384,7 +384,16 @@ const institutionSchema = zod.object({
 	registrationStatus: zod.string().trim().pipe(zod.enum(INSTITUTION_REGISTRATION_STATUS)),
 	accommodation: zod.string().trim().pipe(zod.enum(INSTITUTION_ACCOMMODATION_TYPE)),
 	category: zod.string().trim().pipe(zod.enum(INSTITUTION_CATEGORY)),
-	educationLevel: zod.string().trim().pipe(zod.enum(INSTITUTION_LEVEL)),
+	educationLevel: zod
+		.string()
+		.trim()
+		.pipe(zod.enum(INSTITUTION_LEVEL))
+		.transform(level => {
+			return {
+				description: level,
+				code: INSTITUTION_LEVEL.findIndex(x => level === x) + 1
+			};
+		}),
 	institutionMobility: zod.string().trim().pipe(zod.enum(INSTITUTION_MOBILITY_TYPE)),
 	residence: zod.string().trim().pipe(zod.enum(INSTITUTION_RESIDENCE)),
 	educationSystem: zod.string().trim().pipe(zod.enum(EDUCATION_SYSTEM)),
