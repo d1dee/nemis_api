@@ -4,7 +4,6 @@
 // @ts-nocheck
 import { NextFunction, Request, Response } from 'express';
 
-
 import CustomError from '../../libs/error_handler';
 import { ZodError } from 'zod';
 
