@@ -8,11 +8,15 @@ import { admissionApiResponseSchema, searchLearnerSchema } from './validations';
 
 class NemisApiService {
 	private axiosInstance;
+	private userAgent =
+		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36';
 
 	constructor() {
 		this.axiosInstance = axios.create({
 			baseURL: 'http://nemis.education.go.ke/generic2' // https is not supported
 		});
+
+		this.axiosInstance.defaults.headers.common['User-Agent'] = this.userAgent;
 
 		if (process.env.NEMIS_API_AUTH) {
 			this.axiosInstance.defaults.headers.common['Authorization'] =
@@ -24,7 +28,9 @@ class NemisApiService {
 
 	async homepageApi(code: string) {
 		try {
-			let schoolDashboard = (await this.axiosInstance.get('/api/SchDashboard/' + code)).data;
+			let schoolDashboard = (
+				await this.axiosInstance.get('/api/SchDashboard/' + encodeURIComponent(code))
+			).data;
 			return { schoolDashboard: schoolDashboard };
 		} catch (err) {
 			throw new CustomError('Failed to get homepage apis. Try again later.', 500);
@@ -42,7 +48,9 @@ class NemisApiService {
 			upiOrBirthCertificateNo = upiOrBirthCertificateNo.trim();
 
 			const apiResponse = (
-				await this.axiosInstance.get(`/api/Learner/StudUpi/${upiOrBirthCertificateNo}`)
+				await this.axiosInstance.get(
+					`/api/Learner/StudUpi/${encodeURIComponent(upiOrBirthCertificateNo)}`
+				)
 			)?.data;
 
 			if (typeof apiResponse !== 'object' || Array.isArray(apiResponse)) {
@@ -84,10 +92,12 @@ class NemisApiService {
 			}
 
 			let apiResponses = await Promise.allSettled([
-				this.axiosInstance.get('/api/FormOne/Results/' + indexNo),
-				this.axiosInstance.get('/api/FormOne/admission/' + indexNo),
-				this.axiosInstance.get('/api/FormOne/reported/xxx/' + indexNo),
-				this.axiosInstance.get('/api/FormOne/reportedCaptured/' + indexNo)
+				this.axiosInstance.get('/api/FormOne/Results/' + encodeURIComponent(indexNo)),
+				this.axiosInstance.get('/api/FormOne/admission/' + encodeURIComponent(indexNo)),
+				this.axiosInstance.get('/api/FormOne/reported/xxx/' + encodeURIComponent(indexNo)),
+				this.axiosInstance.get(
+					'/api/FormOne/reportedCaptured/' + encodeURIComponent(indexNo)
+				)
 			]);
 
 			// Check if at least one endpoint responded, if not throw an error to reject promise
