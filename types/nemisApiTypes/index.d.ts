@@ -17,7 +17,8 @@ import {
 	institutionSchema,
 	listAdmittedLearnerSchema,
 	listLearnerSchema,
-	requestingJoiningLearnerSchema
+	requestingJoiningLearnerSchema,
+	searchLearnerSchema
 } from '../../src/libs/nemis/validations';
 
 /**
@@ -72,6 +73,7 @@ export type AdmissionApiResults = zod.infer<typeof admissionSchema>;
 export type Institution = zod.infer<typeof institutionSchema>;
 
 export type AdmitApiResponses = zod.infer<typeof admissionApiResponseSchema>;
+export type SearchLearnerApiResponses = zod.infer<typeof searchLearnerSchema>;
 
 export interface JoiningLearnerBiodata extends CompleteLearner {
 	postback: string;
