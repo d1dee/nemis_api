@@ -228,11 +228,11 @@ const captureContinuingLearner = async (req: Request) => {
 
 		// Get errors saved in the database
 		let learnerErrors = await learner.find({
-			error: { $exist: true, $nin: [null, undefined, '', 0], $type: 'string' }
+			error: { $nin: [null, undefined, '', 0], $type: 'string' }
 		});
 
 		req.sendResponse.respond(
-			learnerErrors.length < 0 ? learnerErrors : updateLearner,
+			learnerErrors.length > 0 ? learnerErrors : updateLearner,
 			`Operation completed successfully ${
 				learnerErrors.length > 0 ? 'with below errors' : ''
 			}`
