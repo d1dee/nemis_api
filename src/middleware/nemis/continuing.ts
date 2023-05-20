@@ -221,7 +221,7 @@ const captureContinuingLearner = async (req: Request) => {
 				birthCertificateNo: { $in: [null, undefined, ''] },
 				error: { $in: [null, undefined, ''] }
 			},
-			{ error: 'Lerner has no birth certificate number.' }
+			{ error: 'Learner has no birth certificate number.' }
 		);
 
 		if (updateLearner.length > 0) await Promise.all(updateLearner.map(x => x.save()));
