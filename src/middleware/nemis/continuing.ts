@@ -84,6 +84,7 @@ const captureContinuingLearner = async (req: Request) => {
 				updateLearner.push(
 					Object.assign(continuingLearners[i], {
 						upi: foundLearnerUpi.upi,
+						admitted: true,
 						reported: true,
 						error: null
 					})
@@ -200,6 +201,7 @@ const captureContinuingLearner = async (req: Request) => {
 			let learner = captureLearner[index];
 			if (res.status === 'fulfilled') {
 				Object.assign(learner[0], {
+					admitted: true,
 					reported: true,
 					upi: res.value?.upi,
 					error: undefined
