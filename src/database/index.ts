@@ -13,29 +13,35 @@ mongoose.set('bufferCommands', false);
 mongoose.set('strictQuery', true);
 mongoose.set('autoIndex', true);
 
-// @ts-ignore
 export default async (dbUrl: string) => {
 	try {
-		// Connect db
 		await mongoose.connect(dbUrl);
+
 		// Sync indexes
 		const models = [token_model, learner_model, institution_model, continuing_learner];
 		const syncIndexes = await Promise.allSettled(models.map(x => x.createIndexes()));
-		let indexSyncErrors = [],
-			i = 0;
-		for (const x of syncIndexes) {
-			if (x.status != 'rejected') continue;
-			if (x.reason?.code === 86) {
-				// If indexes failed, drop indexes and create new indexes
-				logger.debug('Dropping indexes');
-				await models[i].collection.dropIndexes();
-				indexSyncErrors.push(models[i].createIndexes());
+
+		let indexSyncErrors = [] as Promise<void>[];
+
+		let i = 0;
+
+		for (const index of syncIndexes) {
+			if (index.status === 'fulfilled') {
+				i++;
+				continue;
 			}
+
+			// If indexes failed, drop indexes and create new indexes
+			logger.debug('Dropping indexes');
+
+			await models[i].collection.dropIndexes();
+			indexSyncErrors.push(models[i].createIndexes());
 			i++;
 		}
+
 		// Await new indexes to be created
-		await Promise.all(indexSyncErrors);
-		logger.info('indexes synced');
+		if (indexSyncErrors.length > 0) await Promise.all(indexSyncErrors);
+		logger.info('Synced indexes');
 	} catch (err) {
 		throw err;
 	}
