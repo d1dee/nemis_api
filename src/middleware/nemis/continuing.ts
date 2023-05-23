@@ -9,6 +9,7 @@ import CustomError from '../../libs/error_handler';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
 import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
+import { uniqueIdentifierSchema } from '../../libs/zod_validation';
 
 const captureContinuingLearner = async (req: Request) => {
 	try {
@@ -243,4 +244,171 @@ const captureContinuingLearner = async (req: Request) => {
 		sendErrorMessage(req, err);
 	}
 };
-export { captureContinuingLearner };
+
+const captureSingleContinuingLearner = async (req: Request) => {
+	try {
+		let uniqueIdentifier = uniqueIdentifierSchema.parse(req.params?.uniqueIdentifier);
+
+		let learnerToCapture = await learner.findOne({
+			$or: [{ birthCertificateNo: uniqueIdentifier }, { adm: uniqueIdentifier }],
+			institutionId: req.institution._id,
+			continuing: true,
+			archived: false
+		});
+
+		if (!learnerToCapture) {
+			throw new CustomError(
+				'There are no valid learners to capture. Please add learners to the database before continuing.',
+				400,
+				'no_valid_learner_to_capture'
+			);
+		}
+
+		if (learnerToCapture.reported) {
+			req.sendResponse.respond(
+				learnerToCapture,
+				'Learner has already reported to your institution.'
+			);
+			return;
+		}
+
+		if (!learnerToCapture.birthCertificateNo) {
+			if (!learnerToCapture.error) {
+				learnerToCapture.error = 'Learner has no birth certificate number.';
+				await learnerToCapture.save();
+			}
+
+			req.sendResponse.respond(
+				learnerToCapture,
+				'Learner has has no birth certificate number.'
+			);
+			return;
+		}
+
+		let nemisApi = await Promise.allSettled([
+			new NemisApiService().searchLearner(encodeURI(learnerToCapture.birthCertificateNo))
+		]);
+
+		let transferLearner = [];
+		let capture = false;
+
+		let apiResponse = nemisApi[0];
+
+		if (apiResponse.status === 'fulfilled') {
+			let res = apiResponse.value;
+
+			switch (true) {
+				// Not a learner
+				case res.learnerCategory?.code === '0': {
+					capture = true;
+					break;
+				}
+
+				// Current learner
+				case res.learnerCategory?.code === '1': {
+					let curInst = res.currentInstitution;
+					if (!curInst.level || !curInst.code) {
+						capture = true;
+						break;
+					}
+					// If learner is admitted in thi school, update
+					if (curInst.code === req.institution.code) {
+						Object.assign(learnerToCapture, {
+							upi: res.upi || undefined,
+							admitted: true,
+							reported: !!res.upi,
+							error: undefined,
+							nhifNNo: res.nhifNo || undefined
+						});
+						break;
+					}
+
+					// If institution is of lower level than this institution, use capture learner
+					// 'ECDE' < 'Primary' < 'Secondary' < 'TTC' < 'TVET' < 'JSS' < 'A-Level' < 'Pre-vocational'
+					if (curInst.level < String(req.institution.educationLevel.code)) {
+						capture = true;
+						break;
+					}
+
+					// If both institutions are at the same level
+					if (curInst.level === String(req.institution.educationLevel.code)) {
+						// Use Regexp to check how many names match
+						let regexName = learnerToCapture.name.match(
+							new RegExp(res.name.replaceAll(' ', '|'), 'gi')
+						);
+
+						// if api learner's gender is the same as learner, and at least two names are the same; transfer learner
+						if (
+							res.gender === learnerToCapture.gender &&
+							regexName &&
+							regexName.length > 1
+						)
+							transferLearner.push([learnerToCapture, res]);
+						// Else capture error
+						else
+							Object.assign(learnerToCapture, {
+								error: `learner birth certificate is in use by another learner; ${
+									res.name
+								}, ${res.gender}, ${res.upi || ''} at ${curInst}`
+							});
+
+						break;
+					}
+					// verify if it is possible to capture higher level learners
+					capture = true;
+					break;
+				}
+
+				// Alumni
+				case res.learnerCategory?.code === '2': {
+					console.debug([res, learnerToCapture]);
+					break;
+				}
+			}
+		} else {
+			capture = true;
+		}
+
+		if (!capture) {
+			//return early with reason
+			console.log(learnerToCapture);
+			return;
+		}
+
+		let nemis = new NemisWebService();
+		await nemis.login(req.institution.username, req.institution.password);
+
+		let captureBiodataPromise = await Promise.allSettled([
+			nemis.addContinuingLearner(learnerToCapture)
+		]);
+
+		// Return an update for each continuingLearner
+		let res = captureBiodataPromise[0];
+
+		if (res.status === 'fulfilled') {
+			Object.assign(learnerToCapture, {
+				admitted: true,
+				reported: true,
+				upi: res.value?.upi,
+				error: undefined
+			});
+		} else {
+			Object.assign(learnerToCapture, {
+				reported: false,
+				error: res.reason?.message || 'Error while capturing learner biodata'
+			});
+		}
+
+		// Save changes made to learner
+		await learnerToCapture.save();
+
+		req.sendResponse.respond(
+			learnerToCapture,
+			`Operation completed successfully ${learnerToCapture.error ? 'with below errors' : ''}`
+		);
+	} catch (err) {
+		sendErrorMessage(req, err);
+	}
+};
+
+export { captureContinuingLearner, captureSingleContinuingLearner };
