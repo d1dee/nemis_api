@@ -250,7 +250,10 @@ const captureSingleContinuingLearner = async (req: Request) => {
 		let uniqueIdentifier = uniqueIdentifierSchema.parse(req.params?.uniqueIdentifier);
 
 		let learnerToCapture = await learner.findOne({
-			$or: [{ birthCertificateNo: uniqueIdentifier }, { adm: uniqueIdentifier }],
+			$or: [
+				{ birthCertificateNo: { $eq: uniqueIdentifier } },
+				{ adm: { $eq: uniqueIdentifier } }
+			],
 			institutionId: req.institution._id,
 			continuing: true,
 			archived: false

@@ -55,7 +55,7 @@ const addLearnerByJson = async (req: Request) => {
 			throw new CustomError('Validation error. ' +
 				'One or more fields failed validation. Please check the following errors', 400, 'validation_error', validatedLearner);
 		}
-		let insertedDocs = await learner.findOneAndUpdate({ adm: validatedLearner.adm },
+		let insertedDocs = await learner.findOneAndUpdate({ adm: { $eq: validatedLearner.adm } },
 			{
 				...validatedLearner,
 				institutionId: req.institution._id,
