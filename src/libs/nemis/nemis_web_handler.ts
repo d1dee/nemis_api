@@ -14,6 +14,7 @@ import {
 	Institution,
 	ListAdmittedLearner,
 	ListLearner,
+	NemisLearnerFromDb,
 	RequestedJoiningLearner,
 	RequestingJoiningLearner,
 	RequestingLearner,
@@ -390,9 +391,9 @@ class NemisWebService {
 				) {
 					writeFileSync(
 						process.cwd() +
-							'/debug/html/post_Learner_Studindexchk.aspx' +
-							learner.adm +
-							'.html',
+						'/debug/html/post_Learner_Studindexchk.aspx' +
+						learner.adm +
+						'.html',
 						(await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data
 					);
 					throw { message: message || 'Failed to admit learner_router.' };
@@ -405,7 +406,7 @@ class NemisWebService {
 				postHtml?.data
 			);
 
-			throw new CustomError("Couldn't redirect to admit learner", 500);
+			throw new CustomError('Couldn\'t redirect to admit learner', 500);
 		} catch (err) {
 			throw err;
 		}
@@ -518,7 +519,7 @@ class NemisWebService {
 			)?.outerHTML;
 			if (!defferedLearner)
 				throw {
-					message: "Couldn't parse defffered learner_router table.",
+					message: 'Couldn\'t parse defffered learner_router table.',
 					cause: 'defferedLearnerHtml is undefined'
 				};
 			let differedJson = tableToJson.convert(differedTableHtml).map(x => {
@@ -561,11 +562,11 @@ class NemisWebService {
 						ctl00$ContentPlaceHolder1$txtName: requestingLearner?.name,
 						ctl00$ContentPlaceHolder1$txtReq: 1,
 						ctl00$ContentPlaceHolder1$txtSName:
-							requestingLearner?.schoolAdmitted?.originalString,
+						requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSName2:
-							requestingLearner?.schoolAdmitted?.originalString,
+						requestingLearner?.schoolAdmitted?.originalString,
 						ctl00$ContentPlaceHolder1$txtSchool:
-							requestingLearner?.schoolSelected?.code,
+						requestingLearner?.schoolSelected?.code,
 						ctl00$ContentPlaceHolder1$txtSearch: requestingLearner?.indexNo,
 						ctl00$ContentPlaceHolder1$txtStatus: ''
 					})
@@ -582,7 +583,7 @@ class NemisWebService {
 					};
 				else
 					throw {
-						message: "Failed to redirect to '/Learner/Studindexreq.aspx'.",
+						message: 'Failed to redirect to \'/Learner/Studindexreq.aspx\'.',
 						cause: requestingLearner
 					};
 			}
@@ -624,12 +625,12 @@ class NemisWebService {
 			else
 				await writeFileSync(
 					process.cwd() +
-						'/debug/html/posting_request_' +
-						requestingLearner.indexNo +
-						'.html',
+					'/debug/html/posting_request_' +
+					requestingLearner.indexNo +
+					'.html',
 					postHtml
 				);
-			throw { message: "Couldn't parse any error message. Saved response file for debug" };
+			throw { message: 'Couldn\'t parse any error message. Saved response file for debug' };
 		} catch (err) {
 			throw err;
 		}
@@ -667,7 +668,7 @@ class NemisWebService {
 							};
 						})(),
 						requestedBy: <string>x['Request Description'],
-						parentId: <string>x["Parent's IDNo"],
+						parentId: <string>x['Parent\'s IDNo'],
 						parentTel: <string>x['Mobile No'],
 						dateCaptured: <string>x['Date Captured'],
 						approved: {
@@ -721,7 +722,7 @@ class NemisWebService {
 							};
 						})(),
 						requestedBy: x['Request Description'],
-						parentId: x["Parent's IDNo"],
+						parentId: x['Parent\'s IDNo'],
 						parentTel: x['Mobile No'],
 						dateCaptured: x['Date Captured'],
 						approved: {
@@ -986,7 +987,7 @@ class NemisWebService {
 			if (!learner?.birthCertificateNo)
 				throw new CustomError(
 					'Learner birth certificate number was not provided. ' +
-						'Can not capture biodata without learners birth certificate number',
+					'Can not capture biodata without learners birth certificate number',
 					400
 				);
 			if (!learner.dob) {
@@ -1021,7 +1022,7 @@ class NemisWebService {
 				?.data;
 
 			if (!/^.+updatePanel\|ctl00_ContentPlaceHolder1_UpdatePanel1/g.test(aLearnerHtml)) {
-				throw new CustomError("Failed to submit learner's county.", 500);
+				throw new CustomError('Failed to submit learner\'s county.', 500);
 			}
 
 			let formDataObject = {};
@@ -1364,9 +1365,9 @@ class NemisWebService {
 				if (!parsedReturnObject.nhifNo)
 					throw {
 						message:
-							"Failed to get nhif number since successMessage doesn't contain a" +
+							'Failed to get nhif number since successMessage doesn\'t contain a' +
 							' number',
-						cause: "Couldn't find nhif number on the returned page"
+						cause: 'Couldn\'t find nhif number on the returned page'
 					};
 				return parsedReturnObject;
 			};
@@ -1377,7 +1378,7 @@ class NemisWebService {
 					alertHtml: string | undefined;
 					message: string;
 				}>[]
-			>await Promise.allSettled(learnersWithoutNhif.map(x => postNhif(x)));
+				>await Promise.allSettled(learnersWithoutNhif.map(x => postNhif(x)));
 			return submitNhifPromise
 				.map((x, i) => {
 					if (x.status === 'fulfilled') {
@@ -1565,7 +1566,7 @@ class NemisWebService {
 			)?.outerHTML;
 			if (!table)
 				throw {
-					message: "Couldn't parse table element."
+					message: 'Couldn\'t parse table element.'
 				};
 			let firstTableElement = tableToJson
 				.convert(table, { stripHtml: false })
@@ -1694,7 +1695,7 @@ class NemisWebService {
 			}
 			logger.error('View sate not saved');
 			writeFileSync(process.cwd() + '/debug/html/view_state_error.hmtl', data);
-			throw new CustomError("Couldn't find any view state data.", 500);
+			throw new CustomError('Couldn\'t find any view state data.', 500);
 		}
 	}
 
