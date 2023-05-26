@@ -4,7 +4,7 @@
 
 import { JwtPayload } from 'jsonwebtoken';
 import send_response from '../../src/middleware/utils/send_response';
-import { DbInstitution, QueryParams, TokenFromDb } from '../nemisApiTypes';
+import { DatabaseInstitution, QueryParams, DatabaseToken } from '../nemisApiTypes';
 import { NemisWebService } from '../../src/libs/nemis/nemis_web_handler';
 
 declare module 'express-serve-static-core' {
@@ -22,8 +22,8 @@ declare module 'express-serve-static-core' {
 		nemis: NemisWebService;
 		isValidToken: boolean;
 		decodedToken: JwtPayload;
-		institution: DbInstitution;
-		token: TokenFromDb;
+		institution: DatabaseInstitution,
+		token: DatabaseToken;
 		sendResponse: send_response;
 		queryParams: QueryParams;
 	}

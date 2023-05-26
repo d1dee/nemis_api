@@ -2,15 +2,8 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 import { z as zod } from 'zod';
-import mongoose, { ObjectId } from 'mongoose';
-import {
-	completeLearnerSchema,
-	genderSchema,
-	gradesSchema,
-	nationalitiesSchema,
-	newInstitutionSchema,
-	usernamePasswordSchema
-} from '../../src/libs/zod_validation';
+import mongoose, { Document } from 'mongoose';
+import { completeLearnerSchema, genderSchema, gradesSchema, nationalitiesSchema } from '../../src/libs/zod_validation';
 import {
 	admissionApiResponseSchema,
 	admissionSchema,
@@ -25,7 +18,7 @@ import {
  * Continuing learner_router for a database
  */
 export type ContinuingLearnerType = Omit<NemisLearnerFromDb, 'ObjectId'> & {
-	institutionId: ObjectId;
+	institutionId: mongoose.Types.ObjectId;
 	continuing: boolean;
 	birthCertificateNo: string;
 	indexNo: string;
@@ -44,8 +37,6 @@ export type CompleteLearner = zod.infer<typeof completeLearnerSchema>;
 export type CompleteDatabaseLearner = CompleteLearner & {
 	error?: string;
 	nemisApiResultsId?: mongoose.Types.ObjectId;
-	_id: mongoose.Types.ObjectId;
-	__v?: number;
 	institutionId: mongoose.Types.ObjectId;
 	admitted?: boolean;
 	reported?: boolean;
@@ -88,32 +79,29 @@ export interface JoiningLearnerBiodata extends CompleteLearner {
 
 export type CaptureBiodataResponse = { upi?: string; message: string; alertMessage?: string };
 
-export type UsernamePassword = zod.infer<typeof usernamePasswordSchema>;
-export type RegisterNewInstitution = zod.infer<typeof newInstitutionSchema>;
-
-export interface TokenFromDb {
-	_id: mongoose.Types.ObjectId;
+export interface DatabaseInstitution extends Institution, Document {
+	username: string;
+	password: string;
 	createdAt: Date;
-	expires: Date;
-	archived: boolean;
-	token: string;
-	tokenSecret: string;
-	institutionId: mongoose.Types.ObjectId;
-	revoked: {
-		on?: Date;
-		by?: mongoose.Schema.Types.ObjectId;
-		reason?: string;
-	};
+	lastLogin: Date;
+	token?: mongoose.Types.ObjectId;
+	// Ids of all previous tokens
+	revokedTokens: mongoose.Types.ObjectId[];
+	isArchived: boolean;
 }
 
-export interface JWTToken {
-	iat: number;
-	exp: number;
-	id: string;
-	cookie: {
-		value: string;
-		expires: string;
+export interface DatabaseToken extends Document {
+	token?: string;
+	tokenSecret: string;
+	createdAt: Date;
+	expires: Date;
+	institutionId: mongoose.Types.ObjectId;
+	revoked?: {
+		on?: Date;
+		by?: mongoose.Types.ObjectId;
+		reason?: String;
 	};
+	archived: boolean;
 }
 
 export interface QueryParams {
@@ -132,19 +120,6 @@ export interface QueryParams {
 	await?: boolean;
 	ignoreNonEssentialBlanks?: boolean;
 	stream?: string;
-}
-
-export interface SetCookie {
-	domain?: string;
-	encode?: Function;
-	expires?: Date;
-	httpOnly?: boolean;
-	maxAge?: number;
-	path?: string;
-	secure?: boolean;
-	signed?: boolean;
-	sameSite?: boolean;
-	or?: string;
 }
 
 export interface RequestingLearner extends BasicName {
@@ -206,11 +181,9 @@ export interface NemisLearner extends BasicLearner, Contacts, Counties {
 	kcpeYear?: number;
 }
 
-export interface NemisLearnerFromDb extends NemisLearner {
+export interface NemisLearnerFromDb extends NemisLearner, Document {
 	error?: string;
 	nemisApiResultsId?: mongoose.Types.ObjectId;
-	_id: mongoose.Types.ObjectId;
-	__v?: number;
 	institutionId: mongoose.Types.ObjectId;
 	admitted?: boolean;
 	reported?: boolean;
@@ -220,29 +193,6 @@ export interface BasicName {
 	surname: string;
 	firstname: string;
 	otherName: string;
-}
-
-// Institution
-interface Location {
-	constituency?: string;
-	zone?: string;
-	ward?: string;
-	plusCode?: string;
-}
-
-export interface DbInstitution extends Institution {
-	_id: mongoose.Types.ObjectId;
-	username: string;
-	cookie?: {
-		value: string;
-		expires: number;
-	};
-	password: string;
-	createdAt: string;
-	lastLogin: string;
-	token: mongoose.Types.ObjectId;
-	revokedTokens?: [mongoose.Types.ObjectId];
-	isArchived: boolean;
 }
 
 export interface SelectedLearner {
