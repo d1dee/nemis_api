@@ -12,6 +12,7 @@ import CustomError from '../../libs/error_handler';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 import { DatabaseInstitution } from '../../../types/nemisApiTypes';
 
+// todo replace with passport
 export default async (req: Request, res: Response, next: NextFunction) => {
 	try {
 		// If a path is /api/auth/register , skip auth middleware
@@ -23,73 +24,94 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 
 		const authMethod = <string | undefined>req.headers?.authorization?.split(' ')[0];
 		const token = <string | undefined>req.headers?.authorization?.split(' ')[1];
+
 		if (!authMethod || authMethod != 'Bearer' || !token) {
-			throw {
-				code: 403,
-				message: 'Forbidden. Invalid auth method or token',
-				cause: 'Token must be of type Bearer'
-			};
+			throw new CustomError(
+				'Forbidden. Invalid auth method or token. Toke must be if type Bearer',
+				403
+			);
 		}
+
 		logger.info('Token received, verifying');
 		logger.debug('Token: ' + token);
+
 		if (!token) {
-			throw {
-				code: 403,
-				message: 'Forbidden, token is undefined',
-				cause: 'An empty token was received'
-			};
+			throw new CustomError(
+				'Forbidden, token is undefined. An empty token was received.',
+				403
+			);
 		}
-		//Get token value to check if it's revoked
+
+		// Get token value to check if it's revoked
 		let decodedToken = decode(token);
+
 		if (
 			!decodedToken ||
 			typeof decodedToken === 'string' ||
-			!decodedToken?.id ||
-			!mongoose.isValidObjectId(decodedToken.id)
+			!mongoose.isValidObjectId(decodedToken?.id)
 		) {
-			throw new CustomError('Forbidden. Invalid token. Token does not contain an id or id is an invalid mongoose _id', 403);
-		}
-		let tokenFromDb = <TokenFromDb | undefined>(
-			await tokenSchema.findById(decodedToken.id).lean()
-		);
-		if (!tokenFromDb) {
-			throw { code: 403, message: 'Forbidden. Invalid token' };
-		}
-		if (tokenFromDb.archived || tokenFromDb.revoked) {
 			throw new CustomError(
-				'Forbidden. This token is archived, please refresh token or contact your administrator',
-				403,
-				'revoked_token'
+				'Forbidden. Invalid token. Token does not contain an id or id is an invalid mongoose _id',
+				403
 			);
 		}
-		if (!tokenFromDb.tokenSecret) {
-			logger.warn('Token secret is missing');
-			throw new CustomError('Token secret is missing.', 500, 'internal_server_error');
+
+		let tokenFromDb = await tokenSchema.findById(decodedToken.id);
+
+		if (!tokenFromDb) {
+			throw new CustomError('Forbidden, invalid token.', 403);
 		}
+
+		switch (true) {
+			case tokenFromDb.archived:
+				throw new CustomError(
+					'Forbidden. This token is archived, please refresh token or contact your administrator',
+					403
+				);
+
+			case tokenFromDb.revoked:
+				throw new CustomError(
+					'Forbidden. This token is revoked, please re-register institution to get a new token or contact your administrator',
+					403
+				);
+
+			case !tokenFromDb.tokenSecret:
+				logger.warn('Token secret is missing');
+				throw new CustomError('Token secret is missing.', 500, 'internal_server_error');
+
+			case Date.parse(tokenFromDb.expires.toString()) < Date.now():
+				logger.debug('Token has expired');
+				throw new CustomError('Forbidden. Token has expired, please refresh', 403);
+		}
+
 		if (req.path === '/api/auth/refresh') {
 			logger.debug('Token refresh');
-			req.token = tokenFromDb;
+
+			req.token = tokenFromDb.toObject();
+
 			req.decodedToken = decodedToken;
+
 			return next();
-		} else if (Date.parse(tokenFromDb.expires.toString()) < Date.now()) {
-			logger.debug('Token has expired');
-			throw { code: 403, message: 'Forbidden. Token has expired, please refresh' };
 		}
 
 		//Verify the token
 		let verifiedToken = verify(token, tokenFromDb.tokenSecret);
+
 		if (!verifiedToken || typeof verifiedToken === 'string') {
 			throw new CustomError('Forbidden. Invalid token. Token must be of type Bearer', 403);
 		}
+
 		logger.debug('Token verifiedToken');
 		logger.debug('Token: ' + JSON.stringify(verifiedToken));
+
 		// Find an institution in the token
-		let institution = <DbInstitution>(
-			await institution_schema.findById(tokenFromDb?.institutionId).lean()
-		);
+		let institution = await institution_schema.findById(tokenFromDb?.institutionId);
+
 		if (!institution) {
-			throw new CustomError(`Institution not found Institution with id ${tokenFromDb?.institutionId?.toString()} not found.`
-				, 404);
+			throw new CustomError(
+				`Institution not found Institution with id ${tokenFromDb?.institutionId?.toString()} not found.`,
+				404
+			);
 		}
 
 		req.institution = <DatabaseInstitution>institution;
