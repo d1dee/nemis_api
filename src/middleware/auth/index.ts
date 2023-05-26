@@ -7,10 +7,10 @@ import { decode, JsonWebTokenError, TokenExpiredError, verify } from 'jsonwebtok
 import mongoose from 'mongoose';
 import institution_schema from '../../database/institution';
 import tokenSchema from '../../database/token';
-import { DbInstitution, TokenFromDb } from '../../../types/nemisApiTypes';
 import logger from '../../libs/logger';
 import CustomError from '../../libs/error_handler';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { DatabaseInstitution } from '../../../types/nemisApiTypes';
 
 export default async (req: Request, res: Response, next: NextFunction) => {
 	try {

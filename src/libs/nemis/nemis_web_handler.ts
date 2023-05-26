@@ -14,7 +14,6 @@ import {
 	Institution,
 	ListAdmittedLearner,
 	ListLearner,
-	NemisLearnerFromDb,
 	RequestedJoiningLearner,
 	RequestingJoiningLearner,
 	RequestingLearner,

@@ -1,10 +1,10 @@
-import { DbInstitution, ListLearner } from '../../types/nemisApiTypes';
+import { DatabaseInstitution, ListLearner } from '../../types/nemisApiTypes';
 import { NemisWebService } from './nemis/nemis_web_handler';
 import { GRADES } from './zod_validation';
 import learner from '../database/learner';
 import logger from './logger';
 
-const sync = async (institution: DbInstitution) => {
+const sync = async (institution: DatabaseInstitution) => {
 	try {
 		// todo: move this run this in a separate thread?
 		console.time('sync');
