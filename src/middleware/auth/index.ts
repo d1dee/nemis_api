@@ -69,7 +69,7 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 					403
 				);
 
-			case tokenFromDb.revoked:
+			case tokenFromDb.revoked === undefined:
 				throw new CustomError(
 					'Forbidden. This token is revoked, please re-register institution to get a new token or contact your administrator',
 					403
