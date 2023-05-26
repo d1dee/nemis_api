@@ -57,7 +57,11 @@ export default async (req: Request) => {
 		await Promise.all([tokenDocument.save(), institutionDocument.save()]);
 
 		return req.sendResponse.respond(
-			{ ...institution, token: tokenDocument.token, expires: tokenDocument.expires },
+			{
+				...institutionDocument.toObject(),
+				token: tokenDocument.token,
+				expires: tokenDocument.expires
+			},
 			'Institution registered successfully.',
 			201
 		);
