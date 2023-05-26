@@ -12,25 +12,27 @@ import CustomError from '../../libs/error_handler';
 import { sendErrorMessage } from '../utils/middlewareErrorHandler';
 
 export default (req: Request) => {
-	let response = req.sendResponse;
 	try {
 		let token = req.token;
 		let decodedToken = req.decodedToken;
-		if (!token || !decodedToken) {
+
+		if (!token || !token.token || !decodedToken) {
 			throw new CustomError('Forbidden. No token was received by the API.', 403);
 		}
+
 		//Get token value to check if it's revoked
 		if (!decodedToken?.id) {
 			throw new CustomError('Forbidden. Invalid token. Token does not contain an id.', 403);
 		}
+
 		verify(token.token, token.tokenSecret, async err => {
 			if (err) {
 				if (err instanceof TokenExpiredError) {
 					//Token refresh
-
 					logger.debug(
 						JSON.stringify(decodedToken) + ' has expired and is being refreshed'
 					);
+
 					logger.debug('Token expired, sending a new token');
 
 					delete decodedToken.exp;
@@ -50,6 +52,7 @@ export default (req: Request) => {
 					await institution_schema.findByIdAndUpdate(token.institutionId, {
 						token: tokenDb._id
 					});
+
 					await token_schema.findByIdAndUpdate(token._id, {
 						revoked: {
 							on: Date.now(),
@@ -58,13 +61,13 @@ export default (req: Request) => {
 						}
 					});
 					//response.setCookie(tokenDb.token);
-					response.setHeaders({
+					req.sendResponse.setHeaders({
 						Authorization: 'Bearer ' + tokenDb.token,
 						'Access-Control-Expose-Headers': 'Authorization Expires',
 						Expires: new Date(Date.now() + 2.592e9).toUTCString()
 					});
 
-					return response.respond({
+					return req.sendResponse.respond({
 						success: true,
 						message: 'Token refreshed',
 						data: { token: tokenDb.token }
@@ -73,7 +76,7 @@ export default (req: Request) => {
 					throw new CustomError('Forbidden. Invalid token', 403);
 				}
 			} else {
-				return response.respond({
+				return req.sendResponse.respond({
 					success: true,
 					message: 'Your token is still valid',
 					data: {
