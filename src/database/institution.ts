@@ -23,7 +23,6 @@ export default mongoose.model(
 	'institution',
 	new mongoose.Schema({
 		// User passed username and password during registration
-		// TODO: encrypt password
 		username: {
 			type: String,
 			required: true,
