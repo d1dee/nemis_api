@@ -83,21 +83,6 @@ class NemisWebService {
 		if (stateObject) this.#stateObject = stateObject;
 	}
 
-	/**
-	 * Check if the supplied cookie has expired
-	 * @param cookie - Previous cookie
-	 * @returns boolean
-	 */
-	async setCookie(cookie: string) {
-		try {
-			await this.axiosInstance.get('/Default.aspx');
-			this.#cookie = cookie;
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-
 	getState(): StateObject | undefined {
 		return this.#stateObject;
 	}

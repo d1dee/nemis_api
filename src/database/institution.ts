@@ -40,10 +40,6 @@ export default mongoose.model(
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'token'
 		},
-		cookie: {
-			value: String,
-			expires: Number
-		},
 		// Ids of all previous tokens
 		revokedTokens: [
 			{
