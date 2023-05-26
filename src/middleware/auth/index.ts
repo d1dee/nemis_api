@@ -91,14 +91,11 @@ export default async (req: Request, res: Response, next: NextFunction) => {
 			throw new CustomError(`Institution not found Institution with id ${tokenFromDb?.institutionId?.toString()} not found.`
 				, 404);
 		}
-		// todo: Make sure to remove sensitive data from endpoints that
-		//  do not need it
-		req.institution = institution;
+
+		req.institution = <DatabaseInstitution>institution;
 		req.token = tokenFromDb;
 		req.isValidToken = true;
-		// todo: If track login and sync local database if user hasn't
-		//  logged in a while.
-		//  This should happen in the background
+
 		return next();
 	} catch (err: any) {
 		if (err instanceof TokenExpiredError) {
