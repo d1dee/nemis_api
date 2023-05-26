@@ -16,21 +16,20 @@ const getInstitution = (req: Request) => {
 		let institution = req.institution;
 		let token = req.token;
 
-		if (!token || !institution) {
-			throw {
-				code: 500,
-				message: 'Something went terribly wrong. Please contact the administrator'
-			};
-		}
+		if (!token || !institution)
+			throw new CustomError(
+				'Something went terribly wrong. Please contact the administrator',
+				500
+			);
 
-		institution = Object.assign(institution, {
+		let institutionObject = Object.assign(institution.toObject(), {
 			token: token.token,
 			tokenCreatedAt: token.createdAt,
 			tokenExpiresAt: token.expires
 		});
 
 		return response.respond({
-			...institution,
+			...institutionObject,
 			token: token.token,
 			expires: token.expires,
 			created: token.createdAt
