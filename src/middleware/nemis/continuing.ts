@@ -175,7 +175,7 @@ const captureContinuingLearner = async (req: Request) => {
 
 					// Alumni
 					case res.learnerCategory?.code === '2': {
-						console.debug([res, learner]);
+						captureLearner.push([learner, res]);
 						break;
 					}
 				}
