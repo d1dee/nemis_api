@@ -292,7 +292,8 @@ const captureSingleContinuingLearner = async (req: Request) => {
 			new NemisApiService().searchLearner(encodeURI(learnerToCapture.birthCertificateNo))
 		]);
 
-		let transferLearner = [];
+		let transferLearner: [typeof learnerToCapture, SearchLearnerApiResponses] | undefined =
+			undefined;
 		let capture = false;
 
 		let apiResponse = nemisApi[0];
@@ -340,20 +341,25 @@ const captureSingleContinuingLearner = async (req: Request) => {
 							new RegExp(res.name.replaceAll(' ', '|'), 'gi')
 						);
 
-						// if api learner's gender is the same as learner, and at least two names are the same; transfer learner
-						if (
-							res.gender === learnerToCapture.gender &&
-							regexName &&
-							regexName.length > 1
-						)
-							transferLearner.push([learnerToCapture, res]);
-						// Else capture error
-						else
+						// if api learner's gender is not the same as learner, or less than two names match; capture error
+						if (res.gender !== learnerToCapture.gender) {
 							Object.assign(learnerToCapture, {
 								error: `learner birth certificate is in use by another learner; ${
 									res.name
 								}, ${res.gender}, ${res.upi || ''} at ${curInst}`
 							});
+							break;
+						}
+						if (!regexName || regexName?.length < 2) {
+							Object.assign(learnerToCapture, {
+								error: `Provided learners\' name does not math with those returned by the Nemis API; ${
+									res.name
+								}, ${res.gender}, ${res.upi || ''} at ${curInst}`
+							});
+						}
+
+						// Else capture learner
+						else transferLearner = [learnerToCapture, res];
 
 						break;
 					}
@@ -364,7 +370,7 @@ const captureSingleContinuingLearner = async (req: Request) => {
 
 				// Alumni
 				case res.learnerCategory?.code === '2': {
-					console.debug([res, learnerToCapture]);
+					capture = true;
 					break;
 				}
 			}
@@ -373,8 +379,23 @@ const captureSingleContinuingLearner = async (req: Request) => {
 		}
 
 		if (!capture) {
-			//return early with reason
-			console.log(learnerToCapture);
+			// If we can transfer learner, send result  for the user to decide if to transfer
+			if (Array.isArray(transferLearner)) {
+				req.sendResponse.respond(
+					{
+						...transferLearner[0],
+						...transferLearner[1]
+					},
+					'Learner is currently captured in another institution, use transfer learner endpoint'
+				);
+			} else {
+				await learnerToCapture.save();
+				req.sendResponse.respond(
+					learnerToCapture,
+					'Learner failed to capture, see error below.'
+				);
+			}
+			// Return early
 			return;
 		}
 
@@ -407,7 +428,9 @@ const captureSingleContinuingLearner = async (req: Request) => {
 
 		req.sendResponse.respond(
 			learnerToCapture,
-			`Operation completed successfully ${learnerToCapture.error ? 'with below errors' : ''}`
+			`Learner capture completed  ${
+				learnerToCapture.error ? 'with below errors' : 'successfully'
+			}`
 		);
 	} catch (err) {
 		sendErrorMessage(req, err);
