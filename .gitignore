@@ -4,3 +4,8 @@ node_modules
 *.js
 debug
 dist
+.idea
+.vscode
+.github
+*.xlsx
+*.log
