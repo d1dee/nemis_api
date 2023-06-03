@@ -630,7 +630,50 @@ class NemisWebService {
 					'.html',
 					postHtml
 				);
-			throw { message: 'Couldn\'t parse any error message. Saved response file for debug' };
+			throw new CustomError(
+				"Couldn't parse any error message. Saved response file for debug"
+			);
+		} catch (err) {
+			throw err;
+		}
+	}
+
+	async transferIn(learner: CompleteDatabaseLearner): Promise<boolean> {
+		try {
+			await this.axiosInstance.get('/Learner/StudReceive.aspx');
+			// Send check to receive results that will allow use to capture transfer
+			await this.axiosInstance.post(
+				'/Learner/StudReceive.aspx',
+				qs.stringify({
+					...this.#stateObject,
+					ctl00$ContentPlaceHolder1$DrpReason: '1',
+					ctl00$ContentPlaceHolder1$SearchCmd: 'CHECK',
+					ctl00$ContentPlaceHolder1$txtRemark: '',
+					ctl00$ContentPlaceHolder1$txtSearch: learner.upi || learner.birthCertificateNo
+				})
+			);
+
+			// Post save to confirm transfer
+			let response = await this.axiosInstance.post(
+				'/Learner/StudReceive.aspx',
+				qs.stringify({
+					...this.#stateObject,
+					ctl00$ContentPlaceHolder1$BtnAdmit: '[ SAVE ]',
+					ctl00$ContentPlaceHolder1$DrpReason: '1',
+					ctl00$ContentPlaceHolder1$txtRemark: '',
+					ctl00$ContentPlaceHolder1$txtSearch: learner.upi || learner.birthCertificateNo
+				})
+			);
+
+			// Base 64 decode returned view state
+			if (!response?.data || !this.#stateObject?.__VIEWSTATE) {
+				throw new CustomError('Confirmation view state was not returned.', 500);
+			}
+			let decodeResponse = Buffer.from(this.#stateObject?.__VIEWSTATE, 'base64').toString();
+
+			return decodeResponse.includes(
+				'The Transfer Request Saved. Learner Awaits Being Released From Current School Admitted'
+			);
 		} catch (err) {
 			throw err;
 		}

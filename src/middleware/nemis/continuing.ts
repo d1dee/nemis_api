@@ -105,8 +105,8 @@ const captureContinuingLearner = async (req: Request) => {
 			)
 		);
 
-		let transferLearner = [];
 		let captureLearner = [] as [(typeof learnerToCapture)[number], SearchLearnerApiResponses][];
+		let transferLearner = [] as typeof captureLearner;
 
 		apiResponsePromise.forEach((apiResponse, index) => {
 			if (apiResponse.status === 'fulfilled') {
@@ -197,6 +197,64 @@ const captureContinuingLearner = async (req: Request) => {
 			)
 		);
 
+		// If we have learner to transfer, check if leaner wants us to handle transfers at this endpoint.
+		// If not, return transfer learners as an error reporting where they are currently captured.
+		if (transferLearner.length > 0) {
+			if (req.queryParams?.transfer) {
+				// Get cookie to use while creating new instances of NemisWebService
+				let transfers = await Promise.allSettled(
+					transferLearner.map(
+						learner =>
+							new Promise(async (resolve, reject) => {
+								try {
+									let nemis = await new NemisWebService();
+									await nemis.login(
+										req.institution.username,
+										req.institution.password
+									);
+									let transferred = await nemis.transferIn(learner[0]);
+									transferred ? resolve(true) : reject(false);
+								} catch (err) {
+									reject(err);
+								}
+							})
+					)
+				);
+
+				transferLearner.forEach((transfer, i) => {
+					let transferred = transfers[i].status === 'fulfilled';
+					if (transferred) {
+						// Leave admitted and reported as undefined to only be set when learner has been released from the current instituion
+						Object.assign(transfer[0], {
+							transfer: {
+								out: false, //True if transferring out false when transferring in
+								institution: {
+									code: transfer[1].currentInstitution.code,
+									name: transfer[1].currentInstitution.name
+								}
+							},
+							upi: transfer[1].upi,
+							error: `Transfer request saved. Learner awaits to be release from ${transfer[1].currentInstitution.name}, ${transfer[1].currentInstitution.code}`
+						});
+					} else {
+						Object.assign(transfer[0], {
+							error: `Transfer request failed. Learner is admitted at ${transfer[1].currentInstitution.name}, ${transfer[1].currentInstitution.code} with UPI:${transfer[1]?.upi}`
+						});
+					}
+					updateLearner.push(transfer[0]);
+				});
+			} else {
+				transferLearner.forEach(learner => {
+					Object.assign(learner[0], {
+						admitted: false,
+						reported: false,
+						upi: undefined,
+						error: `Learner is admitted at ${learner[1]?.currentInstitution?.name}, ${learner[1]?.currentInstitution?.code} with UPI:${learner[1]?.upi}. Use the transfer endpoint to transfer learner.`
+					});
+					updateLearner.push(learner[0]);
+				});
+			}
+		}
 		// Return an update for each continuingLearner
 		captureBiodataPromises.forEach((res, index) => {
 			let learner = captureLearner[index];
@@ -217,7 +275,7 @@ const captureContinuingLearner = async (req: Request) => {
 			}
 		});
 
-		// update learner without birth certificate number error to reflect it
+		// Update learner without birth certificate number error to reflect it
 		await learner.updateMany(
 			{
 				continuing: true,
@@ -292,8 +350,7 @@ const captureSingleContinuingLearner = async (req: Request) => {
 			new NemisApiService().searchLearner(encodeURI(learnerToCapture.birthCertificateNo))
 		]);
 
-		let transferLearner: [typeof learnerToCapture, SearchLearnerApiResponses] | undefined =
-			undefined;
+		let searchApiResults: SearchLearnerApiResponses | undefined = undefined;
 		let capture = false;
 
 		let apiResponse = nemisApi[0];
@@ -359,8 +416,7 @@ const captureSingleContinuingLearner = async (req: Request) => {
 						}
 
 						// Else capture learner
-						else transferLearner = [learnerToCapture, res];
-
+						else searchApiResults = res;
 						break;
 					}
 					// verify if it is possible to capture higher level learners
@@ -378,28 +434,69 @@ const captureSingleContinuingLearner = async (req: Request) => {
 			capture = true;
 		}
 
-		if (!capture) {
-			// If we can transfer learner, send result  for the user to decide if to transfer
-			if (Array.isArray(transferLearner)) {
-				req.sendResponse.respond(
-					{
-						...transferLearner[0],
-						...transferLearner[1]
-					},
-					'Learner is currently captured in another institution, use transfer learner endpoint'
-				);
-			} else {
+		let nemis = new NemisWebService();
+
+		// If we can transfer learner, send result  for the user to decide if to transfer
+		if (searchApiResults) {
+			// If user wants usr to handle transfers at this end point
+			if (req.queryParams?.transfer) {
+				await nemis.login(req.institution.username, req.institution.password);
+
+				let transferred = await nemis.transferIn(learnerToCapture);
+				if (transferred) {
+					Object.assign(learnerToCapture, {
+						transfer: {
+							out: false, //True if transferring out false when transferring in
+							institution: {
+								code: searchApiResults.currentInstitution.code,
+								name: searchApiResults.currentInstitution.name
+							}
+						},
+						upi: searchApiResults.upi,
+						error: `Transfer request saved. Learner awaits to be release from ${searchApiResults.currentInstitution.name}, ${searchApiResults.currentInstitution.code}`
+					});
+				} else {
+					Object.assign(learnerToCapture, {
+						error: `Transfer request failed. Learner is admitted at ${searchApiResults.currentInstitution.name}, ${searchApiResults.currentInstitution.code} with UPI:${searchApiResults?.upi}`
+					});
+				}
+
 				await learnerToCapture.save();
 				req.sendResponse.respond(
 					learnerToCapture,
-					'Learner failed to capture, see error below.'
+					learnerToCapture?.upi
+						? 'Transfer request saved. Learner awaiting release.'
+						: 'Learner transfer failed. See error for details.'
 				);
+
+				return;
+			} else {
+				// Update  db with transfer results
+				Object.assign(learnerToCapture, {
+					admitted: false,
+					reported: false,
+					upi: undefined,
+					error: `Learner is admitted at ${searchApiResults?.currentInstitution?.name}, ${searchApiResults?.currentInstitution?.code} with UPI:${searchApiResults?.upi}. Use the transfer endpoint to transfer learner.`
+				});
+				await learnerToCapture.save();
+
+				req.sendResponse.respond(
+					learnerToCapture,
+					'Learner is currently captured in another institution, use transfer learner endpoint'
+				);
+				return;
 			}
-			// Return early
+		}
+
+		if (!capture) {
+			await learnerToCapture.save();
+			req.sendResponse.respond(
+				learnerToCapture,
+				'Learner failed to capture with error: ' + learnerToCapture.error
+			);
 			return;
 		}
 
-		let nemis = new NemisWebService();
 		await nemis.login(req.institution.username, req.institution.password);
 
 		let captureBiodataPromise = await Promise.allSettled([

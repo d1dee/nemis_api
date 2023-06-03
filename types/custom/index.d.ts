@@ -4,8 +4,10 @@
 
 import { JwtPayload } from 'jsonwebtoken';
 import send_response from '../../src/middleware/utils/send_response';
-import { DatabaseInstitution, QueryParams, DatabaseToken } from '../nemisApiTypes';
+import { DatabaseInstitution, DatabaseToken } from '../nemisApiTypes';
 import { NemisWebService } from '../../src/libs/nemis/nemis_web_handler';
+import { z as zod } from 'zod/lib';
+import { queryParameterSchema } from '../../src/middleware/utils/query_params';
 
 declare module 'express-serve-static-core' {
 	export interface Request {
@@ -22,13 +24,9 @@ declare module 'express-serve-static-core' {
 		nemis: NemisWebService;
 		isValidToken: boolean;
 		decodedToken: JwtPayload;
-		institution: DatabaseInstitution,
+		institution: DatabaseInstitution;
 		token: DatabaseToken;
 		sendResponse: send_response;
-		queryParams: QueryParams;
-	}
-
-	interface ParamsDictionary {
-		uniqueIdentifier: string;
+		queryParams: zod.infer<typeof queryParameterSchema>;
 	}
 }

@@ -9,6 +9,7 @@ import middlewareErrorHandler from './src/middleware/utils/middlewareErrorHandle
 import authMiddleware from './src/middleware/auth';
 import SendResponse from './src/middleware/utils/send_response';
 import apiRouter from './src/routes/index_router';
+import { queryParametersMiddleware } from './src/middleware/utils/query_params';
 
 require('dotenv').config();
 
@@ -27,7 +28,7 @@ app_init()
 		});
 
 		app.use(express.urlencoded({ extended: true }), express.json({ limit: '10mb' }));
-		app.use(authMiddleware /*, queryParamsMiddleware*/);
+		app.use(authMiddleware, queryParametersMiddleware);
 		app.use(middlewareErrorHandler);
 
 		app.use('/api', apiRouter);
