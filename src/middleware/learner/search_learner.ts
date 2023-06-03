@@ -15,6 +15,7 @@ const searchLearner = async (req: Request) => {
 			.parse(req.params?.uniqueIdentifier);
 
 		let searchLearner = await learner.findOne({
+			institutionId: req.institution._id,
 			$or: [
 				{ upi: uniqueIdentifier },
 				{ birthCertificateNo: uniqueIdentifier },

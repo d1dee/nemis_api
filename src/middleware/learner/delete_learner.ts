@@ -37,6 +37,7 @@ const deleteSingleLearner = async (req: Request) => {
 
 		let archivedLearner = await learner.findOneAndUpdate(
 			{
+				institutionId: req.institution._id,
 				$or: [
 					{ upi: uniqueIdentifier },
 					{ birthCertificateNo: uniqueIdentifier },

@@ -137,7 +137,10 @@ const admitSingleJoiningLearner = async (req: Request) => {
 			learnerToAdmit.error = undefined;
 		}
 
-		await learner.updateOne({ _id: learnerToAdmit._id }, learnerToAdmit);
+		await learner.updateOne(
+			{ _id: learnerToAdmit._id, institutionId: req.institution._id },
+			learnerToAdmit
+		);
 
 		req.sendResponse.respond(learnerToAdmit);
 		return;

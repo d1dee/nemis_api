@@ -278,6 +278,7 @@ const captureContinuingLearner = async (req: Request) => {
 		// Update learner without birth certificate number error to reflect it
 		await learner.updateMany(
 			{
+				institutionId: req.institution._id,
 				continuing: true,
 				birthCertificateNo: { $in: [null, undefined, ''] },
 				error: { $in: [null, undefined, ''] }
@@ -289,6 +290,7 @@ const captureContinuingLearner = async (req: Request) => {
 
 		// Get errors saved in the database
 		let learnerErrors = await learner.find({
+			institutionId: req.institution._id,
 			error: { $nin: [null, undefined, '', 0], $type: 'string' }
 		});
 
