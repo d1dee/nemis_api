@@ -3,10 +3,10 @@
  */
 
 import { Request } from 'express';
-import learner from '../../database/learner';
-import { validateExcel, validateLearnerJson } from '../../libs/import_excel';
-import CustomError from '../../libs/error_handler';
-import { sendErrorMessage } from '../utils/middleware_error_handler';
+import learner from '@database/learner';
+import { validateExcel, validateLearnerJson } from '@libs/import_excel';
+import CustomError from '@libs/error_handler';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
 
 const addLearnerByFile = async (req: Request) => {
     try {

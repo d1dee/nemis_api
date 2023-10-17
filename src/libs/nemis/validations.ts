@@ -1,7 +1,7 @@
 import { z as zod } from 'zod';
-import { medicalConditionDesc, nationalities } from '../converts';
-import CustomError from '../error_handler';
-import { gradesSchema, phoneNumberSchema } from '../zod_validation';
+import { medicalConditionDesc, nationalities } from '@libs/converts';
+import CustomError from '@libs/error_handler';
+import { gradesSchema, phoneNumberSchema } from '@libs/zod_validation';
 
 let searchLearnerSchema = zod
 	.object({

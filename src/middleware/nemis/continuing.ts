@@ -3,13 +3,13 @@
  */
 
 import { Request } from 'express';
-import learner from '../../database/learner';
-import { Grades, ListLearner, SearchLearnerApiResponses } from '../../../types/nemisApiTypes';
-import CustomError from '../../libs/error_handler';
+import learner from '@database/learner';
+import { Grades, ListLearner, SearchLearnerApiResponses } from 'types/nemisApiTypes';
+import CustomError from '@libs/error_handler';
 import { sendErrorMessage } from '../utils/middleware_error_handler';
-import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
-import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
-import { uniqueIdentifierSchema } from '../../libs/zod_validation';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
+import NemisApiService  from '@libs/nemis/nemis_api_handler';
+import { uniqueIdentifierSchema } from '@libs/zod_validation';
 
 const captureContinuingLearner = async (req: Request) => {
 	try {

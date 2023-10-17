@@ -6,12 +6,12 @@ import { Request } from 'express';
 import {
     archiveInstitution,
     updateInstitution as updateInstitutionController
-} from '../../controller/institution';
-import logger from '../../libs/logger';
-import CustomError from '../../libs/error_handler';
-import { usernamePasswordSchema } from '../../libs/zod_validation';
-import { sendErrorMessage } from '../utils/middleware_error_handler';
-import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
+} from '@controller/institution';
+import logger from '@libs/logger';
+import CustomError from '@libs/error_handler';
+import { usernamePasswordSchema } from '@libs/zod_validation';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 
 const getInstitution = (req: Request) => {
     const response = req.sendResponse;

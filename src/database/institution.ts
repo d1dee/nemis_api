@@ -3,7 +3,7 @@
  */
 
 import * as mongoose from 'mongoose';
-import { GRADES } from '../libs/zod_validation';
+import { GRADES } from '@libs/zod_validation';
 
 import {
 	EDUCATION_SYSTEM,
@@ -16,8 +16,8 @@ import {
 	INSTITUTION_REGISTRATION_STATUS,
 	INSTITUTION_RESIDENCE,
 	OWNERSHIP_DOCUMENT_TYPE
-} from '../libs/nemis/validations';
-import { decryptString, encryptString } from '../libs/crypt';
+} from '@libs/nemis/validations';
+import { decryptString, encryptString } from '@libs/crypt';
 
 export default mongoose.model(
 	'institution',

@@ -2,13 +2,13 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import { sendErrorMessage } from '../utils/middleware_error_handler';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
 import { Request } from 'express';
-import learner from '../../database/learner';
-import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
-import CustomError from '../../libs/error_handler';
-import { CaptureBiodataResponse, ListAdmittedLearner } from '../../../types/nemisApiTypes';
-import { uniqueIdentifierSchema } from '../../libs/zod_validation';
+import learner from '@database/learner';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
+import CustomError from '@libs/error_handler';
+import { CaptureBiodataResponse, ListAdmittedLearner } from 'types/nemisApiTypes';
+import { uniqueIdentifierSchema } from '@libs/zod_validation';
 
 const captureJoiningLearner = async (req: Request) => {
 	try {

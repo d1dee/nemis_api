@@ -1,11 +1,11 @@
-import { sendErrorMessage } from '../utils/middleware_error_handler';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
 import { Request } from 'express';
-import learner from '../../database/learner';
-import CustomError from '../../libs/error_handler';
-import { CompleteLearner } from '../../../types/nemisApiTypes';
-import { uniqueIdentifierSchema } from '../../libs/zod_validation';
-import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
-import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
+import learner from '@database/learner';
+import CustomError from '@libs/error_handler';
+import { CompleteLearner } from 'types/nemisApiTypes';
+import { uniqueIdentifierSchema } from '@libs/zod_validation';
+import NemisApiService  from '@libs/nemis/nemis_api_handler';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 
 const admitJoiningLearner = async (req: Request) => {
 	try {

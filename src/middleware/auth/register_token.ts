@@ -3,13 +3,13 @@
  */
 
 import { Request } from 'express';
-import { newInstitutionSchema } from '../../libs/zod_validation';
+import { newInstitutionSchema } from '@libs/zod_validation';
 import { sendErrorMessage } from '../utils/middleware_error_handler';
-import institutionModel from '../../database/institution';
+import institutionModel from '@database/institution';
 import { randomFillSync } from 'node:crypto';
-import tokenModel from '../../database/token';
+import tokenModel from '@database/token';
 import * as jwt from 'jsonwebtoken';
-import { NemisWebService } from '../../libs/nemis/nemis_web_handler';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 
 export default async (req: Request) => {
 	try {

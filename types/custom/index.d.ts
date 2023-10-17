@@ -3,11 +3,11 @@
  */
 
 import { JwtPayload } from 'jsonwebtoken';
-import send_response from '../../src/middleware/utils/send_response';
+import send_response from '@middleware/utils/send_response';
 import { DatabaseInstitution, DatabaseToken } from '../nemisApiTypes';
-import { NemisWebService } from '../../src/libs/nemis/nemis_web_handler';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 import { z as zod } from 'zod';
-import { queryParameterSchema } from '../../src/middleware/utils/query_params';
+import { queryParameterSchema } from '@middleware/utils/query_params';
 
 declare module 'express-serve-static-core' {
 	export interface Request {

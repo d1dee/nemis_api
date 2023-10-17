@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import logger from '../../libs/logger';
+import logger from '@libs/logger';
 
 interface SetHeaders {
     Authorization: string;

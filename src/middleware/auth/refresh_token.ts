@@ -4,12 +4,12 @@
 
 import { randomFillSync } from 'crypto';
 import { sign, TokenExpiredError, verify } from 'jsonwebtoken';
-import institution_schema from '../../database/institution';
-import token_schema from '../../database/token';
-import logger from '../../libs/logger';
+import institution_schema from '@database/institution';
+import token_schema from '@database/token';
+import logger from '@libs/logger';
 import { Request } from 'express';
-import CustomError from '../../libs/error_handler';
-import { sendErrorMessage } from '../utils/middleware_error_handler';
+import CustomError from '@libs/error_handler';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
 
 export default (req: Request) => {
     try {

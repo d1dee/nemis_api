@@ -3,12 +3,12 @@
  */
 // @ts-nocheck
 import { ObjectId } from "mongoose";
-import continuing_learner from "../database/continuing_learner";
-import learnerModel from "../database/learner";
-import nemisApiResultsModel from "../database/nemis_api_results";
-import { NemisLearner, NemisLearnerFromDb } from "../interfaces";
-import { AdmitOrCaptureRequestApiCalls } from "../libs/interface";
-import { RequestingLearner } from "../middleware/interfaces";
+import continuing_learner from "@database/continuing_learner";
+import learnerModel from "@database/learner";
+import nemisApiResultsModel from "@database/nemis_api_results";
+import { NemisLearner, NemisLearnerFromDb } from "@interfaces";
+import { AdmitOrCaptureRequestApiCalls } from "@libs/interface";
+import { RequestingLearner } from "@middleware/interfaces";
 
 interface NemisApiResults extends AdmitOrCaptureRequestApiCalls {
     admitted?: boolean;

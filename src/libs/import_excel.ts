@@ -5,7 +5,7 @@
 import { accessSync, constants } from 'fs';
 import { readFile, utils, WorkBook } from 'xlsx';
 import { z as zod, ZodIssue } from 'zod';
-import { CompleteLearner } from '../../types/nemisApiTypes';
+import { CompleteLearner } from 'types/nemisApiTypes';
 import { lowerCaseAllValues } from './converts';
 import { completeLearnerSchema } from './zod_validation';
 import CustomError from './error_handler';

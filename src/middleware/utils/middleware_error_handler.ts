@@ -4,7 +4,7 @@
 
 import { NextFunction, Request, Response } from 'express';
 
-import CustomError from '../../libs/error_handler';
+import CustomError from '@libs/error_handler';
 import { ZodError } from 'zod';
 import { stat } from 'fs';
 import { AxiosError } from 'axios';

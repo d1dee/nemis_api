@@ -1,12 +1,12 @@
 /**
  *  Class used to interact with NEMIS public api
  */
-import CustomError from '../error_handler';
+import CustomError from '@libs/error_handler';
 import axios, { AxiosError } from 'axios';
-import { lowerCaseAllValues } from '../converts';
+import { lowerCaseAllValues } from '@libs/converts';
 import { admissionApiResponseSchema, searchLearnerSchema } from './validations';
 
-class NemisApiService {
+export default class  {
     private axiosInstance;
     private userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36';
 
@@ -123,4 +123,3 @@ class NemisApiService {
     }
 }
 
-export { NemisApiService };

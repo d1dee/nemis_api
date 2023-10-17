@@ -22,21 +22,19 @@ import {
     SchoolSelected,
     SelectedLearner,
     StateObject
-} from '../../../types/nemisApiTypes';
-import logger from '../logger';
-import CustomError from '../error_handler';
+} from 'types/nemisApiTypes';
+import logger from '@libs/logger';
+import CustomError from '@libs/error_handler';
 import { writeFileSync } from 'fs';
 import { parse as htmlParser } from 'node-html-parser';
 import { Tabletojson as tableToJson } from 'tabletojson';
 import qs from 'qs';
 import { institutionSchema, listAdmittedLearnerSchema, listLearnerSchema } from './validations';
-import { countyToNo, form, medicalConditionCode, nationalities, splitNames } from '../converts';
+import { countyToNo, form, medicalConditionCode, nationalities, splitNames } from '@libs/converts';
 
 import buffer from 'buffer';
 import FormData from 'form-data';
-import { NemisApiService } from './nemis_api_handler';
-import mongoose from './../../database/token';
-import { Response } from 'express';
+import NemisApiService  from './nemis_api_handler';
 
 type ParentContact = {
     name?: string;

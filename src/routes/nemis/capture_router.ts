@@ -2,8 +2,8 @@ import { Router } from 'express';
 import {
 	captureContinuingLearner,
 	captureSingleContinuingLearner
-} from '../../middleware/nemis/continuing';
-import { captureJoiningLearner, captureSingleJoiningLearner } from '../../middleware/nemis/joining';
+} from '@middleware/nemis/continuing';
+import { captureJoiningLearner, captureSingleJoiningLearner } from '@middleware/nemis/joining';
 
 const captureRoute = Router();
 /**

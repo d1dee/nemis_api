@@ -5,12 +5,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { decode, JsonWebTokenError, TokenExpiredError, verify } from 'jsonwebtoken';
 import mongoose from 'mongoose';
-import institution_schema from '../../database/institution';
-import tokenSchema from '../../database/token';
-import logger from '../../libs/logger';
-import CustomError from '../../libs/error_handler';
-import { sendErrorMessage } from '../utils/middleware_error_handler';
-import { DatabaseInstitution } from '../../../types/nemisApiTypes';
+import institution_schema from '@database/institution';
+import tokenSchema from '@database/token';
+import logger from '@libs/logger';
+import CustomError from '@libs/error_handler';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
+import { DatabaseInstitution } from 'types/nemisApiTypes';
 
 // todo replace with passport
 export default async (req: Request, res: Response, next: NextFunction) => {

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { addLearnerByFile, addLearnerByJson } from "../../middleware/learner/add_learner";
+import { addLearnerByFile, addLearnerByJson } from "@middleware/learner/add_learner";
 import fileUpload from "express-fileupload";
-import verify_excel_upload from "../../middleware/utils/verify_excel_upload";
+import verify_excel_upload from "@middleware/utils/verify_excel_upload";
 
 
 const addLearnerRoute = Router();

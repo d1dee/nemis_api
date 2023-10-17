@@ -4,9 +4,9 @@
 
 import { json } from 'body-parser';
 import { Router } from 'express';
-import refreshToken from '../../middleware/auth/refresh_token';
-import registerToken from '../../middleware/auth/register_token';
-import recoverToken from '../../middleware/auth/recover_token';
+import refreshToken from '@middleware/auth/refresh_token';
+import registerToken from '@middleware/auth/register_token';
+import recoverToken from '@middleware/auth/recover_token';
 
 const authRouter = Router();
 

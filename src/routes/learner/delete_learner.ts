@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { deleteBulkLearner, deleteSingleLearner } from "../../middleware/learner/delete_learner";
+import { deleteBulkLearner, deleteSingleLearner } from "@middleware/learner/delete_learner";
 
 const deleteLearnerRoute = Router();
 

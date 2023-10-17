@@ -3,7 +3,7 @@
  */
 import { z as zod } from 'zod';
 import mongoose, { Document } from 'mongoose';
-import { completeLearnerSchema, genderSchema, gradesSchema, nationalitiesSchema } from '../../src/libs/zod_validation';
+import { completeLearnerSchema, genderSchema, gradesSchema, nationalitiesSchema } from '@libs/zod_validation';
 import {
 	admissionApiResponseSchema,
 	admissionSchema,
@@ -12,7 +12,7 @@ import {
 	listLearnerSchema,
 	requestingJoiningLearnerSchema,
 	searchLearnerSchema
-} from '../../src/libs/nemis/validations';
+} from '@libs/nemis/validations';
 
 /**
  * Continuing learner_router for a database

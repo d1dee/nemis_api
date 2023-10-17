@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { admitRoute } from './admit_router';
-import search from '../../middleware/nemis/search';
+import search from '@middleware/nemis/search';
 import { captureRoute } from './capture_router';
 
 const nemisRoute = Router();

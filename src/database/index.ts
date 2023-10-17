@@ -3,7 +3,7 @@
  */
 
 import mongoose from 'mongoose';
-import logger from '../libs/logger';
+import logger from '@libs/logger';
 import continuing_learner from './continuing_learner';
 import institution_model from './institution';
 import learner_model from './learner';

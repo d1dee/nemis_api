@@ -4,7 +4,7 @@
 
 import { z as zod } from 'zod';
 import { countyToNo } from './converts';
-import institution from '../database/institution';
+import institution from '@database/institution';
 
 const usernamePasswordSchema = zod.object({
 	username: zod

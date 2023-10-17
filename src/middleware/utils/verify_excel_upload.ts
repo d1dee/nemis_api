@@ -4,7 +4,7 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { UploadedFile } from 'express-fileupload';
-import CustomError from '../../libs/error_handler';
+import CustomError from '@libs/error_handler';
 import { sendErrorMessage } from './middleware_error_handler';
 
 export default (req: Request, res: Response, next: NextFunction) => {

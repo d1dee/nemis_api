@@ -3,7 +3,7 @@
  */
 
 import mongoose from 'mongoose';
-import { GRADES, MEDICAL_CONDITIONS, NATIONALITY } from '../libs/zod_validation';
+import { GRADES, MEDICAL_CONDITIONS, NATIONALITY } from '@libs/zod_validation';
 
 const parentContact = {
 	name: {

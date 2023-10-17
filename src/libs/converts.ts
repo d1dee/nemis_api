@@ -3,7 +3,7 @@
  */
 
 //converts county names adn sub county names to their respective code as per nemis
-import { BasicName, Grades } from '../../types/nemisApiTypes';
+import { BasicName, Grades } from 'types/nemisApiTypes';
 
 export const countyToNo = (county?: string, subCounty?: string) => {
 	county = String(county).trim();

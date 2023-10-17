@@ -1,7 +1,7 @@
-import { DatabaseInstitution, ListLearner } from '../../types/nemisApiTypes';
-import { NemisWebService } from './nemis/nemis_web_handler';
+import { DatabaseInstitution, ListLearner } from 'types/nemisApiTypes';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 import { GRADES } from './zod_validation';
-import learner from '../database/learner';
+import learner from '@database/learner';
 import logger from './logger';
 
 const sync = async (institution: DatabaseInstitution) => {
