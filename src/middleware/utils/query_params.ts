@@ -3,7 +3,7 @@
  */
 
 import { NextFunction, Request, Response } from 'express';
-import { sendErrorMessage } from './middlewareErrorHandler';
+import { sendErrorMessage } from './middleware_error_handler';
 import { z as zod } from 'zod';
 
 const queryParameterSchema = zod.object({

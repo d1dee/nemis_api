@@ -23,6 +23,7 @@ const usernamePasswordSchema = zod.object({
 		})
 		.min(1, 'Password can not be blank.')
 });
+
 const newInstitutionSchema = usernamePasswordSchema.transform(async (x, ctx) => {
 	let isRegistered = await institution.findOne({ username: x.username });
 	// If not archived we need to refresh token not register.

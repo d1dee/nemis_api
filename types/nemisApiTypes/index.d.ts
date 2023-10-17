@@ -239,6 +239,12 @@ export interface ErrorResponse {
 	error?: Error;
 }
 
+export interface FormattedCustomError{
+	message:string,
+	responseErrorCode:number
+	error?:any
+}
+
 export interface AxiosCustomRequestHeaders {
 	'Cache-Control'?: string;
 	'X-Requested-With'?: string;

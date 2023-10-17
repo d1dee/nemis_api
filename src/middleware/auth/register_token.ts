@@ -4,7 +4,7 @@
 
 import { Request } from 'express';
 import { newInstitutionSchema } from '../../libs/zod_validation';
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import institutionModel from '../../database/institution';
 import { randomFillSync } from 'node:crypto';
 import tokenModel from '../../database/token';

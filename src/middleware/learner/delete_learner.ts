@@ -1,4 +1,4 @@
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import { Request } from 'express';
 import { GRADES, uniqueIdentifierSchema } from '../../libs/zod_validation';
 import { z as zod } from 'zod';

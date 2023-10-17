@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import learner from '../../database/learner';
 import CustomError from '../../libs/error_handler';
 import { z as zod } from 'zod';
@@ -11,7 +11,7 @@ const searchLearner = async (req: Request) => {
 				required_error:
 					'Unique identifier missing.To delete a learner, a unique identifier must be provided. The identifier can be either the UPI, birth certificate number, or admission number.',
 				invalid_type_error: ' Unique identifier must be a string.'
-			})
+			}).max(15,' expected a string of less than 15 characters.')
 			.parse(req.params?.uniqueIdentifier);
 
 		let searchLearner = await learner.findOne({

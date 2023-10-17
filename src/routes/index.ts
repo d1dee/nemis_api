@@ -3,7 +3,7 @@
  */
 
 import { Router } from 'express';
-import authRouter from './auth/auth';
+import authRouter from './auth';
 import institution from './institution/institution';
 import learner_router from './learner/learner_router';
 import { nemisRoute } from './nemis/nemis_router';

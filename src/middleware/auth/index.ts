@@ -9,7 +9,7 @@ import institution_schema from '../../database/institution';
 import tokenSchema from '../../database/token';
 import logger from '../../libs/logger';
 import CustomError from '../../libs/error_handler';
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import { DatabaseInstitution } from '../../../types/nemisApiTypes';
 
 // todo replace with passport

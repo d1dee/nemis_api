@@ -2,7 +2,7 @@
  * Copyright (c) 2023. MIT License.  Maina Derrick
  */
 
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import { Request } from 'express';
 import learner from '../../database/learner';
 import { NemisWebService } from '../../libs/nemis/nemis_web_handler';

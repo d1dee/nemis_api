@@ -1,4 +1,4 @@
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import { Request } from 'express';
 import learner from '../../database/learner';
 import CustomError from '../../libs/error_handler';

@@ -1,6 +1,6 @@
 import { sync } from '../../libs/sync_api_database';
 import { Request } from 'express';
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 
 const syncLearnerDatabase = async (req: Request) => {
 	try {

@@ -5,7 +5,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { UploadedFile } from 'express-fileupload';
 import CustomError from '../../libs/error_handler';
-import { sendErrorMessage } from './middlewareErrorHandler';
+import { sendErrorMessage } from './middleware_error_handler';
 
 export default (req: Request, res: Response, next: NextFunction) => {
 	try {
@@ -80,7 +80,7 @@ export default (req: Request, res: Response, next: NextFunction) => {
 
 		file.mv(path, err => {
 			if (err) {
-				throw new CustomError('Error while saving file.', 500, '', err);
+				throw new CustomError('Error while saving file.', 500, err);
 			} else {
 				req.body.file = path;
 				next();

@@ -4,7 +4,7 @@
 
 import { Request } from 'express';
 import { NemisApiService } from '../../libs/nemis/nemis_api_handler';
-import { sendErrorMessage } from '../utils/middlewareErrorHandler';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import CustomError from '../../libs/error_handler';
 
 export default async (req: Request) => {
