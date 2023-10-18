@@ -142,7 +142,7 @@ paths:
                 - Institution
     '/learner/search/{uniqueIdentifier}':
         get:
-            summary: Search learner_router sing UPI or birth certificate number
+            summary: Search learner using UPI or birth certificate number
             tags:
                 - Learner
             responses:
@@ -156,21 +156,21 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            operationId: get-learner_router-search
+            operationId: get-learner-usearch
             parameters:
                 -   schema:
                         type: string
                     in: query
                     name: uniqueIdentifier
                     description: 'Admission number, UPI or birth certificate number to search for in the APIs database'
-            description: 'This endpoint allows users to search for learner_router details on Nemis using either the Unique Personal Identifier (UPI) or Birth Certificate Number. Only UPI and Birth Certificate numbers are supported as search parameters. The response will include relevant learner_router information such as name, school, class, and NHIF details if available.'
+            description: 'This endpoint allows users to search for learner udetails on Nemis using either the Unique Personal Identifier (UPI) or Birth Certificate Number. Only UPI and Birth Certificate numbers are supported as search parameters. The response will include relevant learner uinformation such as name, school, class, and NHIF details if available.'
         parameters:
             -   $ref: '#/components/parameters/uniqueIdentifier'
     /learner/add/joining/excel:
         parameters: [ ]
         post:
             summary: Add new learners using Excel
-            operationId: post-learner_router-new-excel
+            operationId: post-learner-unew-excel
             responses:
                 '200':
                     $ref: '#/components/responses/learner_200'
@@ -182,7 +182,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint allows addition of a multiple learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner_router using a JSON.'
+            description: 'This endpoint allows addition of a multiple learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner uusing a JSON.'
             requestBody:
                 content:
                     multipart/form-data:
@@ -195,7 +195,7 @@ paths:
                 - Learner
     /learner/add/joining/json:
         post:
-            summary: Add single learner_router using JSON
+            summary: Add single learner uusing JSON
             operationId: post-learners-new-json
             responses:
                 '200':
@@ -211,20 +211,20 @@ paths:
                 '500':
                     $ref: '#/components/responses/error_response'
             parameters: [ ]
-            description: 'This endpoint allows addition of a single learner_router to the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner_router to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple learners using an Excel file.'
+            description: 'This endpoint allows addition of a single learner uto the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner uto database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple learners using an Excel file.'
             requestBody:
                 content:
                     application/json:
                         schema:
                             $ref: '#/components/schemas/learner'
-                description: Complete learner_router details in JSON format.
+                description: Complete learner udetails in JSON format.
             tags:
                 - Learner
         parameters: [ ]
     /learner/add/continuing/excel:
         post:
             summary: Add continuing learners using Excel
-            operationId: post-learner_router-continuing-excel
+            operationId: post-learner-ucontinuing-excel
             responses:
                 '200':
                     $ref: '#/components/responses/learner_200'
@@ -238,22 +238,22 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint allows addition of a multiple continuing learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner_router using a JSON.'
+            description: 'This endpoint allows addition of a multiple continuing learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner uusing a JSON.'
             requestBody:
                 content:
                     multipart/form-data:
                         schema:
                             type: object
                             properties: { }
-                description: An excel file with all learner_router details and continuing set to true
+                description: An excel file with all learner udetails and continuing set to true
             tags:
                 - Learner
         parameters: [ ]
     /learner/add/continuing/json:
         parameters: [ ]
         post:
-            summary: Add continuing learner_router using JSON
-            operationId: post-learner_router-continuing-json
+            summary: Add continuing learner uusing JSON
+            operationId: post-learner-ucontinuing-json
             responses:
                 '200':
                     $ref: '#/components/responses/learner_200'
@@ -267,19 +267,19 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint allows addition of a single continuing learner_router to the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner_router to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple continuing learners using an Excel file.'
+            description: 'This endpoint allows addition of a single continuing learner uto the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner uto database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple continuing learners using an Excel file.'
             requestBody:
                 content:
                     application/json:
                         schema:
                             $ref: '#/components/schemas/learner'
-                description: A complete continuing learner_router data
+                description: A complete continuing learner udata
             tags:
                 - Learner
     /learner/delete:
         delete:
             summary: Delete multiple learners
-            operationId: delete-learner_router-delete
+            operationId: delete-learner-udelete
             responses:
                 '200':
                     $ref: '#/components/responses/learner_200'
@@ -291,7 +291,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: Deletes learner_router from APIs database. Note this down not affect any record on the NEMIS website.
+            description: Deletes learner ufrom APIs database. Note this down not affect any record on the NEMIS website.
             parameters:
                 -   schema:
                         type: array
@@ -307,7 +307,7 @@ paths:
                 - Learner
     '/learner/delete/{uniqueIdentifier}':
         delete:
-            summary: Delete a single learner_router by their unique identifiers
+            summary: Delete a single learner uby their unique identifiers
             tags:
                 - Learner
             responses:
@@ -321,14 +321,14 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            operationId: 'delete-learner_router-delete-:value'
-            description: Deletes a learner_router's information based on their unique identifier (UPI or birth certificate number or admission number)
+            operationId: 'delete-learner-udelete-:value'
+            description: Deletes a learner'us information based on their unique identifier (UPI or birth certificate number or admission number)
         parameters:
             -   $ref: '#/components/parameters/uniqueIdentifier'
     /nemis/admit/joining:
         post:
-            summary: Admit joining learner_router
-            operationId: post-nemis-admission
+            summary: Admit joining learner
+u            operationId: post-nemis-admission
             responses:
                 '200':
                     description: OK
@@ -364,7 +364,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint submits all new learner_router to NEMIS for admission. The admitted learners can later on be assigned an Unique Personal Identifier (UPI) number through the end point `/nemis/capture/joining`. The learner_router''s details used are submitted by either adding a learner_router through` /learner_router/add/joining/json` or `/learner_router/add/joining/excel`. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
+            description: 'This endpoint submits all new learner uto NEMIS for admission. The admitted learners can later on be assigned an Unique Personal Identifier (UPI) number through the end point `/nemis/capture/joining`. The learner'u's details used are submitted by either adding a learner uthrough` /learner/uadd/joining/json` or `/learner/uadd/joining/excel`. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
             parameters:
                 -   schema:
                         type: boolean
@@ -376,8 +376,8 @@ paths:
         parameters: [ ]
     /nemis/admit/continuing:
         post:
-            summary: Admit continuing learner_router
-            tags:
+            summary: Admit continuing learner
+u            tags:
                 - Nemis
             responses:
                 '200':
@@ -415,10 +415,10 @@ paths:
                 '500':
                     $ref: '#/components/responses/error_response'
             operationId: post-nemis-admit-continuing
-            description: 'This endpoint submits learner_router from the database who have `{continuing:true}` to NEMIS for admission. Once they are admitted, this learners will await approval from the nemis administrator after which their biodata can be captured through the endpoint `/nemis/capture/continuing` and be assigned an Unique Personal Identifier (UPI). The learner_router''s details used are submitted by either adding a learner_router through /learner_router/add/continuing/json or /learner_router/add/continuing/excel. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
+            description: 'This endpoint submits learner ufrom the database who have `{continuing:true}` to NEMIS for admission. Once they are admitted, this learners will await approval from the nemis administrator after which their biodata can be captured through the endpoint `/nemis/capture/continuing` and be assigned an Unique Personal Identifier (UPI). The learner'u's details used are submitted by either adding a learner uthrough /learner/uadd/continuing/json or /learner/uadd/continuing/excel. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
     /nemis/capture/joining:
         post:
-            summary: Capture joining learner_router bio data
+            summary: Capture joining learner ubio data
             operationId: post-nemis-capture-joining
             responses:
                 '200':
@@ -442,13 +442,13 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint captures biodata of joining learners and assigns them an Unique Personal Identifier (UPI) using the data received through `/learner_router/add/joining/excel` or `/learner_router/add/joining/json`. This ed point is only meant for joining learners only, for continuing learners see `/nemis/capture/continuing`. This end point will return `200 OK` response with an array of learner_router objects. If there was an error with a learner_router during submission, the error will be appended to the learner_router object.'
+            description: 'This endpoint captures biodata of joining learners and assigns them an Unique Personal Identifier (UPI) using the data received through `/learner/uadd/joining/excel` or `/learner/uadd/joining/json`. This ed point is only meant for joining learners only, for continuing learners see `/nemis/capture/continuing`. This end point will return `200 OK` response with an array of learner uobjects. If there was an error with a learner uduring submission, the error will be appended to the learner uobject.'
             tags:
                 - Nemis
     /nemis/capture/continuing:
         parameters: [ ]
         post:
-            summary: Capture continuing learner_router bio data
+            summary: Capture continuing learner ubio data
             operationId: post-nemis-capture-continuing
             responses:
                 '200':
@@ -472,7 +472,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint allows for submission of continuing learner_router biodata to be issued with an Unique Personal Identifier (UPI). The learner_router must be first admitted using the endpoint `/nemis/admit/continuing`. You can get the list of learners pending bio data capture at `/nemis/learners/continuing`. '
+            description: 'This endpoint allows for submission of continuing learner ubiodata to be issued with an Unique Personal Identifier (UPI). The learner umust be first admitted using the endpoint `/nemis/admit/continuing`. You can get the list of learners pending bio data capture at `/nemis/learners/continuing`. '
             tags:
                 - Nemis
     /nemis/list/continuing:
@@ -550,7 +550,7 @@ paths:
                 '500':
                     $ref: '#/components/responses/error_response'
             operationId: get-nemis-list-learners-grade
-            description: 'This endpoint returns a JSON representation of the data returned by `http://nemis.education.go.ke/listlearners.aspx` for learners in a specific grade, e.g., form 1. It is a more specific version of the `/nemis/list/learners` endpoint. Note that this endpoint only returns a partial learner_router schema, similar to what you would see on the NEMIS website. If you need a more comprehensive learner_router schema with all the available data, you can use the `/learner_router/list` endpoint.'
+            description: 'This endpoint returns a JSON representation of the data returned by `http://nemis.education.go.ke/listlearners.aspx` for learners in a specific grade, e.g., form 1. It is a more specific version of the `/nemis/list/learners` endpoint. Note that this endpoint only returns a partial learner uschema, similar to what you would see on the NEMIS website. If you need a more comprehensive learner uschema with all the available data, you can use the `/learner/ulist` endpoint.'
             tags:
                 - Nemis
     '/nemis/nhif/{grade}':
@@ -592,7 +592,7 @@ paths:
             -   $ref: '#/components/parameters/grade_path_param'
     '/nemis/search/{uniqueIdentifier}':
         get:
-            summary: Search a learner_router on NEMIS
+            summary: Search a learner uon NEMIS
             tags:
                 - Nemis
             responses:
@@ -644,7 +644,7 @@ paths:
                                                         type: boolean
                                                     currentInstitution:
                                                         type: object
-                                                        description: Details about where the learner_router is currently admitted to
+                                                        description: Details about where the learner uis currently admitted to
                                                         properties:
                                                             name:
                                                                 type: string
@@ -668,7 +668,7 @@ paths:
                 '500':
                     $ref: '#/components/responses/error_response'
             operationId: get-nemis-search
-            description: 'This endpoint enables users to search for learners on the NEMIS website using Unique Personal Identifier (UPI), or Birth Certificate Number. The endpoint will return a learner_router object matching the search criteria. Note that this endpoint only searches on the NEMIS website and does not return results from the local database. For searching learners from the local database, use the endpoint `/learner_router/search`.'
+            description: 'This endpoint enables users to search for learners on the NEMIS website using Unique Personal Identifier (UPI), or Birth Certificate Number. The endpoint will return a learner uobject matching the search criteria. Note that this endpoint only searches on the NEMIS website and does not return results from the local database. For searching learners from the local database, use the endpoint `/learner/usearch`.'
         parameters:
             -   schema:
                     type: string
@@ -767,7 +767,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint is used to release a learner_router from the institution when they have requested to transfer out. The {uniqueIdentifier} parameter is the Unique Personal Identifier (UPI) or birth certificate number of the learner_router to be released. Once a learner_router is released, they will no longer appear in the list of learners requesting to transfer out returned by the `/nemis/transfers/outgoing` endpoint. Also this learner_router will no longer be available at `/nemis/list/learners`.'
+            description: 'This endpoint is used to release a learner ufrom the institution when they have requested to transfer out. The {uniqueIdentifier} parameter is the Unique Personal Identifier (UPI) or birth certificate number of the learner uto be released. Once a learner uis released, they will no longer appear in the list of learners requesting to transfer out returned by the `/nemis/transfers/outgoing` endpoint. Also this learner uwill no longer be available at `/nemis/list/learners`.'
             tags:
                 - Nemis
     '/nemis/transfers/incoming/{uniqueIdentifier}':
@@ -796,7 +796,7 @@ paths:
                     $ref: '#/components/responses/error_response'
                 '500':
                     $ref: '#/components/responses/error_response'
-            description: 'This endpoint is used to capture incoming transfer requests from other institutions. Before submitting the transfer request, it is important to first call the GET method on `/nemis/transfers/incoming/{uniqueIdentifier}` to validate the details of the requesting learner_router match with those of the institution.'
+            description: 'This endpoint is used to capture incoming transfer requests from other institutions. Before submitting the transfer request, it is important to first call the GET method on `/nemis/transfers/incoming/{uniqueIdentifier}` to validate the details of the requesting learner umatch with those of the institution.'
             parameters:
                 -   schema:
                         type: string
@@ -871,7 +871,7 @@ paths:
                                                         type: boolean
                                                     currentInstitution:
                                                         type: object
-                                                        description: Details about where the learner_router is currently admitted to
+                                                        description: Details about where the learner uis currently admitted to
                                                         properties:
                                                             name:
                                                                 type: string
@@ -895,7 +895,7 @@ paths:
                 '500':
                     $ref: '#/components/responses/error_response'
             operationId: get-nemis-transfers-incoming-uniqueIdentifier
-            description: 'This end point is a complete clone of `/nemis/search/{uniqueIdentifier}` end point used here for convenience sake. If the returned dat is the same as the requesting learner_router''s data, use the   `POST` endpoint here'
+            description: 'This end point is a complete clone of `/nemis/search/{uniqueIdentifier}` end point used here for convenience sake. If the returned dat is the same as the requesting learner'u's data, use the   `POST` endpoint here'
 components:
     schemas:
         institution:
@@ -1016,7 +1016,7 @@ components:
                 - expires
         learner:
             type: object
-            description: A complete learner_router information which is a combination of submitted data stored in the database and data returned by NEMIS list learner_router page.
+            description: A complete learner uinformation which is a combination of submitted data stored in the database and data returned by NEMIS list learner upage.
             title: Learner
             properties:
                 adm:
@@ -1025,20 +1025,20 @@ components:
                     example: 13562
                 name:
                     type: string
-                    description: Name of the learner_router
-                    example: james kamau maina
+                    description: Name of the learner
+u                    example: james kamau maina
                 gender:
                     $ref: '#/components/schemas/gender'
                 grade:
                     $ref: '#/components/schemas/grade'
                 stream:
                     type: string
-                    description: Stream name that the learner_router is assigned to.
+                    description: Stream name that the learner uis assigned to.
                     example: north
                 upi:
                     type: string
                     minLength: 4
-                    description: UPI code that a learner_router is assigned by NEMIS after submitting learner_router's BioData.
+                    description: UPI code that a learner uis assigned by NEMIS after submitting learner'us BioData.
                     example: h5rh5
                 marks:
                     type: number
@@ -1046,7 +1046,7 @@ components:
                     example: 370
                 birthCertificateNo:
                     type: string
-                    description: Birth certificate number -labeled as entry number in the learner_router's birth cetificate.- -Note that this is tied to UPI code after submitting Biodata-
+                    description: Birth certificate number -labeled as entry number in the learner'us birth cetificate.- -Note that this is tied to UPI code after submitting Biodata-
                     example: l.123455678
                 dob:
                     $ref: '#/components/schemas/date'
@@ -1054,7 +1054,7 @@ components:
                     $ref: '#/components/schemas/medicalCondition'
                 isSpecial:
                     type: boolean
-                    description: If learner_router is of special needs
+                    description: If learner uis of special needs
                     default: false
                 father:
                     $ref: '#/components/schemas/parent'
@@ -1069,26 +1069,26 @@ components:
                 admitted:
                     type: boolean
                     default: false
-                    description: 'If the learner_router is admitted to the institution, this checks the `listLearners.aspx` page on nemis website to verify.'
+                    description: 'If the learner uis admitted to the institution, this checks the `listLearners.aspx` page on nemis website to verify.'
                 captured:
                     type: boolean
                     default: false
-                    description: If the learner_router bio data has been captured
+                    description: If the learner ubio data has been captured
                 continuing:
                     type: boolean
                     default: false
-                    description: '`true` if learner_router is a continuing learner_router.'
+                    description: '`true` if learner uis a continuing learner.u'
                 differed:
                     type: boolean
                     default: false
-                    description: '`true` if learner_router is a differed learner_router. This can only be true if `continuing`is set to `false`'
+                    description: '`true` if learner uis a differed learner.u This can only be true if `continuing`is set to `false`'
                 kcpeYear:
                     type: number
                     example: 2022
                     minimum: 1970
                 error:
                     type: array
-                    description: 'Error messages, if any, that maybe encountered during learner_router submission.'
+                    description: 'Error messages, if any, that maybe encountered during learner usubmission.'
                     items:
                         type: string
             required:
@@ -1120,8 +1120,8 @@ components:
         nemis_learner:
             title: nemis_learner
             type: object
-            description: A learner_router returned by list learner_router
-            properties:
+            description: A learner ureturned by list learner
+u            properties:
                 name:
                     type: string
                 gender:
@@ -1234,7 +1234,7 @@ components:
         grade:
             title: grade
             type: string
-            description: Grade or level of learning that the learner_router is at.
+            description: Grade or level of learning that the learner uis at.
             enum:
                 - form 1
                 - form 2
@@ -1444,7 +1444,7 @@ components:
                                         validationError:
                                             - { }
         learner_200:
-            description: Return a full learner_router.
+            description: Return a full learner.u
             content:
                 application/json:
                     schema:
@@ -1491,8 +1491,8 @@ components:
                                 error:
                                     - string
         list_learner_200:
-            description: Returned by list learner_router
-            content:
+            description: Returned by list learner
+u            content:
                 application/json:
                     schema:
                         allOf:
