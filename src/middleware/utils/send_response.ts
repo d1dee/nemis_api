@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
 import { Request, Response } from 'express';
@@ -19,6 +19,7 @@ export default class {
     constructor(req: any, res: any) {
         this.request = <Request>req;
         this.response = <Response>res;
+        
     }
 
     // Set headers
@@ -165,9 +166,14 @@ export default class {
     //method used to send a response to the client
     respond(data: any, message?: string, statusCode?: number) {
         statusCode = statusCode || 200;
+        this.setHeaders({
+            Authorization: 'Bearer ' + this.request?.token?.token,
+            'Access-Control-Expose-Headers': 'Authorization Expires',
+            Expires: new Date(Date.now() + 2.592e9).toUTCString()
+        });
 
         // todo: Walk through data object and remove sensitive data
-        
+
         //check if a response has been sent
         if (this.response?.headersSent) {
             return logger.warn('Headers sent');

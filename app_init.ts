@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import CustomError from './src/libs/error_handler';
 import connectDb from './src/database/index';
 import logger from './src/libs/logger';

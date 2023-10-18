@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
 //converts county names adn sub county names to their respective code as per nemis

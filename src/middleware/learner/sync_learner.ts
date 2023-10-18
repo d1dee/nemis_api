@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { sync } from '@libs/sync_api_database';
 import { Request } from 'express';
 import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';

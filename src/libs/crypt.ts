@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 require('dotenv').config();
 import { decrypt, encrypt } from 'crypto-js/aes';
 import { enc, format } from 'crypto-js/core';

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 // @ts-nocheck
 import { ObjectId } from "mongoose";

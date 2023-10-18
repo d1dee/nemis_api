@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { Request } from 'express';
 import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
 import learner from '@database/learner';

@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
 import { Router } from 'express';
 import authRouter from './auth';
 import institution from './institution/institution';
-import learner_router from './learner/learner_router';
+import learner_router from './learner';
 import { nemisRoute } from './nemis/nemis_router';
 
 const apiRouter = Router();

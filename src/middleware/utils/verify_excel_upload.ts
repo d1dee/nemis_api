@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
 import { NextFunction, Request, Response } from 'express';

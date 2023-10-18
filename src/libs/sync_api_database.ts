@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { DatabaseInstitution, ListLearner } from 'types/nemisApiTypes';
 import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 import { GRADES } from './zod_validation';

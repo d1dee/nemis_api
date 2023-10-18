@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 /**
  *  Class used to interact with NEMIS public api
  */

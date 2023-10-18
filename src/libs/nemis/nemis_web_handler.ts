@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 /**
  *  Base class that sets up all axios interactions. It is from this class that all other Nemis classes are extended from.
  */

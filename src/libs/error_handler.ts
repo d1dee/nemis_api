@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 export default class CustomError extends Error {
     code: number | undefined;
 

@@ -1,17 +1,16 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { Request } from 'express';
-import {
-    archiveInstitution,
-    updateInstitution as updateInstitutionController
-} from '@controller/institution';
-import logger from '@libs/logger';
-import CustomError from '@libs/error_handler';
-import { usernamePasswordSchema } from '@libs/zod_validation';
-import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
-import { NemisWebService } from '@libs/nemis/nemis_web_handler';
+import { Request } from "express";
+import { archiveInstitution, updateInstitution as updateInstitutionController } from "@controller/institution";
+import logger from "@libs/logger";
+import CustomError from "@libs/error_handler";
+import { usernamePasswordSchema } from "@libs/zod_validation";
+import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
+import { NemisWebService } from "@libs/nemis/nemis_web_handler";
+import { validateUsernamePassword } from "@middleware/utils/query_params";
+import { DatabaseInstitution, DatabaseToken } from "types/nemisApiTypes";
 
 const getInstitution = (req: Request) => {
     const response = req.sendResponse;
@@ -19,11 +18,7 @@ const getInstitution = (req: Request) => {
         let institution = req.institution;
         let token = req.token;
 
-        if (!token || !institution)
-            throw new CustomError(
-                'Something went terribly wrong. Please contact the administrator',
-                500
-            );
+        if (!token || !institution) throw new CustomError('Something went terribly wrong. Please contact the administrator', 500);
 
         let institutionObject = Object.assign(institution.toObject(), {
             token: token.token,
@@ -49,11 +44,7 @@ const updateInstitution = async (req: Request) => {
         const body = await usernamePasswordSchema.parseAsync(req.body);
 
         if (body.username !== req.institution.username)
-            throw new CustomError(
-                'Unable to update username. Please create a new account instead.',
-                405,
-                'method_not_allowed'
-            );
+            throw new CustomError('Unable to update username. Please create a new account instead.', 405, 'method_not_allowed');
 
         const nemis = new NemisWebService();
         let cookie = await nemis.login(body.username, body.password);
@@ -67,18 +58,11 @@ const updateInstitution = async (req: Request) => {
         }
 
         // If username and password are the same, avoid updating the database
-        let updatedInstitution = undefined;
-        if (
-            body.username === req.institution.username &&
-            body.password === req.institution.password
-        ) {
+        let updatedInstitution;
+        if (body.username === req.institution.username && body.password === req.institution.password) {
             updatedInstitution = req.institution;
         } else {
-            let updatedInstitution = await updateInstitutionController(
-                body.username,
-                body.password,
-                token.institutionId.toString()
-            );
+            updatedInstitution = await updateInstitutionController(body.username, body.password, token.institutionId.toString());
         }
 
         if (!updatedInstitution) {
@@ -93,14 +77,12 @@ const updateInstitution = async (req: Request) => {
 
 const deleteInstitution = async (req: Request) => {
     try {
-        let token = req.token;
-        if (!token || !Object.hasOwn(token, '_id') || !Object.hasOwn(token, 'institutionId')) {
-            throw {
-                code: 400,
-                message: 'Unable to delete institution',
-                cause: 'Token was has no associated institution. '
-            };
-        }
+        // Validate username and password before proceeding
+        await validateUsernamePassword(req.body);
+
+        let token = req.token?.toObject() as DatabaseToken;
+        if (!token || !Object.hasOwn(token, '_id') || !Object.hasOwn(token, 'institutionId'))
+            throw new CustomError('Supplied token is not associated with any institution', 400);
 
         let isArchive = await archiveInstitution(token.institutionId, token._id);
         if (!isArchive) {
@@ -110,18 +92,13 @@ const deleteInstitution = async (req: Request) => {
                 cause: 'Institution not found'
             };
         } else {
-            const institution = req.institution;
+            const institution = req.institution.toObject() as DatabaseInstitution;
 
-            req.sendResponse.respond(
-                {
-                    ...institution,
-                    token: token.token,
-                    tokenCreatedAt: token.createdAt,
-                    tokenExpiresAt: token.expires,
-                    archived: true
-                },
-                'Institution deleted'
-            );
+            Object.assign(institution, token);
+
+            console.warn(`Received deletion request from ${institution?.username}, ${institution.name}`);
+
+            req.sendResponse.respond(institution, 'Institution deleted');
         }
     } catch (err: any) {
         sendErrorMessage(req, err);

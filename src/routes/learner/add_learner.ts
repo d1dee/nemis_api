@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { Router } from "express";
 import { addLearnerByFile, addLearnerByJson } from "@middleware/learner/add_learner";
 import fileUpload from "express-fileupload";

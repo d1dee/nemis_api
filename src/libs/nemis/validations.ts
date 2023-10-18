@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { z as zod } from 'zod';
 import { medicalConditionDesc, nationalities } from '@libs/converts';
 import CustomError from '@libs/error_handler';

@@ -1,36 +1,40 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import mongoose from 'mongoose';
-import institutionModel from '@database/institution';
-import tokenModel from '@database/token';
-import CustomError from '@libs/error_handler';
-import { Institution } from 'types/nemisApiTypes';
-import learner from '@database/learner';
-import { NemisWebService } from '@libs/nemis/nemis_web_handler';
+import mongoose from "mongoose";
+import institutionModel from "@database/institution";
+import tokenModel from "@database/token";
+import CustomError from "@libs/error_handler";
+import { Institution } from "types/nemisApiTypes";
+import learner from "@database/learner";
+import { NemisWebService } from "@libs/nemis/nemis_web_handler";
 
-async function __getInst(
+type ArchiveInstitution = (institutionId: mongoose.Types.ObjectId, tokenId: mongoose.Types.ObjectId) => Promise<boolean>;
+type UpdateInstitution = (
+    username: string,
+    password: string,
+    institutionId: string
+) => Promise<Institution & { username: string; password: string; cookie: { value: string; expires: number } }>;
+type __GetInstitution = (
     username: string,
     password: string
-): Promise<
+) => Promise<
     Institution & {
         username: string;
         password: string;
         cookie: { value: string; expires: number };
     }
-> {
+>;
+
+const __getInst: __GetInstitution = async (username, password) => {
     try {
         const nemis = new NemisWebService();
         const cookie = await nemis.login(username, password);
 
         let institution = await nemis.getInstitution(username);
         if (!institution || typeof institution !== 'object') {
-            throw new CustomError(
-                'No valid institution information was returned, check your credentials and try again',
-                401,
-                'Unauthorized'
-            );
+            throw new CustomError('No valid institution information was returned, check your credentials and try again', 401, 'Unauthorized');
         }
         return {
             ...institution,
@@ -41,15 +45,9 @@ async function __getInst(
     } catch (err) {
         throw err;
     }
-}
+};
 
-const updateInstitution = async (
-    username: string,
-    password: string,
-    institutionId: string
-): Promise<
-    Institution & { username: string; password: string; cookie: { value: string; expires: number } }
-> => {
+const updateInstitution: UpdateInstitution = async (username, password, institutionId) => {
     try {
         let institution = await __getInst(username, password);
         await institutionModel.findByIdAndUpdate(institutionId, institution).lean();
@@ -63,14 +61,12 @@ const updateInstitution = async (
     }
 };
 
-const archiveInstitution = async (
-    institutionId: mongoose.Types.ObjectId,
-    tokenId: mongoose.Types.ObjectId
-): Promise<boolean> => {
+const archiveInstitution: ArchiveInstitution = async (institutionId, tokenId) => {
     try {
         if (mongoose.isValidObjectId(institutionId) && mongoose.isValidObjectId(tokenId)) {
             await Promise.all([
                 institutionModel.findByIdAndUpdate(institutionId, {
+                    $push: { archivedTokens: tokenId },
                     isArchived: true
                 }),
                 tokenModel.findByIdAndUpdate(tokenId, {
@@ -78,10 +74,10 @@ const archiveInstitution = async (
                     revoked: {
                         on: Date.now(),
                         by: institutionId,
-                        reason: 'institution was archived'
+                        reason: 'institution was deleted'
                     }
                 }),
-                learner.update({ institutionId: institutionId }, { archived: true })
+                learner.updateMany({ institutionId: institutionId }, { archived: true })
             ]);
             return true;
         } else {

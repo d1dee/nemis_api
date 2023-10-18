@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) 2023. MIT License. Maina Derrick.
+ */
+
 import { Router } from 'express';
 import { admitRoute } from './admit_router';
 import search from '@middleware/nemis/search';

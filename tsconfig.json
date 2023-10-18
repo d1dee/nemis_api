@@ -14,7 +14,6 @@
       "@routes/*":["./src/routes/*"],
       "@middleware/*":["./src/middleware/*"],
       "@controller/*":["./src/controller/*"],
-      "@libs/*":["./src/libs/*"],
-      "@types/*":["./types/*"]
+      "@libs/*":["./src/libs/*"]
     },
 }}

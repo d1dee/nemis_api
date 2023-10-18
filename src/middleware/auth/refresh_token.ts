@@ -1,15 +1,15 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { randomFillSync } from 'crypto';
-import { sign, TokenExpiredError, verify } from 'jsonwebtoken';
-import institution_schema from '@database/institution';
-import token_schema from '@database/token';
-import logger from '@libs/logger';
-import { Request } from 'express';
-import CustomError from '@libs/error_handler';
-import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
+import { randomFillSync } from "crypto";
+import { sign, TokenExpiredError, verify } from "jsonwebtoken";
+import institution_schema from "@database/institution";
+import token_schema from "@database/token";
+import logger from "@libs/logger";
+import { Request } from "express";
+import CustomError from "@libs/error_handler";
+import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
 
 export default (req: Request) => {
     try {
@@ -29,15 +29,15 @@ export default (req: Request) => {
             if (err) {
                 if (err instanceof TokenExpiredError) {
                     //Token refresh
-                    logger.debug(JSON.stringify(decodedToken) + ' has expired and is being refreshed');
+                    console.debug(JSON.stringify(decodedToken) + ' has expired and is being refreshed');
 
-                    logger.debug('Token expired, sending a new token');
+                    console.debug('Token expired, sending a new token');
 
                     delete decodedToken.exp;
                     delete decodedToken.iat;
 
                     let tokenSecret = randomFillSync(Buffer.alloc(32)).toString('hex');
-                    logger.debug('Token secret: ' + tokenSecret);
+                    console.debug('Token secret: ' + tokenSecret);
 
                     let tokenDb = await token_schema.create({
                         token: sign(decodedToken, tokenSecret, {
@@ -55,7 +55,7 @@ export default (req: Request) => {
                         revoked: {
                             on: Date.now(),
                             by: decodedToken.id,
-                            reason: 'Token refresh'
+                            reason: 'Token expired.'
                         }
                     });
                     //response.setCookie(tokenDb.token);
@@ -65,7 +65,7 @@ export default (req: Request) => {
                         Expires: new Date(Date.now() + 2.592e9).toUTCString()
                     });
 
-                    return req.sendResponse.respond({ token: tokenDb.token }, 'Token refershed succesfully.');
+                    return req.sendResponse.respond({ token: tokenDb.token }, 'Token refreshed successfully.');
                 } else {
                     throw new CustomError('Forbidden. Invalid token', 403);
                 }
