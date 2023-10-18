@@ -1,21 +1,17 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import {ObjectId} from 'mongoose';
 //converts county names adn sub county names to their respective code as per nemis
-import {BasicName, Grades, NemisLearner, NemisLearnerFromDb} from '../interfaces';
+import { BasicName, Grades } from 'types/nemisApiTypes';
 
-export const countyToNo = (
-	county?: string,
-	subCounty?: string
-): {countyNo: Number; subCountyNo: Number} => {
+export const countyToNo = (county?: string, subCounty?: string) => {
 	county = String(county).trim();
 	subCounty = String(subCounty).trim();
 	let countyNo: number;
 	let subCountyNo: number;
 	switch (true) {
-		//Regex county names to avoid typos
+		//Regex county names to avoid typo
 		//01 Mombasa
 		case /^momb.*/gi.test(county):
 			countyNo = 101;
@@ -1455,7 +1451,7 @@ export const countyToNo = (
 		subCountyNo: subCountyNo
 	};
 };
-//converts nationalities to their respective codes and vice varsa as per nemis
+//converts nationalities to their respective codes and vice-vasa as per nemis
 export const nationalities = (nationality: number | string): number | string => {
 	if (typeof nationality === 'string') {
 		switch (true) {
@@ -1487,31 +1483,31 @@ export const nationalities = (nationality: number | string): number | string => 
 				nationality = 1;
 				break;
 		}
-	} else if (typeof nationality === 'number') {
+	} else {
 		switch (nationality) {
 			case 1:
-				nationality = 'Kenyan';
+				nationality = 'kenya';
 				break;
 			case 2:
-				nationality = 'Sudan';
+				nationality = 'sudan';
 				break;
 			case 3:
-				nationality = 'Tanzania';
+				nationality = 'tanzania';
 				break;
 			case 4:
-				nationality = 'Somalia';
+				nationality = 'somalia';
 				break;
 			case 5:
-				nationality = 'Ethiopia';
+				nationality = 'ethiopia';
 				break;
 			case 6:
-				nationality = 'Europe | America';
+				nationality = 'europe | america';
 				break;
 			case 7:
-				nationality = 'Africa';
+				nationality = 'africa';
 				break;
 			case 8:
-				nationality = 'Others';
+				nationality = 'others';
 				break;
 			default:
 				nationality = 'Kenya';
@@ -1522,61 +1518,55 @@ export const nationalities = (nationality: number | string): number | string => 
 };
 
 //converts classes as per nemis
-export const form = (grade: Grades): number => {
-	if (typeof grade === 'string') {
-		if (grade.startsWith('form')) {
-			switch (grade) {
-				case 'form 1':
-					return 12;
-				case 'form 2':
-					return 13;
-				case 'form 3':
-					return 14;
-				case 'form 4':
-					return 15;
-				default:
-					throw {message: grade + ' is out of range'};
-			}
-		} else if (grade.startsWith('grade')) {
-			switch (grade) {
-				case 'pp 1':
-					return 16;
-				case 'pp 2':
-					return 17;
-				case 'grade 1':
-					return 18;
-				case 'grade 2':
-					return 19;
-				case 'grade 3':
-					return 20;
-				case 'grade 4':
-					return 21;
-				case 'grade 5':
-					return 22;
-				case 'grade 6':
-					return 23;
-				case 'grade 7':
-					return 24;
-				case 'grade 8':
-					return 25;
-				case 'grade 9':
-					return 26;
-				case 'grade 10':
-					return 27;
-				case 'grade 11':
-					return 28;
-				default:
-					throw  {message: grade + ' is out of range'};
-			}
-		} else throw{message: 'Invalid grade or form'};
+export const form = (grade: Grades) => {
+	if (!grade) throw new Error('Grade was not defined.');
+	switch (
+		grade as unknown as string // We already know grade is a string
+	) {
+		case 'form 1':
+			return 12;
+		case 'form 2':
+			return 13;
+		case 'form 3':
+			return 14;
+		case 'form 4':
+			return 15;
+		case 'pp 1':
+			return 16;
+		case 'pp 2':
+			return 17;
+		case 'grade 1':
+			return 18;
+		case 'grade 2':
+			return 19;
+		case 'grade 3':
+			return 20;
+		case 'grade 4':
+			return 21;
+		case 'grade 5':
+			return 22;
+		case 'grade 6':
+			return 23;
+		case 'grade 7':
+			return 24;
+		case 'grade 8':
+			return 25;
+		case 'grade 9':
+			return 26;
+		case 'grade 10':
+			return 27;
+		case 'grade 11':
+			return 28;
+		default:
+			throw new Error('Grade is out of range.');
 	}
 };
 
-//split names into firstname, middlename and lastname
+//split names into firstname, middle name and lastname
 export const splitNames = (name: string): BasicName => {
 	try {
 		let nameArray: string[] = name?.split(' ');
-		if (nameArray.length < 2) throw {message: 'Invalid name length'};
+		if (nameArray.length < 2) throw { message: 'Invalid name length' };
 		switch (nameArray.length) {
 			case 3:
 				return {
@@ -1592,8 +1582,8 @@ export const splitNames = (name: string): BasicName => {
 				};
 			default:
 				return {
-					surname: nameArray.shift(),
-					otherName: nameArray.pop(),
+					surname: nameArray.shift() || ' ',
+					otherName: nameArray.pop() || ' ',
 					firstname: nameArray.join(' ')
 				};
 		}
@@ -1602,10 +1592,10 @@ export const splitNames = (name: string): BasicName => {
 	}
 };
 
-export const setMedicalCondition = (medicalCondition: string): number => {
+export const medicalConditionCode = (medicalCondition: string): number => {
 	//set medical condition
-	// 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabeties, 5 = epilepsy, 0 = none
-	let condition;
+	// 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabetes, 5 = epilepsy, 0 = none
+	let condition = 0;
 	switch (true) {
 		case /an/g.test(medicalCondition):
 			condition = 1;
@@ -1622,112 +1612,58 @@ export const setMedicalCondition = (medicalCondition: string): number => {
 		case /epi/g.test(medicalCondition):
 			condition = 5;
 			break;
-		default:
-			condition = 0;
+	}
+	return condition;
+};
+
+export const medicalConditionDesc = (medicalCondition: number): string => {
+	//set medical condition
+	// 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabetes, 5 = epilepsy, 0 = none
+	let condition = 'none';
+	switch (medicalCondition) {
+		case 1:
+			condition = 'anaemia';
+			break;
+		case 2:
+			condition = 'asthma';
+			break;
+		case 3:
+			condition = 'convulsions';
+			break;
+		case 4:
+			condition = 'diabetes';
+			break;
+		case 5:
+			condition = 'epilepsy';
 			break;
 	}
 	return condition;
 };
 
-export function parseLearner(
-	learnerJsonArray: NemisLearner[],
-	institutionId?: ObjectId | string,
-	extraData?: {}
-): NemisLearnerFromDb[] {
-	try {
-		if (!learnerJsonArray) throw {message: 'learnerJsonArray is undefined'};
-		let cleanLearner = [];
-		learnerJsonArray.forEach(learner => {
-			let pushLearner = {
-				mother: {},
-				father: {},
-				guardian: {}
-			} as NemisLearnerFromDb;
-			// refactor contacts
-			Object.keys(learner).forEach(key => {
-				switch (key) {
-					case 'dob':
-						if (!learner[key]) break;
-						learner.dob = learner.dob.toString();
-						break;
-					case 'fatherName':
-					case 'fatherId':
-					case 'fatherTel':
-						if (!learner[key]) break;
-						Object.assign(pushLearner.father, {
-							[key.replace('father', '')?.toLowerCase()]: learner[key]
-						});
-						delete learner[key];
-						break;
-					case 'motherName':
-					case 'motherId':
-					case 'motherTel':
-						if (!learner[key]) break;
-						Object.assign(pushLearner.mother, {
-							[key.replace('mother', '')?.toLowerCase()]: learner[key]
-						});
-						delete learner[key];
-						break;
-					case 'guardianName':
-					case 'guardianId':
-					case 'guardianTel':
-						if (!learner[key]) break;
-						Object.assign(pushLearner.guardian, {
-							[key.replace('guardian', '')?.toLowerCase()]: learner[key]
-						});
-						delete learner[key];
-						break;
-					case 'county':
-					case 'subCounty':
-						if (!learner[key]) break;
-						let countyNo: {countyNo; subCountyNo} = countyToNo(
-							learner.county,
-							learner.subCounty
-						);
-						pushLearner.countyNo = countyNo?.countyNo;
-						pushLearner.subCountyNo = countyNo?.subCountyNo;
-						break;
-					case 'form':
-					case 'grade':
-						if (!learner[key]) break;
-						pushLearner.grade = learner[key]?.toLowerCase();
-						delete learner[key];
-						break;
-					case 'gender':
-						if (!learner[key]) break;
-						pushLearner.gender = learner[key]?.toLowerCase();
-						delete learner[key];
-						break;
-					case 'errors':
-						if (!learner[key]) break;
-						pushLearner.error = learner[key]?.toLowerCase();
-						delete learner[key];
-				}
-			});
-			pushLearner.institutionId = institutionId.toString();
-			if (extraData && Object.keys(extraData).length > 0) {
-				Object.entries(extraData).forEach(x => {
-					pushLearner[x[0]] = x[1];
-				});
-			}
-			cleanLearner.push({
-				...learner,
-				...pushLearner
-			});
-		});
-		return cleanLearner;
-	} catch (err) {
-		throw {message: err?.message || 'failed to parse learner details', cause: err};
-	}
-}
+export function lowerCaseAllValues(obj: any, opts?: { keys: boolean }): any {
+	// Check if obj is a POJO
+	if (!obj || typeof obj !== 'object' || obj.constructor.name !== 'Object') return obj;
 
-/**
- * total = oname.length
- * positional match = total
- * at least 2 names follow order to be considered a match
- * break down to individual names
- *  maina derrick muraya
- *  maina derrick kimani
- *  if oname[0] === cname[0]... check others
- *
- */
+	let lowerCased = Object.entries(obj).map(keyValuePair => {
+		if (typeof keyValuePair[1] === 'string')
+			if (opts?.keys) {
+				return [
+					keyValuePair[0]?.toLowerCase()?.trim(),
+					!!keyValuePair[1] ? keyValuePair[1]?.toLowerCase()?.trim() : undefined
+				];
+			} else {
+				return [
+					keyValuePair[0],
+					!!keyValuePair[1] ? keyValuePair[1]?.toLowerCase()?.trim() : undefined
+				];
+			}
+		if (typeof keyValuePair[1] === 'object') {
+			return [
+				keyValuePair[0]?.toLowerCase()?.trim(),
+				lowerCaseAllValues(keyValuePair[1], opts)
+			];
+		}
+		return keyValuePair;
+	});
+	return Object.fromEntries(lowerCased);
+}

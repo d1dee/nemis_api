@@ -1,143 +1,91 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import * as jwt from 'jsonwebtoken';
-import mongoose from 'mongoose';
-import {randomFillSync} from 'node:crypto';
-import archivedInstitutionModel from '../database/archive_institution';
-import institutionModel from '../database/institution';
-import tokenModel from '../database/token';
-import {DbInstitution} from '../interfaces';
-import logger from '../libs/logger';
-import {Nemis} from '../libs/nemis';
-import {TokenFromDb} from '../middleware/interfaces';
+import mongoose from "mongoose";
+import institutionModel from "@database/institution";
+import tokenModel from "@database/token";
+import CustomError from "@libs/error_handler";
+import { Institution } from "types/nemisApiTypes";
+import learner from "@database/learner";
+import { NemisWebService } from "@libs/nemis/nemis_web_handler";
 
-async function __getInst(username: string, password: string): Promise<DbInstitution> {
-	// noinspection ExceptionCaughtLocallyJS
-	try {
-		const nemis = new Nemis();
-		const cookie = await nemis.login(username, password);
+type ArchiveInstitution = (institutionId: mongoose.Types.ObjectId, tokenId: mongoose.Types.ObjectId) => Promise<boolean>;
+type UpdateInstitution = (
+    username: string,
+    password: string,
+    institutionId: string
+) => Promise<Institution & { username: string; password: string; cookie: { value: string; expires: number } }>;
+type __GetInstitution = (
+    username: string,
+    password: string
+) => Promise<
+    Institution & {
+        username: string;
+        password: string;
+        cookie: { value: string; expires: number };
+    }
+>;
 
-		let institution: DbInstitution = await nemis.getInstitution();
+const __getInst: __GetInstitution = async (username, password) => {
+    try {
+        const nemis = new NemisWebService();
+        const cookie = await nemis.login(username, password);
 
-		if (!institution || typeof institution !== 'object') {
-			throw new Error('Institution info not found, Invalid institution info.');
-		}
-		institution.username = username;
-		institution.password = password;
-		institution.cookie = {value: cookie, expires: Date.now() + 3.6e6};
-		return institution;
-	} catch (err) {
-		throw err;
-	}
-}
-
-const registerInstitution = async (
-	username: string,
-	password: string
-): Promise<{institution: DbInstitution; token: TokenFromDb}> => {
-	try {
-		let institution = await __getInst(username, password);
-		// Check if the institution is already registered and archived
-		let archivedInstitution = await institutionModel.findOne({
-			username: username,
-			archived: true
-		});
-		let institutionDoc;
-		if (archivedInstitution) {
-			institutionDoc = await institutionModel.findByIdAndUpdate(archivedInstitution._id, {
-				archived: false,
-				password: password,
-				cookie: institution.cookie
-			});
-		} else {
-			institutionDoc = await institutionModel.create(institution);
-		}
-
-		if (!institutionDoc) {
-			throw new Error('Institution not created, Invalid institution info');
-		}
-
-		logger.debug(`Institution created ${institutionDoc.code}`);
-		let tokenSecret = randomFillSync(Buffer.alloc(32)).toString('hex');
-		logger.trace('Token secret: ' + tokenSecret);
-
-		let tokenDoc = await tokenModel.create({
-			token: '',
-			tokenSecret: tokenSecret,
-			institutionId: institutionDoc._id
-		});
-
-		let token = jwt.sign(
-			{
-				username: institutionDoc.username,
-				id: tokenDoc._id
-			},
-			tokenSecret,
-			{expiresIn: '30 d'}
-		);
-
-		await tokenDoc.updateOne({token: token});
-		logger.trace('Token doc: ' + tokenDoc);
-		await institutionDoc.updateOne({token: tokenDoc._id});
-
-		return {
-			institution: {...institutionDoc.toObject(), archived: false},
-			token: {...tokenDoc.toObject(), token: token}
-		};
-	} catch (err) {
-		/*if(err?.code=== 11000){
-			throw new Error(err?.message)
-		}*/
-		throw err;
-	}
+        let institution = await nemis.getInstitution(username);
+        if (!institution || typeof institution !== 'object') {
+            throw new CustomError('No valid institution information was returned, check your credentials and try again', 401, 'Unauthorized');
+        }
+        return {
+            ...institution,
+            username: username,
+            password: password,
+            cookie: { value: cookie, expires: Date.now() + 3.6e6 }
+        };
+    } catch (err) {
+        throw err;
+    }
 };
 
-const updateInstitution = async (
-	username: string,
-	password: string,
-	institutionId: string
-): Promise<DbInstitution> => {
-	try {
-		let institution = await __getInst(username, password);
-		institution = (await institutionModel
-			.findByIdAndUpdate(institutionId, institution)
-			.lean()) as DbInstitution;
-		if (!institution) {
-			throw new Error('Institution not updated, Invalid institution info');
-		} else {
-			delete institution.password;
-			delete institution.cookie;
-			delete institution.__v;
-			delete institution._id;
-
-			return institution;
-		}
-	} catch (err) {
-		throw err;
-	}
+const updateInstitution: UpdateInstitution = async (username, password, institutionId) => {
+    try {
+        let institution = await __getInst(username, password);
+        await institutionModel.findByIdAndUpdate(institutionId, institution).lean();
+        if (!institution) {
+            throw new Error('Institution not updated, Invalid institution info');
+        } else {
+            return institution;
+        }
+    } catch (err) {
+        throw err;
+    }
 };
 
-const archiveInstitution = async (institutionId: string, tokenId: string): Promise<boolean> => {
-	try {
-		if (mongoose.isValidObjectId(institutionId) && mongoose.isValidObjectId(tokenId)) {
-			await institutionModel.findByIdAndUpdate(institutionId, {
-				archived: true
-			});
-			await tokenModel.findByIdAndUpdate(tokenId, {archived: true});
-			await archivedInstitutionModel.create({
-				institutionId: institutionId,
-				tokenId: tokenId
-			});
-
-			return true;
-		} else {
-			return false;
-		}
-	} catch (err) {
-		throw err;
-	}
+const archiveInstitution: ArchiveInstitution = async (institutionId, tokenId) => {
+    try {
+        if (mongoose.isValidObjectId(institutionId) && mongoose.isValidObjectId(tokenId)) {
+            await Promise.all([
+                institutionModel.findByIdAndUpdate(institutionId, {
+                    $push: { archivedTokens: tokenId },
+                    isArchived: true
+                }),
+                tokenModel.findByIdAndUpdate(tokenId, {
+                    archived: true,
+                    revoked: {
+                        on: Date.now(),
+                        by: institutionId,
+                        reason: 'institution was deleted'
+                    }
+                }),
+                learner.updateMany({ institutionId: institutionId }, { archived: true })
+            ]);
+            return true;
+        } else {
+            return false;
+        }
+    } catch (err) {
+        throw err;
+    }
 };
 
-export {updateInstitution, registerInstitution, archiveInstitution};
+export { updateInstitution, archiveInstitution };

@@ -1,0 +1,1600 @@
+openapi: 3.0.3
+info:
+    title: NEMIS API
+    version: 0.0.1-alpha
+    description: 'This is an unofficial NEMIS API that provides access to the NEMIS education portal, allowing developers to perform various operations such as admitting and transferring learners, retrieving NHIF details, and searching for learners. The API is primarily focused on secondary schools and supports batch operations through Excel file upload and bulk submission to NHIF.'
+    contact:
+        name: Maina Derrick
+        url: _
+        email: mainaderiq@gmail.com
+    license:
+        name: Licence MIT
+        url: 'https://opensource.org/licenses/MIT'
+servers:
+    -   url: 'http://localhost:3000/api'
+paths:
+    /auth/refresh:
+        get:
+            summary: Refresh JWT token
+            tags:
+                - Auth
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    success:
+                                        type: boolean
+                                        default: true
+                                    message:
+                                        type: string
+                                    data:
+                                        $ref: '#/components/schemas/token'
+                                required:
+                                    - success
+                                    - message
+                                    - data
+                    headers:
+                        jwt-token:
+                            schema:
+                                type: string
+                            description: new JWT token
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-auth-refresh
+            description: 'This endpoint checks if a JSON Web Token (JWT) has expired. If it has''t, the endpoint returns the same token. If it has expired, the function generates a new JWT and returns it.'
+            parameters: [ ]
+    /auth/register:
+        post:
+            summary: Register a new institution
+            operationId: post-auth-register
+            responses:
+                '200':
+                    $ref: '#/components/responses/institution_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: This API endpoint allows you to submit a username and password to log in to the Nemis website and retrieve institution details upon successful login. The endpoint will authenticate the user's credentials and retrieve the relevant details from the Nemis website.
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                username:
+                                    type: string
+                                    description: NEMIS IUC code
+                                password:
+                                    type: string
+                                    description: 'password used to login to  h.ttp://nemis.education.go.ke'
+                            required:
+                                - username
+                                - password
+                description: Should contain username and password same as those used on NEMIS website.
+            tags:
+                - Institution
+    /institution:
+        get:
+            summary: Get an already registered institution
+            responses:
+                '200':
+                    $ref: '#/components/responses/institution_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-institution
+            description: ' This endpoint returns the details of the institution linked to the JWT authentication token. The authentication token should be passed in the request headers as an Authorization Bearer token. If the token is valid and authorized, the API will retrieve the institution details from the database and return them in the response body.'
+            tags:
+                - Institution
+        parameters: [ ]
+    /institution/update:
+        post:
+            summary: Update institution details
+            operationId: post-institution-update
+            responses:
+                '200':
+                    $ref: '#/components/responses/institution_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint updates institution information by parsing the Nemis website using an authenticated JWT token. It accepts a JSON payload containing the updated institutions username and password and returns a JSON response with the updated institution details if the update was successful, or an error message if the update failed.'
+            tags:
+                - Institution
+    /institution/delete:
+        delete:
+            summary: Delete an institution from the APIs database
+            operationId: delete-institution-delete
+            responses:
+                '200':
+                    $ref: '#/components/responses/institution_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: This endpoint allows for the deletion of an institution's details from the database without affecting any data in the Nemis system.
+            tags:
+                - Institution
+    '/learner/search/{uniqueIdentifier}':
+        get:
+            summary: Search learner_router sing UPI or birth certificate number
+            tags:
+                - Learner
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-learner_router-search
+            parameters:
+                -   schema:
+                        type: string
+                    in: query
+                    name: uniqueIdentifier
+                    description: 'Admission number, UPI or birth certificate number to search for in the APIs database'
+            description: 'This endpoint allows users to search for learner_router details on Nemis using either the Unique Personal Identifier (UPI) or Birth Certificate Number. Only UPI and Birth Certificate numbers are supported as search parameters. The response will include relevant learner_router information such as name, school, class, and NHIF details if available.'
+        parameters:
+            -   $ref: '#/components/parameters/uniqueIdentifier'
+    /learner/add/joining/excel:
+        parameters: [ ]
+        post:
+            summary: Add new learners using Excel
+            operationId: post-learner_router-new-excel
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '400':
+                    $ref: '#/components/responses/add_new_learner_400'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint allows addition of a multiple learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner_router using a JSON.'
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            properties: { }
+                        examples: { }
+                description: An excel file with the learners details.
+            tags:
+                - Learner
+    /learner/add/joining/json:
+        post:
+            summary: Add single learner_router using JSON
+            operationId: post-learners-new-json
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '400':
+                    $ref: '#/components/responses/add_new_learner_400'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            parameters: [ ]
+            description: 'This endpoint allows addition of a single learner_router to the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner_router to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple learners using an Excel file.'
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/learner'
+                description: Complete learner_router details in JSON format.
+            tags:
+                - Learner
+        parameters: [ ]
+    /learner/add/continuing/excel:
+        post:
+            summary: Add continuing learners using Excel
+            operationId: post-learner_router-continuing-excel
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '400':
+                    $ref: '#/components/responses/add_new_learner_400'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint allows addition of a multiple continuing learners to the database using an Excel file. The data is first validated to ensure it meets the required standards before adding the learners to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a single learner_router using a JSON.'
+            requestBody:
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            properties: { }
+                description: An excel file with all learner_router details and continuing set to true
+            tags:
+                - Learner
+        parameters: [ ]
+    /learner/add/continuing/json:
+        parameters: [ ]
+        post:
+            summary: Add continuing learner_router using JSON
+            operationId: post-learner_router-continuing-json
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '400':
+                    $ref: '#/components/responses/add_new_learner_400'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint allows addition of a single continuing learner_router to the database using JSON. The data is first validated to ensure it meets the required standards before adding the learner_router to database. Any errors encountered during the validation process are returned as response messages, and no learners are added until all validations are passed. Note that there is another endpoint to add a multiple continuing learners using an Excel file.'
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/learner'
+                description: A complete continuing learner_router data
+            tags:
+                - Learner
+    /learner/delete:
+        delete:
+            summary: Delete multiple learners
+            operationId: delete-learner_router-delete
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: Deletes learner_router from APIs database. Note this down not affect any record on the NEMIS website.
+            parameters:
+                -   schema:
+                        type: array
+                    in: query
+                    name: adm
+                    description: 'An array of learners'' adm to delete '
+                -   schema:
+                        type: array
+                    in: query
+                    name: upi
+                    description: An array of UPIs to delete
+            tags:
+                - Learner
+    '/learner/delete/{uniqueIdentifier}':
+        delete:
+            summary: Delete a single learner_router by their unique identifiers
+            tags:
+                - Learner
+            responses:
+                '200':
+                    $ref: '#/components/responses/learner_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: 'delete-learner_router-delete-:value'
+            description: Deletes a learner_router's information based on their unique identifier (UPI or birth certificate number or admission number)
+        parameters:
+            -   $ref: '#/components/parameters/uniqueIdentifier'
+    /nemis/admit/joining:
+        post:
+            summary: Admit joining learner_router
+            operationId: post-nemis-admission
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                oneOf:
+                                    -   properties:
+                                            '':
+                                                allOf:
+                                                    -   $ref: '#/components/schemas/success_and_message'
+                                                    -   type: object
+                                                        properties:
+                                                            data:
+                                                                $ref: '#/components/schemas/admitted_learner'
+                                    -   properties:
+                                            '':
+                                                allOf:
+                                                    -   $ref: '#/components/schemas/success_and_message'
+                                                    -   type: object
+                                                        properties:
+                                                            data:
+                                                                type: array
+                                                                description: An array of learners who are not yet admitted
+                                                                items:
+                                                                    $ref: '#/components/schemas/learner'
+                                type: object
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint submits all new learner_router to NEMIS for admission. The admitted learners can later on be assigned an Unique Personal Identifier (UPI) number through the end point `/nemis/capture/joining`. The learner_router''s details used are submitted by either adding a learner_router through` /learner_router/add/joining/json` or `/learner_router/add/joining/excel`. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
+            parameters:
+                -   schema:
+                        type: boolean
+                    in: query
+                    name: await
+                    description: Whether or not to await for the process to complete
+            tags:
+                - Nemis
+        parameters: [ ]
+    /nemis/admit/continuing:
+        post:
+            summary: Admit continuing learner_router
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                $ref: '#/components/schemas/continuing_learner'
+                            examples:
+                                Example 1:
+                                    value:
+                                        success: true
+                                        message: string
+                                        data:
+                                            'no': string
+                                            adm: string
+                                            name: string
+                                            gender: male
+                                            kcpeYear: 2021
+                                            index: string
+                                            birthCertificateNo: string
+                                            grade: form 1
+                                            upi: string
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: post-nemis-admit-continuing
+            description: 'This endpoint submits learner_router from the database who have `{continuing:true}` to NEMIS for admission. Once they are admitted, this learners will await approval from the nemis administrator after which their biodata can be captured through the endpoint `/nemis/capture/continuing` and be assigned an Unique Personal Identifier (UPI). The learner_router''s details used are submitted by either adding a learner_router through /learner_router/add/continuing/json or /learner_router/add/continuing/excel. If await is set to true, the request will await all submission to finish and return the results else a list of learners to be admitted is returned.'
+    /nemis/capture/joining:
+        post:
+            summary: Capture joining learner_router bio data
+            operationId: post-nemis-capture-joining
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint captures biodata of joining learners and assigns them an Unique Personal Identifier (UPI) using the data received through `/learner_router/add/joining/excel` or `/learner_router/add/joining/json`. This ed point is only meant for joining learners only, for continuing learners see `/nemis/capture/continuing`. This end point will return `200 OK` response with an array of learner_router objects. If there was an error with a learner_router during submission, the error will be appended to the learner_router object.'
+            tags:
+                - Nemis
+    /nemis/capture/continuing:
+        parameters: [ ]
+        post:
+            summary: Capture continuing learner_router bio data
+            operationId: post-nemis-capture-continuing
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint allows for submission of continuing learner_router biodata to be issued with an Unique Personal Identifier (UPI). The learner_router must be first admitted using the endpoint `/nemis/admit/continuing`. You can get the list of learners pending bio data capture at `/nemis/learners/continuing`. '
+            tags:
+                - Nemis
+    /nemis/list/continuing:
+        get:
+            summary: Get continuing learners
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/continuing_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-list-continuing
+            description: 'Returns a list of continuing learners. By default, all learners are returned, but you can narrow down the results by sending a query parameter `approved` with a value of `true` or `false`.'
+            parameters:
+                -   schema:
+                        type: boolean
+                    in: query
+                    name: approved
+                    description: 'Whether to return only learners whose admission has been approved. If this parameter is not defined, all learners will be returned'
+        parameters: [ ]
+    /nemis/list/learners:
+        get:
+            summary: Get all NEMIS learners
+            responses:
+                '200':
+                    $ref: '#/components/responses/list_learner_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-list-learners
+            description: |-
+                This endpoint returns a JSON representation of the data returned by `http://nemis.education.go.ke/listlearners.aspx`. It retrieves all learners enrolled in the institution, across all grades available. To get only learners who belong to a specific grade, use the endpoint `/nemis/list/learners/{grade}`.
+                
+                Note that the returned learner object is an exact copy of what you would see on the NEMIS website. It does not include all the data available in a full learner schema. For a more comprehensive learner schema, see `/learner/list`.
+            tags:
+                - Nemis
+        parameters: [ ]
+    '/nemis/list/learners/{grade}':
+        parameters:
+            -   $ref: '#/components/parameters/grade_path_param'
+        get:
+            summary: Get NEMIS learners per grade
+            responses:
+                '200':
+                    $ref: '#/components/responses/list_learner_200'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-list-learners-grade
+            description: 'This endpoint returns a JSON representation of the data returned by `http://nemis.education.go.ke/listlearners.aspx` for learners in a specific grade, e.g., form 1. It is a more specific version of the `/nemis/list/learners` endpoint. Note that this endpoint only returns a partial learner_router schema, similar to what you would see on the NEMIS website. If you need a more comprehensive learner_router schema with all the available data, you can use the `/learner_router/list` endpoint.'
+            tags:
+                - Nemis
+    '/nemis/nhif/{grade}':
+        post:
+            summary: Submit a grade to NHIF
+            operationId: post-nemis-nhif
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/nemis_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This end point submits all learners details to NHIF so that they can be issued NHIF numbers. Only learners with Unique Personal Identification (UPI) can be submitted to NHIF. This endpoint ony does a bulk submission of the specified grade, there is no need for an individual submission since all learners need to be submitted anyway.'
+            parameters:
+                -   schema:
+                        type: string
+                    in: query
+                    name: await
+                    description: 'When set to true, the socket will await for the whole submission process to finish before returning results. If await is set to false, the end point returns a list of learners who are going to  be submitted'
+            tags:
+                - Nemis
+        parameters:
+            -   $ref: '#/components/parameters/grade_path_param'
+    '/nemis/search/{uniqueIdentifier}':
+        get:
+            summary: Search a learner_router on NEMIS
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: object
+                                                properties:
+                                                    adm:
+                                                        type: string
+                                                    name:
+                                                        type: string
+                                                    gender:
+                                                        $ref: '#/components/schemas/gender'
+                                                    grade:
+                                                        $ref: '#/components/schemas/grade'
+                                                    stream:
+                                                        type: string
+                                                    upi:
+                                                        type: string
+                                                    marks:
+                                                        type: integer
+                                                    birthCertificateNo:
+                                                        type: string
+                                                    dob:
+                                                        type: string
+                                                    medicalCondition:
+                                                        $ref: '#/components/schemas/medicalCondition'
+                                                    isSpecial:
+                                                        type: boolean
+                                                    father:
+                                                        $ref: '#/components/schemas/parent'
+                                                    mother:
+                                                        $ref: '#/components/schemas/parent'
+                                                    guardian:
+                                                        $ref: '#/components/schemas/parent'
+                                                    nhifNo:
+                                                        type: integer
+                                                    kcpeYear:
+                                                        type: integer
+                                                    isLearner:
+                                                        type: boolean
+                                                    currentInstitution:
+                                                        type: object
+                                                        description: Details about where the learner_router is currently admitted to
+                                                        properties:
+                                                            name:
+                                                                type: string
+                                                                description: name of the institution
+                                                            code:
+                                                                type: string
+                                                                description: USIC code of the institution
+                                                            type:
+                                                                type: string
+                                                                description: institution type
+                                                            level:
+                                                                type: string
+                                                                description: institution level
+                            examples: { }
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-search
+            description: 'This endpoint enables users to search for learners on the NEMIS website using Unique Personal Identifier (UPI), or Birth Certificate Number. The endpoint will return a learner_router object matching the search criteria. Note that this endpoint only searches on the NEMIS website and does not return results from the local database. For searching learners from the local database, use the endpoint `/learner_router/search`.'
+        parameters:
+            -   schema:
+                    type: string
+                name: uniqueIdentifier
+                in: path
+                required: true
+                description: 'only UPI or birth certificate number, or index  numbers are supported  by this endpoint'
+    /nemis/transfers/incoming:
+        get:
+            summary: Get incoming transfers
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/transfer_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-transfer-in
+            description: 'This endpoint returns a list of learners who have requested to transfer to the institution and were captured through `/nemis/transfers/incoming/{uniqueIdentifier}`. These learners are not yet officially enrolled and need to be released from their previous institution. Please note that this endpoint only retrieves data from the NEMIS system and does not include learners who have already been released from their previous institutions.'
+        parameters: [ ]
+    /nemis/trasfers/outgoing:
+        get:
+            summary: Get outgoing transfers
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: array
+                                                items:
+                                                    $ref: '#/components/schemas/transfer_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-transfer-out
+            description: 'This endpoint retrieves a list of learners who have requested to transfer out of the institution and have been captured by their receiving institution. However, these learners are not yet officially enrolled out and need to be released from the institution through the endpoint `/nemis/transfers/outgoing/{uniqueIdentifier}`. It is important to note that this endpoint only fetches data from the NEMIS system and does not include learners who have already been released from the institution.'
+        parameters: [ ]
+    '/nemis/transfers/outgoing/{uniqueIdentifier}':
+        parameters:
+            -   schema:
+                    type: string
+                name: uniqueIdentifier
+                in: path
+                required: true
+                description: Only UPI and birth certificate number are supported at this end point
+        post:
+            summary: Release an outgoing transfer
+            operationId: post-nemis-transfers-outgoing-uniqueIdentifier
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                $ref: '#/components/schemas/transfer_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint is used to release a learner_router from the institution when they have requested to transfer out. The {uniqueIdentifier} parameter is the Unique Personal Identifier (UPI) or birth certificate number of the learner_router to be released. Once a learner_router is released, they will no longer appear in the list of learners requesting to transfer out returned by the `/nemis/transfers/outgoing` endpoint. Also this learner_router will no longer be available at `/nemis/list/learners`.'
+            tags:
+                - Nemis
+    '/nemis/transfers/incoming/{uniqueIdentifier}':
+        parameters:
+            -   $ref: '#/components/parameters/uniqueIdentifier'
+        post:
+            summary: Capture an incoming transfer request
+            operationId: post-nemis-transfers-incoming-uniqueIdentifier
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                $ref: '#/components/schemas/transfer_learner'
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            description: 'This endpoint is used to capture incoming transfer requests from other institutions. Before submitting the transfer request, it is important to first call the GET method on `/nemis/transfers/incoming/{uniqueIdentifier}` to validate the details of the requesting learner_router match with those of the institution.'
+            parameters:
+                -   schema:
+                        type: string
+                        enum:
+                            - transfer
+                            - expelled
+                            - deserted
+                            - rejected
+                            - accepted
+                        example: transfer
+                        default: transfer
+                    in: query
+                    name: reasonForTransfer
+                    description: Reason for transfer
+                -   schema:
+                        type: string
+                    in: query
+                    name: remarks
+                    description: Any additional remarks or notes related to the transfer request.
+            tags:
+                - Nemis
+        get:
+            summary: Verify an incoming transfer request
+            tags:
+                - Nemis
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    -   $ref: '#/components/schemas/success_and_message'
+                                    -   type: object
+                                        properties:
+                                            data:
+                                                type: object
+                                                properties:
+                                                    adm:
+                                                        type: string
+                                                    name:
+                                                        type: string
+                                                    gender:
+                                                        $ref: '#/components/schemas/gender'
+                                                    grade:
+                                                        $ref: '#/components/schemas/grade'
+                                                    stream:
+                                                        type: string
+                                                    upi:
+                                                        type: string
+                                                    marks:
+                                                        type: integer
+                                                    birthCertificateNo:
+                                                        type: string
+                                                    dob:
+                                                        type: string
+                                                    medicalCondition:
+                                                        $ref: '#/components/schemas/medicalCondition'
+                                                    isSpecial:
+                                                        type: boolean
+                                                    father:
+                                                        $ref: '#/components/schemas/parent'
+                                                    mother:
+                                                        $ref: '#/components/schemas/parent'
+                                                    guardian:
+                                                        $ref: '#/components/schemas/parent'
+                                                    nhifNo:
+                                                        type: integer
+                                                    kcpeYear:
+                                                        type: integer
+                                                    isLearner:
+                                                        type: boolean
+                                                    currentInstitution:
+                                                        type: object
+                                                        description: Details about where the learner_router is currently admitted to
+                                                        properties:
+                                                            name:
+                                                                type: string
+                                                                description: name of the institution
+                                                            code:
+                                                                type: string
+                                                                description: USIC code of the institution
+                                                            type:
+                                                                type: string
+                                                                description: institution type
+                                                            level:
+                                                                type: string
+                                                                description: institution level
+                            examples: { }
+                '401':
+                    $ref: '#/components/responses/error_response'
+                '403':
+                    $ref: '#/components/responses/error_response'
+                '404':
+                    $ref: '#/components/responses/error_response'
+                '500':
+                    $ref: '#/components/responses/error_response'
+            operationId: get-nemis-transfers-incoming-uniqueIdentifier
+            description: 'This end point is a complete clone of `/nemis/search/{uniqueIdentifier}` end point used here for convenience sake. If the returned dat is the same as the requesting learner_router''s data, use the   `POST` endpoint here'
+components:
+    schemas:
+        institution:
+            type: object
+            properties:
+                username:
+                    type: string
+                password:
+                    type: string
+                cookie:
+                    $ref: '#/components/schemas/cookie'
+                createdAt:
+                    type: string
+                lastLogin:
+                    type: string
+                name:
+                    type: string
+                code:
+                    type: string
+                gender:
+                    type: string
+                    enum:
+                        - male
+                        - female
+                        - mixed
+                knecCode:
+                    type: string
+                type:
+                    type: string
+                registrationNumber:
+                    type: string
+                cluster:
+                    type: string
+                accommodation:
+                    type: string
+                constituency:
+                    type: string
+                zone:
+                    type: string
+                ward:
+                    type: string
+                kraPin:
+                    type: string
+                registrationStatus:
+                    type: string
+                tscCode:
+                    type: string
+                category:
+                    type: string
+                educationLevel:
+                    type: string
+                institutionMobility:
+                    type: string
+                residence:
+                    type: string
+                educationSystem:
+                    type: string
+                registrationDate:
+                    type: string
+                county:
+                    type: string
+                subCounty:
+                    type: string
+                ownership:
+                    type: string
+                ownershipDocument:
+                    type: string
+                owner:
+                    type: string
+                incorporationCertificateNumber:
+                    type: string
+                nearestPoliceStation:
+                    type: string
+                nearestHealthFacility:
+                    type: string
+                nearestTown:
+                    type: string
+                postalAddress:
+                    type: string
+                telephoneNumber:
+                    type: string
+                mobileNumber:
+                    type: string
+                altTelephoneNumber:
+                    type: string
+                altMobileNumber:
+                    type: string
+                email:
+                    type: string
+                website:
+                    type: string
+                socialMediaHandles:
+                    type: string
+            title: institution
+            description: A complete representation of the institution's schema
+        date:
+            title: Date
+            type: string
+            format: date
+            example: '2022-03-21'
+            pattern: '^\d{4}(?:\/|\-)(?:0?[1-9]|1[012])(?:\-|\/)(?:0?[1-9]|[12][0-9]|3[01])$'
+            minLength: 7
+            maxLength: 10
+            description: 'Date template '
+        cookie:
+            title: Cookie
+            type: object
+            description: Saved Nemis cookie to avoid calling Login on each request
+            properties:
+                value:
+                    type: string
+                    example: ASP.NET_SessionId=entry3n2cukpeuoo440hy1zi; path=/; HttpOnly; SameSite=Lax
+                    description: Cookie value
+                expires:
+                    $ref: '#/components/schemas/date'
+            required:
+                - value
+                - expires
+        learner:
+            type: object
+            description: A complete learner_router information which is a combination of submitted data stored in the database and data returned by NEMIS list learner_router page.
+            title: Learner
+            properties:
+                adm:
+                    description: Student admission number assigned at admission
+                    type: number
+                    example: 13562
+                name:
+                    type: string
+                    description: Name of the learner_router
+                    example: james kamau maina
+                gender:
+                    $ref: '#/components/schemas/gender'
+                grade:
+                    $ref: '#/components/schemas/grade'
+                stream:
+                    type: string
+                    description: Stream name that the learner_router is assigned to.
+                    example: north
+                upi:
+                    type: string
+                    minLength: 4
+                    description: UPI code that a learner_router is assigned by NEMIS after submitting learner_router's BioData.
+                    example: h5rh5
+                marks:
+                    type: number
+                    description: Marks attained at KCSE -Or previous exam if we do expand to other levels-
+                    example: 370
+                birthCertificateNo:
+                    type: string
+                    description: Birth certificate number -labeled as entry number in the learner_router's birth cetificate.- -Note that this is tied to UPI code after submitting Biodata-
+                    example: l.123455678
+                dob:
+                    $ref: '#/components/schemas/date'
+                medicalCondition:
+                    $ref: '#/components/schemas/medicalCondition'
+                isSpecial:
+                    type: boolean
+                    description: If learner_router is of special needs
+                    default: false
+                father:
+                    $ref: '#/components/schemas/parent'
+                mother:
+                    $ref: '#/components/schemas/parent'
+                guardian:
+                    $ref: '#/components/schemas/parent'
+                nhifNo:
+                    type: number
+                    example: 123456
+                    description: Number provide by NHIF after submitting learners detail to Elimu Afya program.
+                admitted:
+                    type: boolean
+                    default: false
+                    description: 'If the learner_router is admitted to the institution, this checks the `listLearners.aspx` page on nemis website to verify.'
+                captured:
+                    type: boolean
+                    default: false
+                    description: If the learner_router bio data has been captured
+                continuing:
+                    type: boolean
+                    default: false
+                    description: '`true` if learner_router is a continuing learner_router.'
+                differed:
+                    type: boolean
+                    default: false
+                    description: '`true` if learner_router is a differed learner_router. This can only be true if `continuing`is set to `false`'
+                kcpeYear:
+                    type: number
+                    example: 2022
+                    minimum: 1970
+                error:
+                    type: array
+                    description: 'Error messages, if any, that maybe encountered during learner_router submission.'
+                    items:
+                        type: string
+            required:
+                - adm
+                - name
+                - gender
+                - grade
+        parent:
+            title: Parent
+            type: object
+            description: Parent contact information
+            properties:
+                name:
+                    type: string
+                    description: Parent name
+                phone:
+                    type: string
+                    description: Parent phone number
+                idNo:
+                    type: string
+                    description: Parent Id number
+                address:
+                    type: string
+                    description: parent's address
+            required:
+                - name
+                - phone
+                - idNo
+        nemis_learner:
+            title: nemis_learner
+            type: object
+            description: A learner_router returned by list learner_router
+            properties:
+                name:
+                    type: string
+                gender:
+                    $ref: '#/components/schemas/gender'
+                dob:
+                    $ref: '#/components/schemas/date'
+                age:
+                    type: number
+                    minimum: 10
+                upi:
+                    type: string
+                birthCertificateNo:
+                    type: string
+                nhif:
+                    type: number
+                    example: 123456
+                isSpecial:
+                    type: boolean
+                    default: false
+                medicalCondition:
+                    $ref: '#/components/schemas/medicalCondition'
+                homePhone:
+                    type: string
+                actions:
+                    type: object
+                    properties:
+                        view:
+                            type: string
+                        delete:
+                            type: string
+        token:
+            title: token
+            type: object
+            description: A valid JWT token
+            properties:
+                token:
+                    type: string
+                    description: A valid JWT token
+                expires:
+                    type: string
+                    description: Date that the token expires
+                created:
+                    type: string
+                    description: 'Date token was created, defaults to Date.now().'
+        admitted_learner:
+            title: admitted_learner
+            type: object
+            description: 'This is a model representing the data returned from the web page http://nemis.education.go.ke/Learner/Liststudreq.aspx.'
+            properties:
+                'no':
+                    type: number
+                indexNo:
+                    type: string
+                name:
+                    type: string
+                gender:
+                    $ref: '#/components/schemas/grade'
+                yob:
+                    type: string
+                marks:
+                    type: string
+                subCounty:
+                    type: string
+                upi:
+                    type: string
+                postback:
+                    type: string
+                actions:
+                    type: object
+                    properties:
+                        captureWithBirthCertificate:
+                            type: string
+                        captureWithoutBirthCertificate:
+                            type: string
+                        resetBiodataCapture:
+                            type: string
+                        undoAdmission:
+                            type: string
+        success_and_message:
+            title: success_and_message
+            type: object
+            properties:
+                success:
+                    type: boolean
+                message:
+                    type: string
+        continuing_learner:
+            title: continuing_learner
+            type: object
+            properties:
+                'no':
+                    type: string
+                adm:
+                    type: string
+                name:
+                    type: string
+                gender:
+                    $ref: '#/components/schemas/gender'
+                kcpeYear:
+                    type: number
+                    example: 2021
+                index:
+                    type: string
+                birthCertificateNo:
+                    type: string
+                grade:
+                    $ref: '#/components/schemas/grade'
+                upi:
+                    type: string
+        grade:
+            title: grade
+            type: string
+            description: Grade or level of learning that the learner_router is at.
+            enum:
+                - form 1
+                - form 2
+                - form 3
+                - form 4
+                - pp 1
+                - pp 2
+                - grade 1
+                - grade 2
+                - grade 3
+                - grade 4
+                - grade 5
+                - grade 6
+                - grade 7
+                - grade 8
+                - grade 9
+                - grade 10
+                - grade 11
+            example: form 1
+        medicalCondition:
+            title: medicalCondition
+            type: string
+            enum:
+                - anemia
+                - asthma
+                - convulsions
+                - diabetes
+                - epilepsy
+                - none
+            default: none
+            example: anemia
+            description: A list of medical condition that are allowed on the NEMIS website.
+        gender:
+            title: gender
+            type: string
+            enum:
+                - male
+                - female
+            example: male
+            description: |
+                Learners gender. either male or female
+        transfer_learner:
+            title: transfers_incoming
+            type: object
+            properties:
+                'no':
+                    type: string
+                upi:
+                    type: string
+                name:
+                    type: string
+                mobilityType:
+                    type: string
+                dischargingInstitution:
+                    type: object
+                    properties:
+                        name:
+                            type: string
+                        code:
+                            type: string
+                claimingInstitution:
+                    type: object
+                    properties:
+                        name:
+                            type: string
+                        code:
+                            type: string
+                transferDate:
+                    type: string
+                reasons:
+                    type: string
+                status:
+                    type: string
+                action:
+                    type: string
+    responses:
+        institution_200:
+            description: 'Response sent when a successful institution details have been retrived, updated or deleted'
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            success:
+                                type: boolean
+                            message:
+                                type: string
+                            data:
+                                allOf:
+                                    -   $ref: '#/components/schemas/token'
+                                    -   $ref: '#/components/schemas/institution'
+                    examples:
+                        Example 1:
+                            value:
+                                token: string
+                                expires: string
+                                created: string
+                                username: string
+                                password: string
+                                cookie:
+                                    value: string
+                                    expires: string
+                                createdAt: string
+                                lastLogin: string
+                                name: string
+                                code: string
+                                gender: string
+                                knecCode: string
+                                type: string
+                                registrationNumber: string
+                                cluster: string
+                                accommodation: string
+                                constituency: string
+                                zone: string
+                                ward: string
+                                kraPin: string
+                                registrationStatus: string
+                                tscCode: string
+                                category: string
+                                educationLevel: string
+                                institutionMobility: string
+                                residence: string
+                                educationSystem: string
+                                registrationDate: string
+                                county: string
+                                subCounty: string
+                                ownership: string
+                                ownershipDocument: string
+                                owner: string
+                                incorporationCertificateNumber: string
+                                nearestPoliceStation: string
+                                nearestHealthFacility: string
+                                nearestTown: string
+                                postalAddress: string
+                                telephoneNumber: string
+                                mobileNumber: string
+                                altTelephoneNumber: string
+                                altMobileNumber: string
+                                email: string
+                                website: string
+                                socialMediaHandles: string
+        add_new_learner_400:
+            description: Response with validation errors
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            success:
+                                type: boolean
+                                default: false
+                            message:
+                                type: string
+                            data:
+                                type: array
+                                items:
+                                    allOf:
+                                        -   $ref: '#/components/schemas/learner'
+                                        -   type: object
+                                            properties:
+                                                validationError:
+                                                    type: array
+                                                    description: |
+                                                        An array of all validation errors
+                                                    items:
+                                                        type: object
+                    examples:
+                        Example 1:
+                            value:
+                                success: false
+                                message: string
+                                data:
+                                    -   adm: 13562
+                                        name: james kamau maina
+                                        gender: male
+                                        grade: form 1
+                                        stream: north
+                                        upi: h5rh5
+                                        marks: 370
+                                        birthCertificateNo: l.123455678
+                                        dob: '2022-03-21'
+                                        medicalCondition: anemia
+                                        isSpecial: false
+                                        father:
+                                            name: string
+                                            phone: string
+                                            idNo: string
+                                            address: string
+                                        mother:
+                                            name: string
+                                            phone: string
+                                            idNo: string
+                                            address: string
+                                        guardian:
+                                            name: string
+                                            phone: string
+                                            idNo: string
+                                            address: string
+                                        nhifNo: 123456
+                                        admitted: false
+                                        captured: false
+                                        continuing: false
+                                        differed: false
+                                        kcpeYear: 2022
+                                        error:
+                                            - string
+                                        validationError:
+                                            - { }
+        learner_200:
+            description: Return a full learner_router.
+            content:
+                application/json:
+                    schema:
+                        allOf:
+                            -   $ref: '#/components/schemas/success_and_message'
+                            -   $ref: '#/components/schemas/learner'
+                    examples:
+                        Example 1:
+                            value:
+                                success: true
+                                message: string
+                                adm: 13562
+                                name: james kamau maina
+                                gender: male
+                                grade: form 1
+                                stream: north
+                                upi: h5rh5
+                                marks: 370
+                                birthCertificateNo: l.123455678
+                                dob: '2022-03-21'
+                                medicalCondition: anemia
+                                isSpecial: false
+                                father:
+                                    name: string
+                                    phone: string
+                                    idNo: string
+                                    address: string
+                                mother:
+                                    name: string
+                                    phone: string
+                                    idNo: string
+                                    address: string
+                                guardian:
+                                    name: string
+                                    phone: string
+                                    idNo: string
+                                    address: string
+                                nhifNo: 123456
+                                admitted: false
+                                captured: false
+                                continuing: false
+                                differed: false
+                                kcpeYear: 2022
+                                error:
+                                    - string
+        list_learner_200:
+            description: Returned by list learner_router
+            content:
+                application/json:
+                    schema:
+                        allOf:
+                            -   $ref: '#/components/schemas/success_and_message'
+                            -   type: object
+                                properties:
+                                    data:
+                                        type: array
+                                        items:
+                                            $ref: '#/components/schemas/nemis_learner'
+                    examples:
+                        Example 1:
+                            value:
+                                success: true
+                                message: string
+                                data:
+                                    -   name: string
+                                        gender: male
+                                        dob: '2022-03-21'
+                                        age: 10
+                                        upi: string
+                                        birthCertificateNo: string
+                                        nhif: 123456
+                                        isSpecial: false
+                                        medicalCondition: anemia
+                                        homePhone: string
+                                        actions:
+                                            view: string
+                                            delete: string
+        error_response:
+            description: A response representing an error and error message
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            success:
+                                type: boolean
+                                default: false
+                                description: Defaults to false since it an error
+                            message:
+                                type: string
+                                description: A brief message describing the error
+                            error:
+                                description: Error object describing cause of the error
+                                anyOf:
+                                    -   type: object
+                                    -   type: string
+    requestBodies: { }
+    parameters:
+        uniqueIdentifier:
+            name: uniqueIdentifier
+            in: path
+            required: true
+            schema:
+                type: string
+                example: '13045'
+            description: 'this could be either learners admission number, UPI, birth certificate number or index number'
+        grade_path_param:
+            name: grade
+            in: path
+            required: true
+            schema:
+                type: string
+                enum:
+                    - form 1
+                    - form 2
+                    - form 3
+                    - form 4
+                    - pp 1
+                    - pp 2
+                    - grade 1
+                    - grade 2
+                    - grade 3
+                    - grade 4
+                    - grade 5
+                    - grade 6
+                    - grade 7
+                    - grade 8
+                    - grade 9
+                    - grade 10
+                    - grade 11
+                example: form 1
+            description: Learners grade
+    securitySchemes:
+        JWTAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+            description: |-
+                Example: 
+                > Authorization: Bearer <token>
+security:
+    -   JWTAuth: [ ]
+tags:
+    -   name: Admit
+    -   name: Auth
+    -   name: Capture
+    -   name: Institution
+    -   name: Learner
+    -   name: List
+    -   name: Nemis
+    -   name: Nhif
+    -   name: Search
+    -   name: Transfers

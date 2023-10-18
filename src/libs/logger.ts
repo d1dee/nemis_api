@@ -1,7 +1,8 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
+import * as winston from 'winston';
 import {createLogger, format, transports} from 'winston';
 
 const logLevels = {
@@ -25,13 +26,28 @@ const logColors = {
 	error: 'red'
 };
 
-let logger;
+let logger: winston.Logger;
 if (process.env.NODE_ENV !== 'production') {
 	logger = createLogger({
 		levels: logLevels,
 		transports: [
 			new transports.Console({level: 'trace'}),
 			new transports.File({filename: 'combined.log', level: 'info'})
+		],
+		format: format.combine(
+			format.colorize({all: true, colors: logColors}),
+			format.timestamp({format: 'HH:mm:ss'}),
+			format.splat(),
+			format.json(),
+			format.printf(info => `[${info.timestamp}] => [${info.level}] ${info.message}`)
+		)
+	});
+} else {
+	logger = createLogger({
+		levels: logLevels,
+		transports: [
+			new transports.Console({level: 'trace'}),
+			new transports.File({filename: 'combined.log', level: 'debug'})
 		],
 		format: format.combine(
 			format.colorize({all: true, colors: logColors}),

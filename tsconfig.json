@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@database/*":["./src/database/*"],
+      "@routes/*":["./src/routes/*"],
+      "@middleware/*":["./src/middleware/*"],
+      "@controller/*":["./src/controller/*"],
+      "@libs/*":["./src/libs/*"]
+    },
+}}

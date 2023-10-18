@@ -1,406 +1,117 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import {accessSync, constants} from 'fs';
-import {Error} from 'mongoose';
-import Validator from 'validatorjs';
-import * as xlsx from 'xlsx';
-import {WorkBook} from 'xlsx';
-import {Grades, NemisLearner} from '../interfaces';
-import {RequestingLearner} from '../middleware/interfaces';
-import {countyToNo, form} from './converts';
-import {CaptureRequestingLearner} from './interface';
-import logger from './logger';
+import { accessSync, constants } from 'fs';
+import { readFile, utils, WorkBook } from 'xlsx';
+import { z as zod, ZodIssue } from 'zod';
+import { CompleteLearner } from 'types/nemisApiTypes';
+import { lowerCaseAllValues } from './converts';
+import { completeLearnerSchema } from './zod_validation';
+import CustomError from './error_handler';
 
-// Covert an Excel file to json and sanitize its data
-export default (
+// Convert an Excel file to json and sanitize its data
+const validateExcel = (
 	filePath: string
-): Array<{
-	validDataObject: NemisLearner[]; invalidDataObject: (Partial<NemisLearner> & {
-		errors: {
-			validationErrors: {
-				[Property in keyof NemisLearner]: string;
-			}
-		}
-	})[]
-}> => {
+): Array<CompleteLearner & { validationError?: ZodIssue }> => {
 	try {
 		accessSync(filePath, constants.R_OK);
-		let workBook: WorkBook = xlsx.readFile(filePath, {cellDates: true});
-		if (workBook.SheetNames.length === 0) {
-			throw {
-				code: 400,
-				message: 'No sheets with data were found',
-				cause: 'Workbook should have' + ' at least one workbook with learners.'
+		let workBook: WorkBook = readFile(filePath, { dateNF: 'yyyy-mm-dd', cellDates: true });
+		if (workBook.SheetNames.length < 1) {
+			throw new CustomError(
+				'Invalid file format. No sheets with data were found.' +
+					'The workbook should have at least one sheet containing learner data.',
+				400
+			);
+		}
+		if (workBook.SheetNames.length > 1) {
+			throw new CustomError(
+				'Invalid file format. More than one sheet was found.' +
+					'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
+				400
+			);
+		}
+		// Parse sheetData
+		const sheetData = utils.sheet_to_json(workBook.Sheets[workBook.SheetNames[0]]);
+
+		// check if all keys are correct
+		if (!Array.isArray(sheetData) || sheetData.length === 0) {
+			throw new CustomError(
+				`Failed to convert sheet data.
+             The worksheet \'${workBook.SheetNames[0]}\' may not contain any data or the data could not be processed. 
+             xlsx.utils.sheet_to_json did not return an array or returned an empty array.`,
+				400
+			);
+		}
+
+		return sheetData.map(x => validateLearnerJson(lowerCaseAllValues(x)));
+	} catch (err: any) {
+		throw err;
+	}
+};
+/**
+ Validates a learner_router object based on a Zod schema and applies additional custom validation logic.
+ @param {any} obj - The learner_router object to be validated.
+ @returns {CompleteLearner | (CompleteLearner & { validationError: ZodIssue })} - Returns a
+ CompleteLearner object if the validation is successful,
+ or a CompleteLearner object with a validation error property if the validation fails.
+ @throws {Error} - Throws an error if there is an issue during validation.
+ */
+
+const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: ZodIssue } => {
+	try {
+		completeLearnerSchema.superRefine((value, ctx) => {
+			if (
+				value.birthCertificateNo &&
+				value?.birthCertificateNo?.length < 7 &&
+				obj?.nationality === 'kenya'
+			) {
+				ctx.addIssue({
+					code: zod.ZodIssueCode.custom,
+					message:
+						'Kenyan birth certificate entry numbers should be more' +
+						' than 7 (seven) characters long.'
+				});
+			}
+		});
+
+		// Prepare the object for validation
+		let objectToValidate = {
+			...obj,
+			dob:
+				obj.dob instanceof Date
+					? (() =>
+							// Fix off by 1 Date error
+							obj.dob.setDate(obj.dob.getDate() + 1))()
+					: obj.dob,
+			father: {
+				name: obj?.fatherName,
+				tel: obj?.fatherTel,
+				id: obj?.fatherId
+			},
+			mother: {
+				name: obj?.motherName,
+				tel: obj?.motherTel,
+				id: obj?.motherId
+			},
+			guardian: {
+				name: obj?.guardianName,
+				tel: obj?.guardianTel,
+				id: obj?.guardianId
+			}
+		};
+		let validatedObject = completeLearnerSchema.safeParse(objectToValidate);
+		if (validatedObject.success) {
+			return <CompleteLearner>validatedObject.data;
+		} else {
+			return <CompleteLearner & { validationError: ZodIssue }>{
+				...obj,
+				validationError: validatedObject.error.flatten().fieldErrors
 			};
 		}
-		// If we only got 1 sheet
-		if (workBook.SheetNames.length === 1) {
-			// Parse sheetData
-			const sheetData = xlsx.utils.sheet_to_json(workBook.Sheets[workBook.SheetNames[0]]);
-			return [validateLearnerJson(sheetData)];
-		}
-		// if we have more than 1 sheet
-		else if (workBook.SheetNames.length > 1) {
-			//loop through each sheet converting them to json
-			return workBook.SheetNames.map(sheetName => {
-				// Parse sheetData
-				const sheetData = xlsx.utils.sheet_to_json(workBook.Sheets[sheetName]);
-				return validateLearnerJson(sheetData);
-			});
-		}
-	} catch (err) {
-		logger.error(err);
+	} catch (err: any) {
 		throw err;
 	}
 };
 
-export function validateRequestingLearner(requestingLearners: unknown[]): RequestingLearner[] {
-	try {
-		if (!Array.isArray(requestingLearners)) {
-			throw new Error(
-				'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-				' object.'
-			);
-		}
-
-		// Register custom validation rules
-		Validator.register(
-			'fullName',
-			(value: string) => {
-				return !!String(value).match(/^[a-zA-Z\W]+(?:\s[a-zA-Z\W]+)+$/);
-			},
-			'At least two names were expected but only one name was received.'
-		);
-		Validator.register('string', (value: string) => {
-			return !!String(value).trim();
-		});
-		Validator.register('form', value => {
-			try {
-				form(value as Grades);
-				return true;
-			} catch (e) {
-				return false;
-			}
-		});
-		const rules = {
-			adm: 'string|required',
-			name: ['required', 'string', 'fullName'],
-			grade: ['required_without:form', 'form'],
-			form: ['required_without:grade', 'form'],
-			gender: [
-				'required',
-				'string',
-				{in: ['m', 'M', 'f', 'F', 'male', 'Male', 'female', 'Female']}
-			],
-			birthCertificateNo: ['string', 'required'],
-			indexNo: ['string', 'required'],
-			kcpeYear: 'string|required',
-			remarks: 'string|required'
-		};
-		let validatedLearners = requestingLearners.map(x => {
-			let v = new Validator(x, rules);
-			if (v.check()) return x;
-			return {...x, validationErrors: v.errors.all()};
-		});
-		let validationError = validatedLearners.filter(x => x.validationErrors);
-		if (validationError.length > 0) {
-			throw {
-				message: 'ValidationError',
-				cause: validationError
-			};
-		}
-		return <RequestingLearner[]>validatedLearners;
-	} catch (err) {
-		throw err;
-	}
-}
-
-export function validateLearnerJson(sheetData: any[]): {
-	// todo: massive rewrite here
-	validDataObject: NemisLearner[];
-	invalidDataObject: (Partial<NemisLearner> & {
-		errors: {
-			validationErrors: {
-				[Property in keyof NemisLearner]: string;
-			}
-		}
-	})[];
-} {
-	if (!Array.isArray(sheetData)) {
-		throw new Error(
-			'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-			' object.'
-		);
-	}
-	// Register custom validation rules
-	Validator.register(
-		'fullName',
-		(value: string) => {
-			return !!String(value).match(/^[a-zA-Z\W]+(?:\s[a-zA-Z\W]+)+$/);
-		},
-		'At least two names were expected but only one name was received.'
-	);
-	Validator.register(
-		'phoneNumber',
-		(value: string) => {
-			return !!String(value).match(
-				/\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/
-			);
-		},
-		'No valid phone number was received'
-	);
-
-	// Cast everything to string before validating if fails then assume mongo driver will fail too.
-	Validator.register('string', (value: string) => {
-		return !!String(value).trim();
-	});
-	Validator.register('form', value => {
-		try {
-			form(value as Grades);
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}, 'Invalid form/grade. Example of correct form: form 1 or grade 3');
-
-	const rules = {
-		adm: ['string', 'required'],
-		name: ['string', 'fullName'], ///^[a-zA-Z]+(?:\s[a-zA-Z]+)+$/ Add regex validation for names separated by space. Valid if groups less than three throw error
-		grade: ['form', 'required_without:form'],
-		form: ['form', 'required_without:grade'],
-		stream: ['string'],
-		upi: ['string', 'min:4', 'required_without_all:birthCertificateNo'],
-		gender: [
-			'required',
-			'string',
-			{in: ['m', 'M', 'f', 'F', 'male', 'Male', 'female', 'Female']}
-		],
-		fatherName: ['string', 'fullName', 'required_without_all:motherName,guardianName'],
-		fatherId: ['string', 'required_without_all:motherId,guardianId'],
-		fatherTel: ['numeric', 'phoneNumber', 'required_without_all:motherTel,guardianTel'],
-		motherName: ['string', 'fullName', 'required_without_all:fatherName,guardianName'],
-		motherId: ['string', 'required_without_all:fatherId,guardianId'],
-		motherTel: ['numeric', 'phoneNumber', 'required_without_all:fatherTel,guardianTel'],
-		guardianName: ['string', 'fullName', 'required_without_all:fatherName,motherName'],
-		guardianId: ['string', 'required_without_all:fatherId,motherId'],
-		guardianTel: ['numeric', 'phoneNumber', 'required_without_all:fatherTel,motherTel'],
-		address: ['string'],
-		county: ['string'],
-		subCounty: ['string'],
-		birthCertificateNo: ['string', 'required_without_all:upi', 'required_with:continuing'],
-		medicalCondition: ['string'], // Add includes array of all allowed medical  conditions
-		isSpecial: ['boolean'],
-		marks: ['integer', 'min:0', 'max:500'],
-		// Index is a string to maintain starting zeros in some schools indexNo numbers
-		indexNo: ['string', 'required'],
-		nationality: ['string'],
-		continuing: ['boolean'],
-		kcpeYear: ['required_with:continuing']
-	};
-	const allowedKeys = [
-		'adm',
-		'name',
-		'grade',
-		'form',
-		'stream',
-		'upi',
-		'gender',
-		'dob',
-		'fatherName',
-		'fatherId',
-		'fatherTel',
-		'motherName',
-		'motherId',
-		'motherTel',
-		'guardianName',
-		'guardianId',
-		'guardianTel',
-		'address',
-		'county',
-		'subCounty',
-		'birthCertificateNo',
-		'medicalCondition',
-		'isSpecial',
-		'marks',
-		'indexNo',
-		'nationality',
-		'continuing',
-		'kcpeYear'
-	];
-
-	let validDataObject: NemisLearner[] = [],
-		invalidDataObject: (Partial<NemisLearner> & {
-			errors: {
-				validationErrors: {
-					[Property in keyof NemisLearner]: string;
-				}
-			}
-		})[] = [];
-
-	sheetData.forEach(dataObject => {
-		Object.keys(dataObject).forEach(key => {
-			if (!allowedKeys.includes(key)) {
-				delete dataObject[key];
-			}
-		});
-
-		// Get all validation errors
-		let validator = new Validator(dataObject, rules);
-
-		if (!validator.check()) {
-			const validationError = validator.errors.all();
-			const contactsKey = [
-				'fatherId',
-				'fatherName',
-				'fatherTel',
-				'motherId',
-				'motherTel',
-				'motherName',
-				'guardianId',
-				'guardianTel',
-				'guardianName'
-			];
-
-			if (contactsKey.every(key => Object.keys(validationError).includes(key))) {
-				contactsKey.every(key => delete validationError[key]);
-				validationError.contacts = [
-					'At least one contact must have a name, id and telephone number.'
-				];
-			}
-			invalidDataObject.push({
-				...dataObject,
-				errors: {
-					validationErrors: validationError
-				}
-			});
-			// todo: this can be easily simplified, do that when bored
-			if (
-				['fatherId', 'motherId', 'guardianId'].every(key =>
-					Object.keys(validationError).includes(key)
-				)
-			) {
-				['fatherId', 'motherId', 'guardianId'].every(key => delete validationError[key]);
-				validationError.id = [
-					'All contacts are missing Id numbers. At least one contact must have a name,' +
-					' id and telephone number.'
-				];
-			}
-			if (
-				['fatherTel', 'motherTel', 'guardianTel'].every(key =>
-					Object.keys(validationError).includes(key)
-				)
-			) {
-				['fatherTel', 'motherTel', 'guardianTel'].every(key => delete validationError[key]);
-				validationError.id = [
-					'All contacts are missing Telephone numbers. At least one contact must have' +
-					' a name,' +
-					' id and telephone number.'
-				];
-			}
-			if (
-				['fatherName', 'motherName', 'guardianName'].every(key =>
-					Object.keys(validationError).includes(key)
-				)
-			) {
-				['fatherName', 'motherName', 'guardianName'].every(
-					key => delete validationError[key]
-				);
-				validationError.id = [
-					'All contacts are missing names. At least one contact must have a' +
-					' name,' +
-					' id and telephone number.'
-				];
-			}
-		} else {
-			if (dataObject.dob) {
-				if (dataObject.dob instanceof Date && !isNaN(dataObject.dob))
-					validDataObject.push(dataObject);
-				else
-					invalidDataObject.push({
-						...dataObject,
-						errors: {
-							validationErrors:
-								'Invalid date, dob should be in form' + ' of Day/Month/year.'
-						}
-					});
-			} else {
-				invalidDataObject.push({
-					...dataObject,
-					errors: {
-						validationErrors:
-							'Invalid date, dob should be in form' + ' of Day/Month/year.'
-					}
-				});
-			}
-
-		}
-		if (!countyToNo(dataObject.county, dataObject.subCounty)) {
-			invalidDataObject.push({
-				...dataObject,
-				errors: {
-					validationErrors: 'Invalid county or subCounty name'
-				}
-			});
-		}
-	});
-	return {validDataObject, invalidDataObject};
-}
-
-export function validateCaptureRequest(requestingLearners): CaptureRequestingLearner[] {
-	try {
-		if (!Array.isArray(requestingLearners)) {
-			throw new Error(
-				'SheetData is not an array, expected xlsx.utils.sheet_to_json() to return a JSON' +
-				' object.'
-			);
-		}
-
-		// Register custom validation rules
-		Validator.register(
-			'phoneNumber',
-			(value: string) => {
-				return !!String(value).match(
-					/\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}/
-				);
-			},
-			'No valid phone number was received'
-		);
-		Validator.register('string', (value: string) => {
-			return !!String(value).trim();
-		});
-		const rules = {
-			name: ['string', 'fullName'],
-			gender: ['string', {in: ['m', 'M', 'f', 'F', 'male', 'Male', 'female', 'Female']}],
-			indexNo: ['string', 'required'],
-			parentId: 'string|required',
-			parentTel: 'string|required',
-			requestedBy: 'string',
-			adm: 'required|string'
-		};
-		let validatedLearners = requestingLearners.map(x => {
-			let v = new Validator(x, rules);
-			if (v.check()) return x;
-			return {...x, validationErrors: v.errors.all()};
-		});
-		let validationError = validatedLearners.filter(x => x.validationErrors);
-		if (validationError.length > 0) {
-			throw {
-				message: 'ValidationError',
-				cause: validationError
-			};
-		}
-
-		return validatedLearners.map(x => {
-			return {
-				indexNo: String(x['indexNo']),
-				parent: {id: String(x['parentId']), tel: String(x['parentTel'])},
-				requestedBy: x['requestedBy'] ? String(x['requestedBy']) : undefined,
-				adm: String(x['adm'])
-			};
-		});
-	} catch (err) {
-		throw err;
-	}
-}
+export { validateExcel, validateLearnerJson };

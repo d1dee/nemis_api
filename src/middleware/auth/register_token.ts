@@ -1,66 +1,71 @@
 /*
- * Copyright (c) 2023. MIT License.  Maina Derrick
+ * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import {registerInstitution} from '../../controller/institution';
-import {ExtendedRequest} from '../../interfaces';
-import logger from '../../libs/logger';
+import { Request } from 'express';
+import { newInstitutionSchema } from '@libs/zod_validation';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
+import institutionModel from '@database/institution';
+import { randomFillSync } from 'node:crypto';
+import tokenModel from '@database/token';
+import * as jwt from 'jsonwebtoken';
+import { NemisWebService } from '@libs/nemis/nemis_web_handler';
 
-export default async (req: ExtendedRequest) => {
-	const response = req.response;
+export default async (req: Request) => {
 	try {
-		const requestBody = req.body as {username: string; password: string};
-		if (!requestBody.username || !requestBody.password) {
-			throw {code: 400, message: 'Bad request', cause: 'Username and password are required'};
-		}
-		if (typeof requestBody.username !== 'string' || typeof requestBody.password !== 'string') {
-			throw {code: 400, message: 'Bad request', cause: 'Invalid request body'};
-		}
-		if (requestBody.username.length < 1 || requestBody.username.length > 20) {
-			throw {
-				code: 400,
-				message: 'Bad request',
-				cause: 'Username must be between 1 and 20 characters'
-			};
-		}
-		if (requestBody.password.length < 1 || requestBody.password.length > 20) {
-			throw {
-				code: 400,
-				message: 'Bad request',
-				cause: 'Password must be between 1 and 20 characters'
-			};
-		}
+		const { username, password } = await newInstitutionSchema.parseAsync(req.body);
 
-		let registrationObject = await registerInstitution(
-			requestBody.username.trim(),
-			requestBody.password.trim()
+		const nemis = new NemisWebService();
+
+		await nemis.login(username, password);
+
+		let institution = await nemis.getInstitution(username);
+
+		let institutionDocument = await institutionModel.findOneAndUpdate(
+			{ username: username },
+			{
+				...institution,
+				username: username,
+				password: password,
+				isArchived: false
+			},
+			{ upsert: true, returnDocument: 'after' }
 		);
 
-		delete registrationObject.institution.password;
-		delete registrationObject.institution.cookie;
-		delete registrationObject.institution.__v;
-		delete registrationObject.institution._id;
-		return response.respond(
+		let tokenSecret = randomFillSync(Buffer.alloc(32)).toString('hex'); //todo: hash token secret
+
+		let tokenDocument = await tokenModel.create({
+			token: '',
+			tokenSecret: tokenSecret,
+			institutionId: institutionDocument._id
+		});
+
+		Object.assign(tokenDocument, {
+			token: jwt.sign(
+				{
+					id: tokenDocument._id
+				},
+				tokenSecret,
+				{ expiresIn: '30 d' }
+			)
+		});
+
+		Object.assign(institutionDocument, {
+			token: tokenDocument._id
+		});
+
+		await Promise.all([tokenDocument.save(), institutionDocument.save()]);
+
+		return req.sendResponse.respond(
 			{
-				token: registrationObject.token.token,
-				expires: registrationObject.token.expires,
-				institution: registrationObject.institution
+				...institutionDocument.toObject(),
+				token: tokenDocument.token,
+				expires: tokenDocument.expires
 			},
-			'',
+			'Institution registered successfully.',
 			201
 		);
-	} catch (err) {
-		logger.error(err);
-		if (err?.code === 11000) {
-			err = {code: 400, message: 'Bad request, Institution already registered', cause: err};
-		}
-		if (err?.type === 'invalid_credentials') {
-			err = {code: 400, message: 'Bad request, Invalid credentials', cause: err};
-		}
-		req.response.error(
-			err.code || 500,
-			err.message || 'Internal server error',
-			err.cause || ''
-		);
+	} catch (err: any) {
+		sendErrorMessage(req, err);
 	}
 };
