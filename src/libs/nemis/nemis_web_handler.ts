@@ -5,7 +5,7 @@
 /**
  *  Base class that sets up all axios interactions. It is from this class that all other Nemis classes are extended from.
  */
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from "axios";
 import {
     AdmissionApiResults,
     AdmitApiCall,
@@ -26,19 +26,19 @@ import {
     SchoolSelected,
     SelectedLearner,
     StateObject
-} from 'types/nemisApiTypes';
-import logger from '@libs/logger';
-import CustomError from '@libs/error_handler';
-import { writeFileSync } from 'fs';
-import { parse as htmlParser } from 'node-html-parser';
-import { Tabletojson as tableToJson } from 'tabletojson';
-import qs from 'qs';
-import { institutionSchema, listAdmittedLearnerSchema, listLearnerSchema } from './validations';
-import { countyToNo, form, medicalConditionCode, nationalities, splitNames } from '@libs/converts';
+} from "types/nemisApiTypes";
+import logger from "@libs/logger";
+import CustomError from "@libs/error_handler";
+import { writeFileSync } from "fs";
+import { parse as htmlParser } from "node-html-parser";
+import qs from "qs";
+import { institutionSchema, listAdmittedLearnerSchema, listLearnerSchema } from "./validations";
+import { countyToNo, form, medicalConditionCode, nationalities, splitNames } from "@libs/converts";
 
-import buffer from 'buffer';
-import FormData from 'form-data';
-import NemisApiService  from './nemis_api_handler';
+import buffer from "buffer";
+import FormData from "form-data";
+import NemisApiService from "./nemis_api_handler";
+import { Tabletojson as tableToJson } from "tabletojson";
 
 type ParentContact = {
     name?: string;
@@ -93,10 +93,10 @@ class NemisWebService {
 
     /**
      * Logs in the user with the given username and password.
-     * @param string username - The user's username.
-     * @param string password - The user's password.
      * @returns {Promise<string>} - A promise that resolves with the user's session cookie if the login is successful.
      * @throws {object} - An object with properties `message` and `cause` if the login fails.
+     * @param username
+     * @param password
      */
 
     async login(username: string, password: string): Promise<string> {
@@ -261,13 +261,14 @@ class NemisWebService {
                 .flat()
                 .filter(e => !!e['No.']);
             // do_postback doesn't match indexNo of each element, so we find the difference and
-            // use it
-            // to generate the correct post_backs
+            // use it to generate the correct post_backs
             let firstViewElement = listLearnerTable.querySelector('tr.GridRow > td:nth-child(13) > a')?.id;
             if (!firstViewElement) throw new CustomError('Failed to get first element from /Learner/Listlearners.aspx', 404);
             let firstViewElementNumber = Number(firstViewElement?.match(/(?<=_ctl)[0-9]./)?.shift());
             return listLearnerJson.map(element => {
-                let postback = `ctl00_ContentPlaceHolder1_grdLearners_ctl${firstViewElementNumber < 10 ? `0${firstViewElementNumber}` : firstViewElementNumber}_BtnView`;
+                let postback = `ctl00_ContentPlaceHolder1_grdLearners_ctl${
+                    firstViewElementNumber < 10 ? `0${firstViewElementNumber}` : firstViewElementNumber
+                }_BtnView`;
                 firstViewElementNumber++;
                 return {
                     ...listLearnerSchema.parse(element),
@@ -313,7 +314,8 @@ class NemisWebService {
                 })
             });
 
-            if (/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml?.data)) throw new CustomError('Admission failed, please request learner first', 400);
+            if (/^.+pageRedirect.+Learner.+fStudindexreq/gi.test(postHtml?.data))
+                throw new CustomError('Admission failed, please request learner first', 400);
 
             if (postHtml.request?.path === '/Learner/Studindexchk.aspx') {
                 //await this.axiosInstance.get()
@@ -334,7 +336,10 @@ class NemisWebService {
                 });
                 let message = htmlParser(postAdmHtml?.data)?.querySelector('#ctl00_ContentPlaceHolder1_ErrorMessage')?.innerHTML;
                 if (!message || !/THE STUDENT HAS BEEN ADMITTED TO THE SCHOOL\. ENSURE YOU CAPTURE BIO-DATAmessage/.test(message)) {
-                    writeFileSync(process.cwd() + '/debug/html/post_Learner_Studindexchk.aspx' + learner.adm + '.html', (await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data);
+                    writeFileSync(
+                        process.cwd() + '/debug/html/post_Learner_Studindexchk.aspx' + learner.adm + '.html',
+                        (await this.axiosInstance.get('/Learner/Studindexchk.aspx'))?.data
+                    );
                     throw { message: message || 'Failed to admit learner_router.' };
                 }
                 return true;
@@ -405,7 +410,11 @@ class NemisWebService {
             if (postResponse?.request?.path === '/Learner/alearner.aspx') return this.captureBioData(learner);
             if (postResponse?.request?.path === '/Admission/Listlearnersrep.aspx') {
                 let errorMessage = htmlParser(postResponse?.data)?.querySelector('#ctl00_ContentPlaceHolder1_ErrorMessage')?.innerText;
-                if (errorMessage && learner?.upi && errorMessage.startsWith('You Can Not Capture' + ' Bio-Data Twice for this Student. Use the LEARNER')) {
+                if (
+                    errorMessage &&
+                    learner?.upi &&
+                    errorMessage.startsWith('You Can Not Capture' + ' Bio-Data Twice for this Student. Use the LEARNER')
+                ) {
                     // Reset then capture biodata
                     await this.axiosInstance({
                         method: 'post',
@@ -511,7 +520,8 @@ class NemisWebService {
                         ctl00$ContentPlaceHolder1$txtName: requestingLearner?.name,
                         ctl00$ContentPlaceHolder1$txtIDNo: requestingLearner?.parent?.id,
                         ctl00$ContentPlaceHolder1$txtPhone: requestingLearner?.parent?.tel,
-                        ctl00$ContentPlaceHolder1$txtWReq: requestingLearner.requestedBy || 'requested by parent with id number ' + requestingLearner?.parent?.id
+                        ctl00$ContentPlaceHolder1$txtWReq:
+                            requestingLearner.requestedBy || 'requested by parent with id number ' + requestingLearner?.parent?.id
                     })
                 })
             )?.data;
@@ -568,7 +578,9 @@ class NemisWebService {
 
     async getRequestedJoiningLearners() {
         try {
-            let requestedJoiningLearnerTable = htmlParser((await this.changeResultsPerPage('/Learner/Liststudreq.aspx'))?.data)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+            let requestedJoiningLearnerTable = htmlParser((await this.changeResultsPerPage('/Learner/Liststudreq.aspx'))?.data)?.querySelector(
+                '#ctl00_ContentPlaceHolder1_grdLearners'
+            )?.outerHTML;
             if (!requestedJoiningLearnerTable) return [];
             return <(RequestedJoiningLearner & { deleteCallback: string })[]>tableToJson
                 .convert(requestedJoiningLearnerTable, {
@@ -588,8 +600,11 @@ class NemisWebService {
                             if (typeof x['Current Selected To'] !== 'string') return;
                             return <SchoolSelected>{
                                 originalString: x['Current Selected To'],
-                                ...[...x['Current Selected To']?.matchAll(/(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi)][0]
-                                    ?.groups
+                                ...[
+                                    ...x['Current Selected To']?.matchAll(
+                                        /(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
+                                    )
+                                ][0]?.groups
                             };
                         })(),
                         requestedBy: <string>x['Request Description'],
@@ -631,8 +646,11 @@ class NemisWebService {
                             if (typeof x['Current Selected To'] !== 'string') return;
                             return <SchoolSelected>{
                                 originalString: x['Current Selected To'],
-                                ...[...x['Current Selected To']?.matchAll(/(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi)][0]
-                                    ?.groups
+                                ...[
+                                    ...x['Current Selected To']?.matchAll(
+                                        /(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
+                                    )
+                                ][0]?.groups
                             };
                         })(),
                         requestedBy: x['Request Description'],
@@ -662,7 +680,9 @@ class NemisWebService {
     async getRequestedContinuingLearners() {
         try {
             let requestedContinuingLearnersHtml = (await this.changeResultsPerPage('/Learner/Listadmrequestsskul.aspx'))?.data;
-            let requestedContinuingLearners = htmlParser(requestedContinuingLearnersHtml)?.querySelector('#ctl00_ContentPlaceHolder1_grdLearners')?.outerHTML;
+            let requestedContinuingLearners = htmlParser(requestedContinuingLearnersHtml)?.querySelector(
+                '#ctl00_ContentPlaceHolder1_grdLearners'
+            )?.outerHTML;
             if (!requestedContinuingLearners) return [];
             return <RequestingLearner[]>tableToJson
                 .convert(requestedContinuingLearners)
@@ -675,7 +695,11 @@ class NemisWebService {
                             surname: String(element['Surname']?.toLowerCase()),
                             otherName: String(element['Othername']?.toLowerCase()),
                             firstname: String(element['Firstname']?.toLowerCase()),
-                            name: [String(element['Surname']?.toLowerCase()), String(element['Firstname']?.toLowerCase()), String(element['Othername']?.toLowerCase())].join(' '),
+                            name: [
+                                String(element['Surname']?.toLowerCase()),
+                                String(element['Firstname']?.toLowerCase()),
+                                String(element['Othername']?.toLowerCase())
+                            ].join(' '),
                             gender: String(element['Gender']?.toLowerCase()),
                             kcpeYear: Number(element['KCPE Year']),
                             indexNo: String(element['Index']),
@@ -693,7 +717,11 @@ class NemisWebService {
         }
     }
 
-    async requestContinuingLearners(requestingLearner: ContinuingLearnerType & { apiResults?: ContinuingLearnerApiResponse }) {
+    async requestContinuingLearners(
+        requestingLearner: ContinuingLearnerType & {
+            apiResults?: ContinuingLearnerApiResponse;
+        }
+    ) {
         try {
             await this.axiosInstance.get('/Learner/Listadmrequestsskul.aspx');
             // Let middleware handle most of the data validations
@@ -793,7 +821,11 @@ class NemisWebService {
                         surname: String(x['Surname']?.toLowerCase()),
                         otherName: String(x['Othername']?.toLowerCase()),
                         firstname: String(x['Firstname']?.toLowerCase()),
-                        name: [String(x['Surname']?.toLowerCase()), String(x['Firstname']?.toLowerCase()), String(x['Othername']?.toLowerCase())].join(' '),
+                        name: [
+                            String(x['Surname']?.toLowerCase()),
+                            String(x['Firstname']?.toLowerCase()),
+                            String(x['Othername']?.toLowerCase())
+                        ].join(' '),
                         gender: String(x['Gender']?.toLowerCase()),
                         kcpeYear: Number(x['KCPE Year']),
                         indexNo: String(x['Index']),
@@ -815,7 +847,10 @@ class NemisWebService {
     }
 
     //Capture Bio-data for continuing learners
-    async captureContinuingLearners(continuingLearner: CompleteLearner, pendingContinuingLearner: RequestingLearner): Promise<CaptureBiodataResponse> {
+    async captureContinuingLearners(
+        continuingLearner: CompleteLearner,
+        pendingContinuingLearner: RequestingLearner
+    ): Promise<CaptureBiodataResponse> {
         try {
             // Post to get capture page
             const pendingLearnerResponse = await this.axiosInstance({
@@ -858,7 +893,11 @@ class NemisWebService {
             const county = countyToNo(learner.county, learner.subCounty);
             const nationality = nationalities(learner?.nationality || 'kenya');
 
-            if (!learner?.birthCertificateNo) throw new CustomError('Learner birth certificate number was not provided. ' + 'Can not capture biodata without learners birth certificate number', 400);
+            if (!learner?.birthCertificateNo)
+                throw new CustomError(
+                    'Learner birth certificate number was not provided. ' + 'Can not capture biodata without learners birth certificate number',
+                    400
+                );
             if (!learner.dob) {
                 throw new CustomError('Date of birth was not submitted for the learner', 400);
             }
@@ -1059,7 +1098,8 @@ class NemisWebService {
                             __LASTFOCUS: '',
                             __VIEWSTATE: this.#stateObject?.__VIEWSTATE,
                             __VIEWSTATEGENERATOR: this.#stateObject?.__VIEWSTATEGENERATOR,
-                            ctl00$ContentPlaceHolder1$ScriptManager1: 'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$grdLearners$ctl162$BtnView',
+                            ctl00$ContentPlaceHolder1$ScriptManager1:
+                                'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$grdLearners$ctl162$BtnView',
                             ctl00$ContentPlaceHolder1$SelectBC: '1',
                             ctl00$ContentPlaceHolder1$SelectCat: form(grade),
                             ctl00$ContentPlaceHolder1$SelectCat2: '9 ',
@@ -1212,7 +1252,9 @@ class NemisWebService {
                             .filter(x => x?.outerHTML.match(/selected/))
                             .map(x => x?.attrs?.value)[0] || ''
                 },
-                isSpecial: alearnerDocument.querySelector('#ctl00_ContentPlaceHolder1_optneedsno')?.attrs?.checked ? 'optneedsno' : 'optspecialneed' || '',
+                isSpecial: alearnerDocument.querySelector('#ctl00_ContentPlaceHolder1_optneedsno')?.attrs?.checked
+                    ? 'optneedsno'
+                    : 'optspecialneed' || '',
                 emailAddress: alearnerDocument.querySelector('#txtEmailAddress')?.attrs?.value || '',
                 father: {
                     tel: alearnerDocument.querySelector('#txtFatherContacts')?.attrs?.value || '',
@@ -1386,7 +1428,8 @@ class NemisWebService {
                             DNT: '1',
                             'Upgrade-Insecure-Requests': '1',
                             'Content-Type': 'application/x-www-form-urlencoded',
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
+                            'User-Agent':
+                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
                             Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                             host: 'nemis.education.go.ke'
                         }
@@ -1448,7 +1491,8 @@ class NemisWebService {
                         'Cache-Control': 'no-cache',
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-MicrosoftAjax': 'Delta=true',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
+                        'User-Agent':
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36',
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                         Accept: '*/*',
                         host: 'nemis.education.go.ke'
@@ -1464,10 +1508,12 @@ class NemisWebService {
         // Response interceptor for API calls
         this.axiosInstance.interceptors.response.use(
             response => {
-                
                 try {
                     // If we get a page redirect tot login with 200 OK
-                    if ((response.data?.length < 50 && /pageRedirect.+Login\.aspx/i.test(response.data)) || response?.request?.path === '/Login.aspx') {
+                    if (
+                        (response.data?.length < 50 && /pageRedirect.+Login\.aspx/i.test(response.data)) ||
+                        response?.request?.path === '/Login.aspx'
+                    ) {
                         response.status = 401;
                         response.statusText = 'Unauthorized';
 
@@ -1488,7 +1534,7 @@ class NemisWebService {
                 }
             },
             err => {
-                err.statusCode = err.response?.status
+                err.statusCode = err.response?.status;
                 if (!err?.response) {
                     switch (err.code) {
                         case 'ETIMEDOUT':
