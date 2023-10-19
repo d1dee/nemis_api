@@ -55,7 +55,7 @@ const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
     let insertedDocs = await Promise.all(
         validatedJson.map(learner =>
             learnerModel.findOneAndUpdate(
-                { adm: learner.adm },
+                { adm: { $eq: learner.adm } },
                 {
                     ...learner,
                     institutionId: req.institution._id,
