@@ -16,7 +16,7 @@ import { DatabaseInstitution } from "types/nemisApiTypes";
 export default async (req: Request, _: Response, next: NextFunction) => {
     try {
         // If a path is /api/auth/register , skip auth middleware
-        if (['/api/auth/register', '/api/auth/recover'].includes(req.path) || !/^\/api\//.test(req.path)) {
+        if (['/api/auth/register', '/api/auth/recover'].some(element => req.path.endsWith(element)) || !/^\/api\//.test(req.path)) {
             logger.debug('Skipping auth middleware');
             logger.info('Path is ' + req.path);
             return next();

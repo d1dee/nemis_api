@@ -11,18 +11,18 @@ import { validateUsernamePassword } from "@middleware/utils/query_params";
 export default async (req: Request) => {
     try {
         const institution = await validateUsernamePassword(req.body);
-
-        let token = (await institution.populate('token')).token as DatabaseToken | undefined;
-
+        
+        let token = (await institution.populate("token")).token as DatabaseToken | undefined;
+        
         if (institution.isArchived || token?.archived) {
-            throw new CustomError('Institution data was deleted from the local database. Use register to get a new token ');
+            throw new CustomError("Institution data was deleted from the local database. Use register to get a new token ");
         }
-        if (!token) throw new CustomError('No valid token associated with the institution.', 400);
-
-        // Check whether token has expoired
-        if (token.expires.getTime() < Date.now()) throw new CustomError('Token has expired. To renew token, use `/auth/refresh`.', 401);
+        if (!token) throw new CustomError("No valid token associated with the institution.", 400);
+        
+        // Check whether token has expired
+        if (token.expires.getTime() < Date.now()) throw new CustomError("Token has expired. To renew token, use `/auth/refresh`.", 401);
         // Send token saved in Database
-        req.sendResponse.respond(institution, 'Token recovered successfully.');
+        req.sendResponse.respond(institution, "Token recovered successfully.");
     } catch (error: any) {
         console.error(JSON.stringify(error));
         sendErrorMessage(req, error);

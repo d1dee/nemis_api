@@ -449,7 +449,7 @@ class NemisWebService {
                     message: "Couldn't parse defffered learner_router table.",
                     cause: 'defferedLearnerHtml is undefined'
                 };
-            let differedJson = tableToJson.convert(differedTableHtml).map(x => {
+            return tableToJson.convert(differedTableHtml).map(x => {
                 console.log(x);
             });
         } catch (err) {
@@ -1021,7 +1021,7 @@ class NemisWebService {
                 Object.entries(formDataObject).forEach(([key, value]) => formData.append(key, value));
 
                 // POST with ignore error flag set
-                let postIgnoreHtml = await this.axiosInstance({
+                aLearnerHtml = await this.axiosInstance({
                     method: 'post',
                     url: '/Learner/alearner.aspx',
                     headers: {
@@ -1030,8 +1030,6 @@ class NemisWebService {
                     },
                     data: formData
                 });
-                //writeFileSync("debug/html/ignoretrue.html", postIgnoreHtml?.data);
-                aLearnerHtml = postIgnoreHtml;
             }
 
             let aLearnerDocument = htmlParser(aLearnerHtml?.data);
