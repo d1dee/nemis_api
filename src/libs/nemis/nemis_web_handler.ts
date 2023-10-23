@@ -27,6 +27,7 @@ import {
     SelectedLearner,
     StateObject
 } from "types/nemisApiTypes";
+import { cwd } from "node:process";
 import logger from "@libs/logger";
 import CustomError from "@libs/error_handler";
 import { writeFileSync } from "fs";
@@ -1045,7 +1046,7 @@ class NemisWebService {
                         alertMessage: undefined
                     };
                 }
-                writeFileSync(process.cwd() + '/debug/html/no_alert_message_' + learner.indexNo + '.html', aLearnerHtml);
+                writeFileSync(cwd() + '/debug/html/no_alert_message_' + learner.indexNo + '.html', aLearnerHtml);
                 throw {
                     message: 'Alert message is missing. We were not able to parse' + ' message from then page.'
                 };
