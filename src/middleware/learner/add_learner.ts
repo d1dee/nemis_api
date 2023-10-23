@@ -24,7 +24,10 @@ const addLearnerByFile = async (req: Request) => {
     try {
         // If for some reason the file path wasn't passed
         if (!Object.hasOwn(req.body, 'file')) {
-            throw new CustomError('Invalid request. No file was uploaded. Please upload an Excel file using multi-part upload.', 400);
+            throw new CustomError(
+                'Invalid request. No file was uploaded. Please upload an Excel file using multi-part upload.',
+                400
+            );
         }
         // Validate requested file
         await handleValidatedData(validateExcel(req.body.file), req);
@@ -49,7 +52,12 @@ const addLearnerByJson = async (req: Request) => {
 const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
     let validationError = validatedJson.filter(x => !!x.validationError);
     if (validationError.length > 0) {
-        throw new CustomError('Validation error.' + 'One or more fields failed to validate. Please check the following errors', 400, validationError);
+        throw new CustomError(
+            'Validation error.' +
+                'One or more fields failed to validate. Please check the following errors',
+            400,
+            validationError
+        );
     }
 
     let insertedDocs = await Promise.all(
@@ -59,8 +67,10 @@ const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
                 {
                     ...learner,
                     institutionId: req.institution._id,
-                    continuing: learner.continuing ? learner.continuing : req.url.includes('continuing'),
-                    archived: 'jue'
+                    continuing: learner.continuing
+                        ? learner.continuing
+                        : req.url.includes('continuing'),
+                    archived: false
                 },
                 {
                     upsert: true,
@@ -69,7 +79,10 @@ const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
             )
         )
     );
-    req.sendResponse.respond(insertedDocs, `${insertedDocs.length} learners added to the database.`);
+    req.sendResponse.respond(
+        insertedDocs,
+        `${insertedDocs.length} learners added to the database.`
+    );
 };
 
 export { addLearnerByFile, addLearnerByJson };
