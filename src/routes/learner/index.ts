@@ -4,15 +4,19 @@
 
 import { Router } from "express";
 import addLearnerRoute from "./add_learner";
-import deleteLearnerRoute from "./delete_learner";
 import { searchLearner } from "@middleware/learner/search_learner";
 import { syncLearnerDatabase } from "@middleware/learner/sync_learner";
+import { deleteSingleLearner } from "@middleware/learner/delete_learner";
+import listLearners from "@middleware/learner/list_learners";
 
-const learner_router = Router();
+const learnerRoute = Router();
 
-learner_router.use("/add", addLearnerRoute);
-learner_router.use("/delete", deleteLearnerRoute);
-learner_router.get("/search/:uniqueIdentifier", searchLearner);
-learner_router.use("/sync", syncLearnerDatabase);
+learnerRoute.use('/add', addLearnerRoute);
+learnerRoute.get('/list', listLearners);
+learnerRoute.use('/sync', syncLearnerDatabase);
 
-export default learner_router;
+learnerRoute.get('/search/:uniqueIdentifier', searchLearner);
+
+learnerRoute.delete('/delete/:uniqueIdentifier', deleteSingleLearner);
+
+export default learnerRoute;
