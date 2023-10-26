@@ -11,13 +11,16 @@ import { completeLearnerSchema } from "./zod_validation";
 import CustomError from "./error_handler";
 
 // Convert an Excel file to json and sanitize its data
-const validateExcel = (filePath: string): Array<CompleteLearner & { validationError?: ZodIssue }> => {
+const validateExcel = (
+    filePath: string
+): Array<CompleteLearner & { validationError?: ZodIssue }> => {
     try {
         accessSync(filePath, constants.R_OK);
         let workBook: WorkBook = readFile(filePath, { dateNF: 'yyyy-mm-dd', cellDates: true });
         if (workBook.SheetNames.length < 1) {
             throw new CustomError(
-                'Invalid file format. No sheets with data were found.' + 'The workbook should have at least one sheet containing learner data.',
+                'Invalid file format. No sheets with data were found.' +
+                    'The workbook should have at least one sheet containing learner data.',
                 400
             );
         }
@@ -47,9 +50,9 @@ const validateExcel = (filePath: string): Array<CompleteLearner & { validationEr
     }
 };
 /**
- Validates a learner_router object based on a Zod schema and applies additional custom validation logic.
+ Validates a learner object based on a Zod schema and applies additional custom validation logic.
  @param {any} obj - The learner_router object to be validated.
- @returns {CompleteLearner | (CompleteLearner & { validationError: ZodIssue })} - Returns a
+ @returns {CompleteLearner | (Partial<CompleteLearner> & { validationError: ZodIssue })} - Returns a
   CompleteLearner object if the validation is successful,
   or a CompleteLearner object with a validation error property if the validation fails.
  @throws {Error} - Throws an error if there is an issue during validation.
@@ -58,10 +61,16 @@ const validateExcel = (filePath: string): Array<CompleteLearner & { validationEr
 const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: ZodIssue } => {
     try {
         completeLearnerSchema.superRefine((value, ctx) => {
-            if (value.birthCertificateNo && value?.birthCertificateNo?.length < 7 && obj?.nationality === 'kenya') {
+            if (
+                value.birthCertificateNo &&
+                value.birthCertificateNo.length < 7 &&
+                obj?.nationality === 'kenya'
+            ) {
                 ctx.addIssue({
                     code: zod.ZodIssueCode.custom,
-                    message: 'Kenyan birth certificate entry numbers should be more' + ' than 7 (seven) characters long.'
+                    message:
+                        'Kenyan birth certificate entry numbers should be more' +
+                        ' than 7 (seven) characters long.'
                 });
             }
         });
