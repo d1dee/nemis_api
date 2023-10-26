@@ -2,8 +2,8 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { Request, Response } from 'express';
-import logger from '@libs/logger';
+import { Request, Response } from "express";
+import logger from "@libs/logger";
 
 interface SetHeaders {
     Authorization: string;
@@ -19,7 +19,6 @@ export default class {
     constructor(req: any, res: any) {
         this.request = <Request>req;
         this.response = <Response>res;
-        
     }
 
     // Set headers
@@ -36,6 +35,9 @@ export default class {
     //Generate generic error response
     error(errorCode: number, message?: string, cause?: any) {
         //check if a response has been sent
+        if (this.response?.headersSent) {
+            return logger.warn('Headers sent');
+        }
         if (process.env.NODE_ENV === 'production') cause = undefined;
 
         switch (errorCode) {
