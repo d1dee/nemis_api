@@ -35,12 +35,16 @@ export default async (req: Request) => {
 
         // Find institution and create if institution doesn't exist using {upsert:true}
         let institutionDocument = previousRegistration
-            ? ((await institutionModel.findByIdAndUpdate(previousRegistration._id, {
-                  isArchived: false,
-                  token: tokenId,
-                  username: username,
-                  password: password
-              })) as DatabaseInstitution)
+            ? ((await institutionModel.findByIdAndUpdate(
+                  previousRegistration._id,
+                  {
+                      isArchived: false,
+                      token: tokenId,
+                      username: username,
+                      password: password
+                  },
+                  { returnDocument: 'after' }
+              )) as DatabaseInstitution)
             : await institutionModel.create({
                   _id: institutionId,
                   ...institution,

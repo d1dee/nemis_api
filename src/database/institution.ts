@@ -18,6 +18,7 @@ import {
     OWNERSHIP_DOCUMENT_TYPE
 } from "@libs/nemis/validations";
 import { decryptString, encryptString } from "@libs/crypt";
+import { DatabaseInstitution } from "../../types/nemisApiTypes";
 
 export default mongoose.model(
     'institution',
@@ -130,10 +131,17 @@ export default mongoose.model(
         isArchived: { type: Boolean, default: false },
         archivedOn: Date
     })
-        .pre(/save|update/, function (next) {
+        .pre(new RegExp('update', 'i'), function (next) {
+            // Encrypt password before update
+            let update = this.getUpdate() as Partial<DatabaseInstitution>;
+            if (update?.password)
+                this.setUpdate({ ...update, password: encryptString(update.password) });
+
+            return next();
+        })
+        .pre('save', function (next) {
             // Encrypt password before saving
-            //@ts-ignore
-            this.password = encryptString(this.password);
+            if (this.password) this.password = encryptString(this.password);
             return next();
         })
         .post('findOne', function (doc, next) {
