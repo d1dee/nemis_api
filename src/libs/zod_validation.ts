@@ -2,12 +2,12 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { z as zod } from "zod";
+import { z } from "zod";
 import { countyToNo } from "./converts";
 import institution from "@database/institution";
 
-const usernamePasswordSchema = zod.object({
-    username: zod
+const usernamePasswordSchema = z.object({
+    username: z
         .string({
             required_error:
                 'Username is required. Note it should be the same as the username used to login to NEMIS website',
@@ -15,7 +15,7 @@ const usernamePasswordSchema = zod.object({
         })
         .trim()
         .min(4, 'Username too short'),
-    password: zod
+    password: z
         .string({
             required_error:
                 'Password is required. Note it should be the same as the password used to login to NEMIS website',
@@ -31,11 +31,11 @@ const newInstitutionSchema = usernamePasswordSchema.transform(async (x, ctx) => 
         return { ...x, previousRegistration: isRegistered };
     else {
         ctx.addIssue({
-            code: zod.ZodIssueCode.custom,
+            code: z.ZodIssueCode.custom,
             message: 'Username ' + x.username + ' is already registered.',
             path: ['username']
         });
-        return zod.NEVER;
+        return z.NEVER;
     }
 });
 
@@ -79,7 +79,9 @@ const NATIONALITY = [
     'others'
 ] as const;
 
-let phoneNumberSchema = zod.coerce
+const GENDER = ['male', 'female'] as const;
+
+let phoneNumberSchema = z.coerce
     .string()
     .trim()
     .refine(
@@ -99,11 +101,9 @@ let phoneNumberSchema = zod.coerce
             message: 'Invalid phone number'
         }
     );
-let medicalConditionSchema = zod
-    .union([zod.enum(MEDICAL_CONDITIONS), zod.undefined()])
-    .default('none');
+let medicalConditionSchema = z.union([z.enum(MEDICAL_CONDITIONS), z.undefined()]).default('none');
 
-let fullNameSchema = zod.coerce
+let fullNameSchema = z.coerce
     .string()
     .trim()
     .regex(
@@ -112,52 +112,69 @@ let fullNameSchema = zod.coerce
         'At least two names were expected but only one name was received.'
     );
 // Nemis returns an error if ID number is less than 8
-let idSchema = zod.union([
-    zod.undefined(),
-    zod.coerce
+let idSchema = z.union([
+    z.undefined(),
+    z.coerce
         .string()
         .trim()
         .transform(x => x.padStart(8, '0'))
 ]);
 
-let gradesSchema = zod.enum(GRADES);
+let gradesSchema = z.enum(GRADES);
 
-let genderSchema = zod.enum(['m', 'f']);
+let genderSchema = z.enum(GENDER);
 
-let nationalitiesSchema = zod.enum(NATIONALITY).default('kenya');
+let nationalitiesSchema = z.enum(NATIONALITY).default('kenya');
 
-let contactSchema = zod.union([
-    zod.object({
+let contactSchema = z.union([
+    z.object({
         name: fullNameSchema.trim().optional(),
         tel: phoneNumberSchema.optional(),
-        id: zod.union([zod.undefined(), idSchema])
+        id: z.union([z.undefined(), idSchema])
     }),
-    zod.undefined()
+    z.undefined()
 ]);
 
-let completeLearnerSchema = zod.object({
-    adm: zod.coerce
+let completeLearnerSchema = z.object({
+    adm: z.coerce
         .string()
         .trim()
         .refine(val => val !== 'undefined', 'Adm number can not be' + ' empty or undefined'),
     name: fullNameSchema.trim(),
-    dob: zod.coerce
+    dob: z.coerce
         .date({
             invalid_type_error:
                 'Invalidate dae was provided, make sure date of birth is in the format "YYYY/MM/DD"'
         })
         .optional(),
     grade: gradesSchema,
-    stream: zod.string().trim().optional(),
-    upi: zod.string().trim().min(4).optional(),
-    gender: genderSchema,
+    stream: z.string().trim().optional(),
+    upi: z.string().trim().min(4).optional(),
+    gender: z.string().transform((value, ctx) => {
+        switch (value) {
+            case 'male' || 'female':
+                break;
+            case 'm':
+                value = 'male';
+                break;
+            case 'f':
+                value = 'female';
+                break;
+            default:
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: `${value} is not a valid gender representation. Gender should be either male or female.`
+                });
+        }
+        return value;
+    }),
     father: contactSchema,
     mother: contactSchema,
     guardian: contactSchema,
-    address: zod.union([zod.undefined(), zod.coerce.string().trim()]),
-    county: zod.union([
-        zod.undefined(),
-        zod
+    address: z.union([z.undefined(), z.coerce.string().trim()]),
+    county: z.union([
+        z.undefined(),
+        z
             .string()
             .trim()
             .refine(
@@ -165,14 +182,14 @@ let completeLearnerSchema = zod.object({
                 value => ({ message: `${value} is not a valid county name` })
             )
     ]),
-    subCounty: zod.string().trim().optional(),
-    birthCertificateNo: zod.union([zod.undefined(), zod.coerce.string().trim()]),
+    subCounty: z.string().trim().optional(),
+    birthCertificateNo: z.union([z.undefined(), z.coerce.string().trim()]),
     medicalCondition: medicalConditionSchema,
-    isSpecial: zod.boolean().default(false),
-    marks: zod.union([zod.undefined(), zod.coerce.number().min(0).max(500)]),
-    indexNo: zod.union([
-        zod.undefined(),
-        zod.coerce
+    isSpecial: z.boolean().default(false),
+    marks: z.union([z.undefined(), z.coerce.number().min(0).max(500)]),
+    indexNo: z.union([
+        z.undefined(),
+        z.coerce
             .string()
             .trim()
             .length(
@@ -182,11 +199,11 @@ let completeLearnerSchema = zod.object({
             )
     ]),
     nationality: nationalitiesSchema,
-    continuing: zod.boolean().default(false),
-    kcpeYear: zod.coerce.number(zod.string().min(4)).optional().default(new Date().getFullYear())
+    continuing: z.boolean().default(false),
+    kcpeYear: z.coerce.number(z.string().min(4)).optional().default(new Date().getFullYear())
 });
 
-const uniqueIdentifierSchema = zod.string({
+const uniqueIdentifierSchema = z.string({
     required_error:
         'Unique identifier missing.To delete a learner, a unique identifier must be provided. The identifier can be either the UPI, birth certificate number, or admission number.',
     invalid_type_error: ' Unique identifier must be of type string.'
