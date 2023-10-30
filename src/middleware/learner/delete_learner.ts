@@ -2,66 +2,60 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
-import { Request } from 'express';
-import { GRADES, uniqueIdentifierSchema } from '@libs/zod_validation';
-import { z as zod } from 'zod';
-import learner from '@database/learner';
-import CustomError from '@libs/error_handler';
+import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
+import { Request } from "express";
+import learnerModel from "@database/learner";
+import { z } from "zod";
+import CustomError from "@libs/error_handler";
 
-const deleteBulkLearner = async (req: Request) => {
-    try {
-        let grade = zod.enum(GRADES).parse(req.params?.grade);
-        let learnersToArchive = await learner.find({
-            grade: grade,
-            archived: false,
-            institutionId: req.institution._id
-        });
-        if (!learnersToArchive) {
-            throw new CustomError(
-                'No active learners found in the provided grade.' +
-                    'Please check that the provided grade is correct or enroll learners in the given grade.',
-                404,
-                'not_found'
-            );
-        }
-        let archivedLearner = await Promise.all(
-            learnersToArchive.map(x =>
-                learner.findByIdAndUpdate(x._id, { archived: true }, { returnDocument: 'after' })
-            )
-        );
-        req.sendResponse.respond(archivedLearner, 'This learners were successfully archived.');
-    } catch (err) {
-        sendErrorMessage(req, err);
-    }
-};
 const deleteSingleLearner = async (req: Request) => {
     try {
-        let uniqueIdentifier = uniqueIdentifierSchema.parse(req.params?.uniqueIdentifier);
+        let queryParams = z
+            .object({
+                id: z.string({
+                    required_error:
+                        'Learner id is required. id can ne birth certificate number, upi, or admission number.'
+                }),
+                reason: z.string({ required_error: 'Archive reason was not provided.' })
+            })
+            .parse(req.query);
+        await learnerModel.updateMany({}, { archived: null });
 
-        let archivedLearner = await learner.findOneAndUpdate(
-            {
-                institutionId: req.institution._id,
-                $or: [
-                    { upi: uniqueIdentifier },
-                    { birthCertificateNo: uniqueIdentifier },
-                    { adm: uniqueIdentifier }
-                ]
-            },
-            { archived: true },
-            { returnDocument: 'after' }
-        );
-        if (!archivedLearner) {
+        let learner = await learnerModel.find({
+            institutionId: req.institution._id,
+            // archived: { isArchived: { $ne: true } },
+            $or: ['adm', 'birthCertificateNo', 'upi'].map(field => ({
+                [field]: { $eq: queryParams.id }
+            }))
+        });
+        if (learner.length === 0) {
             throw new CustomError(
-                'No active learner found in the provided uniqueIdentifier.' +
-                    'Please check that the provided uniqueIdentifier is correct or enroll learners to the database.',
-                404,
-                'not_found'
+                'No learner in the database with the provided upi, adm or birth certificate number.',
+                404
             );
         }
-        req.sendResponse.respond(archivedLearner, 'This learners were successfully archived.');
+        if (learner.length > 1) {
+            throw new CustomError('More than one learner was returned with the provided id.', 400);
+        }
+        let archivedLearner = Object.assign(learner[0], {
+            archived: {
+                isArchived: true,
+                reason: queryParams.reason,
+                archivedOn: Date.now().toString()
+            }
+        }).save();
+
+        /*await learner[0].updateOne(
+            { archived: { archivedOn: Date.now(), isArchived: true, reason: queryParams.reason } },
+            { returnDocument: 'after' }
+        );*/
+
+        if (!archivedLearner) {
+            throw new CustomError('An error was encountered while archiving learner.', 500);
+        }
+        req.sendResponse.respond('This learners were successfully archived.');
     } catch (err) {
         sendErrorMessage(req, err);
     }
 };
-export { deleteBulkLearner, deleteSingleLearner };
+export { deleteSingleLearner };
