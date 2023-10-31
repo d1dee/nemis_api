@@ -14,7 +14,7 @@ export default async (req: Request) => {
 
         let token = (await institution.populate('token')).token as DatabaseToken | undefined;
 
-        if (institution.isArchived || token?.archived) {
+        if (institution?.archived?.isArchived || token?.archived) {
             throw new CustomError(
                 'Institution data was deleted from the local database. Use register to get a new token '
             );
@@ -23,7 +23,7 @@ export default async (req: Request) => {
         // Send token saved in Database
         req.sendResponse.respond(
             institution,
-            token.expires.getTime() < Date.now()
+            token.expires.UTCTimestamp.getTime() < Date.now()
                 ? 'The recovered token has already expired. Use `/auth/refresh` to get a new token'
                 : 'Token recovered successfully.'
         );

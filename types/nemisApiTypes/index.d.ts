@@ -5,19 +5,18 @@ import { z as zod } from "zod";
 import mongoose, { Document } from "mongoose";
 import { completeLearnerSchema, genderSchema, gradesSchema, nationalitiesSchema } from "@libs/zod_validation";
 import {
-  admissionApiResponseSchema,
-  admissionSchema,
-  institutionSchema,
-  listAdmittedLearnerSchema,
-  listLearnerSchema,
-  requestingJoiningLearnerSchema,
-  searchLearnerSchema
+    admissionApiResponseSchema,
+    admissionSchema,
+    listAdmittedLearnerSchema,
+    listLearnerSchema,
+    requestingJoiningLearnerSchema,
+    searchLearnerSchema
 } from "@libs/nemis/validations";
 
 /**
  * Continuing learner_router for a database
  */
-export type ContinuingLearnerType = Omit<NemisLearnerFromDb, "ObjectId"> & {
+export type ContinuingLearnerType = Omit<NemisLearnerFromDb, 'ObjectId'> & {
     institutionId: mongoose.Types.ObjectId;
     continuing: boolean;
     birthCertificateNo: string;
@@ -32,7 +31,9 @@ export type RequestingJoiningLearner = zod.infer<typeof requestingJoiningLearner
 /**
  * A standard learner_router, this is a base learner_router where all other learners are derived from
  */
-export type CompleteLearner = zod.infer<typeof completeLearnerSchema> & { continuing?: boolean };
+export type CompleteLearner = zod.infer<typeof completeLearnerSchema> & {
+    continuing?: boolean;
+};
 
 export type CompleteDatabaseLearner = CompleteLearner & {
     error?: string;
@@ -61,67 +62,21 @@ export type Grades = zod.infer<typeof gradesSchema>;
 export type Nationalities = zod.infer<typeof nationalitiesSchema>;
 export type Gender = zod.infer<typeof genderSchema>;
 export type AdmissionApiResults = zod.infer<typeof admissionSchema>;
-export type Institution = zod.infer<typeof institutionSchema>;
 
 export type AdmitApiResponses = zod.infer<typeof admissionApiResponseSchema>;
 export type SearchLearnerApiResponses = zod.infer<typeof searchLearnerSchema>;
 
-export interface JoiningLearnerBiodata extends CompleteLearner {
-    postback: string;
-    birthCertificateNo: string;
-    actions: {
-        captureWithBirthCertificate: string;
-        captureWithoutBirthCertificate: string;
-        resetBiodataCapture: string;
-        undoAdmission: string;
-    };
-}
+export type CaptureBiodataResponse = {
+    upi?: string;
+    message: string;
+    alertMessage?: string;
+};
 
-export type CaptureBiodataResponse = { upi?: string; message: string; alertMessage?: string };
-
-export interface DatabaseInstitution extends Institution, Document {
-    username: string;
-    password: string;
-    createdAt: Date;
-    lastLogin: Date;
-    token?: mongoose.Types.ObjectId;
-    // Ids of all previous tokens
-    revokedTokens: mongoose.Types.ObjectId[];
-    isArchived: boolean;
-    tokenObject?: DatabaseToken;
-}
-
-export interface DatabaseToken extends Document {
-    token?: string;
-    tokenSecret: string;
-    createdAt: Date;
-    expires: Date;
-    institutionId: mongoose.Types.ObjectId;
-    revoked?: {
-        on?: Date;
-        by?: mongoose.Types.ObjectId;
-        reason?: String;
-    };
-    archived: boolean;
-}
-
-export interface QueryParams {
-    dob?: Date;
-    admitted?: boolean;
-    birthCertOrUpi?: string[];
-    nhif?: boolean;
-    adm?: string[];
-    fields?: string[];
-    sort?: string;
-    //upi?: string;
-    limit?: number;
-    grade?: Grades;
-    approved?: boolean;
-    indexNo?: string[];
-    await?: boolean;
-    ignoreNonEssentialBlanks?: boolean;
-    stream?: string;
-}
+export type DateTimeSchema = {
+    UTCTimestamp: Date;
+    formattedDate: string;
+    timeZone: string;
+};
 
 export interface RequestingLearner extends BasicName {
     no?: number;
@@ -145,7 +100,7 @@ export interface BasicLearner {
     stream?: string;
     upi?: string;
     gender: string;
-    dob: Date; //parse to date
+    dob: DateTimeSchema; //parse to date
 }
 
 export interface BasicContact {
@@ -205,18 +160,6 @@ export interface SelectedLearner {
     subCounty: string;
 }
 
-export interface BioDataReturn {
-    error?: {
-        message: string;
-        type: string;
-        time: number;
-    };
-    success?: {
-        upi: string;
-        time: number;
-    };
-}
-
 export interface StateObject {
     __VIEWSTATEGENERATOR: string;
     __EVENTARGUMENT?: string;
@@ -225,119 +168,6 @@ export interface StateObject {
     __LASTFOCUS?: string;
     __EVENTTARGET?: string;
     __EVENTVALIDATION: string;
-}
-
-export interface NhifResponse {
-    nhifNo: string;
-    nhifStatus: string;
-}
-
-export interface ErrorResponse {
-    message?: string;
-    type?: string;
-    data?: Error;
-    time?: number | Date | string;
-    error?: Error;
-}
-
-export interface FormattedCustomError {
-    message: string,
-    responseErrorCode: number
-    error?: any
-}
-
-export interface AxiosCustomRequestHeaders {
-    "Cache-Control"?: string;
-    "X-Requested-With"?: string;
-    "X-MicrosoftAjax"?: string;
-    "Upgrade-Insecure-Requests"?: string;
-    "Content-Type"?: string;
-    "User-Agent"?: string;
-    Accept?: string;
-    host?: string;
-}
-
-export interface SearchLearner {
-    name?: string;
-    dob?: string;
-    upi?: string;
-    gender?: "M" | "F";
-    birthCertificateNo?: string;
-    classCode?: number;
-    grade?: string;
-    isSpecial?: boolean;
-    nhifNo?: number;
-    isLearner?: boolean;
-    currentInstitution?: {
-        name?: string;
-        code?: string;
-        type?: string;
-        level?: string;
-    };
-    nationality?: string | number;
-    countyNo?: number;
-    subCountyNo?: number;
-    father?: {
-        name?: string;
-        id?: string;
-        phone?: string;
-        upi?: string;
-    };
-    mother?: {
-        name?: string;
-        id?: string;
-        phone?: string;
-        upi?: string;
-    };
-    guardian?: {
-        name?: string;
-        id?: string;
-        phone?: string;
-        upi?: string;
-    };
-    postalAddress?: string;
-}
-
-interface PreferredSchools {
-    first?: string;
-    second?: string;
-    third?: string;
-    fourth?: string;
-}
-
-export interface AdmitOrCaptureRequestApiCalls {
-    name?: string;
-    gender?: string;
-    upi?: string;
-    birthCertificateNo?: string;
-    citizenship?: string;
-    indexNo?: string;
-    marks?: number;
-    placementHistory?: string;
-    religionCode?: string;
-    reported?: {
-        date?: string;
-        institutionName?: string;
-        institutionCode?: string;
-    };
-    disability?: { b?: string; d?: string; l?: string; p?: string };
-    schoolReported?: ParsedLabel;
-    schoolAdmitted?: ParsedLabel;
-    schoolSelected?: { level?: string; code?: string; name?: string };
-    selectionMethod?: string;
-    previousSchool?: {
-        name?: string;
-        code?: string;
-    };
-    preferredSchools?: {
-        national?: PreferredSchools;
-        extraCounty?: PreferredSchools;
-        county?: PreferredSchools;
-        secondary?: PreferredSchools;
-    };
-    choiceNo?: string;
-    districtRank?: number;
-    nationalRank?: number;
 }
 
 export interface ParsedLabel {
@@ -354,7 +184,12 @@ export interface AdmitApiCall {
     citizenship: string;
     indexNo: string;
     marks: string;
-    disability?: { b: string; d: string; l: string; p: string };
+    disability?: {
+        b: string;
+        d: string;
+        l: string;
+        p: string;
+    };
     schoolAdmitted?: ParsedLabel;
     schoolSelected?: {
         level: string;
@@ -389,26 +224,7 @@ export interface AdmitApiCall {
     };
 }
 
-export interface AdmittedJoiningLearners {
-    postback: "ctl00$ContentPlaceHolder1$grdLearners";
-    actions: {
-        captureWithBirthCertificate: string;
-        captureWithoutBirthCertificate: string;
-        resetBiodataCapture: string;
-        undoAdmission: string;
-    };
-    no: number;
-    indexNo: string;
-    name: string;
-    gender: string;
-    yob: number;
-    marks: number;
-    subCounty: string;
-    upi: string;
-}
-
-export interface RequestedJoiningLearner extends ApprovedLearner {
-}
+export interface RequestedJoiningLearner extends ApprovedLearner {}
 
 export interface SchoolSelected {
     originalString?: string;

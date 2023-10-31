@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { countyToNo } from "./converts";
+import { countyToNo, dateTime } from "./converts";
 import institution from "@database/institution";
 
 const usernamePasswordSchema = z.object({
@@ -144,9 +144,9 @@ let completeLearnerSchema = z.object({
     dob: z.coerce
         .date({
             invalid_type_error:
-                'Invalidate dae was provided, make sure date of birth is in the format "YYYY/MM/DD"'
+                'Invalidate date was provided, make sure date of birth is in the format "YYYY/MM/DD"'
         })
-        .optional(),
+        .transform(date => dateTime(date)),
     grade: gradesSchema,
     stream: z.string().trim().optional(),
     upi: z.string().trim().min(4).optional(),

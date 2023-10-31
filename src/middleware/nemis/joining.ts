@@ -87,7 +87,7 @@ const captureJoiningLearner = async (req: Request) => {
                         reject([learner]);
                     } else {
                         new NemisWebService(cookie, nemis.getState())
-                            .captureJoiningBiodata(learner[0], learner[1])
+                            .captureJoiningBiodata(learner[0].toObject(), learner[1])
                             .then(captureResults => {
                                 resolve([learner[0], captureResults]);
                             })
@@ -229,7 +229,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
         // Capture bio-data for the filtered learners
         let res = await Promise.allSettled([
             new NemisWebService(cookie, nemis.getState()).captureJoiningBiodata(
-                learnerNotCaptured,
+                learnerNotCaptured.toObject(),
                 admitted
             )
         ]);

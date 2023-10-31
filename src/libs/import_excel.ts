@@ -16,24 +16,24 @@ const validateExcel = (
 ): Array<CompleteLearner & { validationError?: ZodIssue }> => {
     try {
         accessSync(filePath, constants.R_OK);
-        let workBook: WorkBook = readFile(filePath, { dateNF: 'yyyy-mm-dd', cellDates: true });
+        let workBook: WorkBook = readFile(filePath, { dateNF: "yyyy-mm-dd", cellDates: true });
         if (workBook.SheetNames.length < 1) {
             throw new CustomError(
-                'Invalid file format. No sheets with data were found.' +
-                    'The workbook should have at least one sheet containing learner data.',
+                "Invalid file format. No sheets with data were found." +
+                "The workbook should have at least one sheet containing learner data.",
                 400
             );
         }
         if (workBook.SheetNames.length > 1) {
             throw new CustomError(
-                'Invalid file format. More than one sheet was found.' +
-                    'Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.',
+                "Invalid file format. More than one sheet was found." +
+                "Please remove all unnecessary sheets and upload a file with only one sheet containing learner data.",
                 400
             );
         }
         // Parse sheetData
         const sheetData = utils.sheet_to_json(workBook.Sheets[workBook.SheetNames[0]]);
-
+        
         // check if all keys are correct
         if (!Array.isArray(sheetData) || sheetData.length === 0) {
             throw new CustomError(
@@ -43,7 +43,7 @@ const validateExcel = (
                 400
             );
         }
-
+        
         return sheetData.map(x => validateLearnerJson(lowerCaseAllValues(x)));
     } catch (err: any) {
         throw err;
@@ -64,26 +64,21 @@ const validateLearnerJson = (obj: any): CompleteLearner & { validationError?: Zo
             if (
                 value.birthCertificateNo &&
                 value.birthCertificateNo.length < 7 &&
-                obj?.nationality === 'kenya'
+                obj?.nationality === "kenya"
             ) {
                 ctx.addIssue({
                     code: zod.ZodIssueCode.custom,
                     message:
-                        'Kenyan birth certificate entry numbers should be more' +
-                        ' than 7 (seven) characters long.'
+                        "Kenyan birth certificate entry numbers should be more" +
+                        " than 7 (seven) characters long."
                 });
             }
         });
-
+        
         // Prepare the object for validation
         let objectToValidate = {
             ...obj,
-            dob:
-                obj.dob instanceof Date
-                    ? (() =>
-                          // Fix off by 1 Date error
-                          obj.dob.setDate(obj.dob.getDate() + 1))()
-                    : obj.dob,
+            dob: obj.dob,
             father: {
                 name: obj?.fatherName,
                 tel: obj?.fatherTel,

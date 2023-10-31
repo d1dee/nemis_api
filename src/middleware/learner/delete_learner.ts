@@ -7,6 +7,8 @@ import { Request } from "express";
 import learnerModel from "@database/learner";
 import { z } from "zod";
 import CustomError from "@libs/error_handler";
+import { formatInTimeZone } from "date-fns-tz";
+import { dateTime } from "@libs/converts";
 
 const deleteSingleLearner = async (req: Request) => {
     try {
@@ -23,7 +25,7 @@ const deleteSingleLearner = async (req: Request) => {
 
         let learner = await learnerModel.find({
             institutionId: req.institution._id,
-            // archived: { isArchived: { $ne: true } },
+            'archived.isArchived': { $ne: true },
             $or: ['adm', 'birthCertificateNo', 'upi'].map(field => ({
                 [field]: { $eq: queryParams.id }
             }))
@@ -37,11 +39,12 @@ const deleteSingleLearner = async (req: Request) => {
         if (learner.length > 1) {
             throw new CustomError('More than one learner was returned with the provided id.', 400);
         }
-        let archivedLearner = Object.assign(learner[0], {
+        let f = formatInTimeZone(new Date(), 'Africa/Nairobi', 'yyyy-MM-dd HH:mm:ss zzz');
+        let archivedLearner = await Object.assign(learner[0], {
             archived: {
                 isArchived: true,
                 reason: queryParams.reason,
-                archivedOn: Date.now().toString()
+                archivedOn: dateTime()
             }
         }).save();
 
@@ -50,10 +53,10 @@ const deleteSingleLearner = async (req: Request) => {
             { returnDocument: 'after' }
         );*/
 
-        if (!archivedLearner) {
-            throw new CustomError('An error was encountered while archiving learner.', 500);
-        }
-        req.sendResponse.respond('This learners were successfully archived.');
+        req.sendResponse.respond(
+            archivedLearner.toObject(),
+            'This learners were successfully archived.'
+        );
     } catch (err) {
         sendErrorMessage(req, err);
     }
