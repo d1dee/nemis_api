@@ -34,9 +34,7 @@ const captureJoiningLearner = async (req: Request) => {
 
         // Sort to reduce search time
         if (listCapturedLearners.length > 10) {
-            listCapturedLearners.sort((a, b) =>
-                a.birthCertificateNo.localeCompare(b.birthCertificateNo)
-            );
+            listCapturedLearners.sort((a, b) => a.birthCertificateNo.localeCompare(b.birthCertificateNo));
         }
 
         // Filter out learner who aren't captured on Nemis
@@ -103,10 +101,7 @@ const captureJoiningLearner = async (req: Request) => {
         let results = await Promise.all(
             captureResults.map(x => {
                 if (x.status === 'fulfilled') {
-                    let value = x.value as [
-                        (typeof learnerNotCaptured)[number],
-                        CaptureBiodataResponse
-                    ];
+                    let value = x.value as [(typeof learnerNotCaptured)[number], CaptureBiodataResponse];
 
                     value[0].upi = value[1].upi;
                     value[0].error = undefined;
@@ -164,10 +159,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
             admitted: true,
             birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
             dob: { $exists: true },
-            $or: [
-                { birthCertificateNo: { $eq: uniqueIdentifier } },
-                { adm: { $eq: uniqueIdentifier } }
-            ],
+            $or: [{ birthCertificateNo: { $eq: uniqueIdentifier } }, { adm: { $eq: uniqueIdentifier } }],
             archived: false
         });
 
@@ -180,10 +172,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
 
         // Report if learner has reported and has upi
         if (learnerNotCaptured?.upi && learnerNotCaptured?.reported) {
-            req.sendResponse.respond(
-                learnerNotCaptured,
-                "Learner' bio-data has already been captured."
-            );
+            req.sendResponse.respond(learnerNotCaptured, "Learner' bio-data has already been captured.");
             return;
         }
         // Get list of captured learners frm Nemis website
@@ -205,10 +194,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
                 error: undefined
             });
             await learnerNotCaptured.save();
-            req.sendResponse.respond(
-                learnerNotCaptured,
-                "Learner's bio-data was already captured."
-            );
+            req.sendResponse.respond(learnerNotCaptured, "Learner's bio-data was already captured.");
             return;
         }
 

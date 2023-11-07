@@ -3,7 +3,7 @@
  */
 
 //converts county names adn sub county names to their respective code as per nemis
-import { BasicName, Grades } from "types/nemisApiTypes";
+import { Grades } from "types/nemisApiTypes";
 import { formatInTimeZone } from "date-fns-tz";
 
 export const countyToNo = (county?: string, subCounty?: string) => {
@@ -1519,11 +1519,9 @@ export const nationalities = (nationality: number | string): number | string => 
 };
 
 //converts classes as per nemis
-export const form = (grade: Grades) => {
+export const gradeToNumber = (grade: Grades) => {
     if (!grade) throw new Error('Grade was not defined.');
-    switch (
-        grade as unknown as string // We already know grade is a string
-    ) {
+    switch (grade) {
         case 'form 1':
             return 12;
         case 'form 2':
@@ -1564,7 +1562,7 @@ export const form = (grade: Grades) => {
 };
 
 //split names into firstname, middle name and lastname
-export const splitNames = (name: string): BasicName => {
+export const splitNames = (name: string) => {
     try {
         let nameArray: string[] = name?.split(' ');
         if (nameArray.length < 2) throw { message: 'Invalid name length' };
@@ -1641,11 +1639,17 @@ export const medicalConditionDesc = (medicalCondition: number): string => {
     return condition;
 };
 
-export function lowerCaseAllValues(obj: any, opts?: { keys: boolean }): any {
-    // Check if obj is a POJO
-    if (!obj || typeof obj !== 'object' || obj.constructor.name !== 'Object') return obj;
+// Returns a lowercase version of the provide POJO object, if object is not a POJO the object is returned as is
+export function lowerCaseAllValues(
+    object: any,
+    opts?: {
+        keys: boolean;
+    }
+): any {
+    if (!object || typeof object !== 'object' || object.constructor.name !== 'Object')
+        return object;
 
-    let lowerCased = Object.entries(obj).map(keyValuePair => {
+    let lowerCased = Object.entries(object).map(keyValuePair => {
         if (typeof keyValuePair[1] === 'string')
             if (opts?.keys) {
                 return [

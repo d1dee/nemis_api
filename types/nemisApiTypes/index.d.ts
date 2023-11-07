@@ -3,94 +3,16 @@
  */
 import { z as zod } from "zod";
 import mongoose, { Document } from "mongoose";
-import { completeLearnerSchema, genderSchema, gradesSchema, nationalitiesSchema } from "@libs/zod_validation";
-import {
-    admissionApiResponseSchema,
-    admissionSchema,
-    listAdmittedLearnerSchema,
-    listLearnerSchema,
-    requestingJoiningLearnerSchema,
-    searchLearnerSchema
-} from "@libs/nemis/validations";
-
-/**
- * Continuing learner_router for a database
- */
-export type ContinuingLearnerType = Omit<NemisLearnerFromDb, 'ObjectId'> & {
-    institutionId: mongoose.Types.ObjectId;
-    continuing: boolean;
-    birthCertificateNo: string;
-    indexNo: string;
-};
-
-/**
- * A learner_router joining the school for the first time ie form 1 in secondary schools.
- */
-export type RequestingJoiningLearner = zod.infer<typeof requestingJoiningLearnerSchema>;
-
-/**
- * A standard learner_router, this is a base learner_router where all other learners are derived from
- */
-export type CompleteLearner = zod.infer<typeof completeLearnerSchema> & {
-    continuing?: boolean;
-};
-
-export type CompleteDatabaseLearner = CompleteLearner & {
-    error?: string;
-    nemisApiResultsId?: mongoose.Types.ObjectId;
-    institutionId: mongoose.Types.ObjectId;
-    admitted?: boolean;
-    reported?: boolean;
-    nhifNo?: number;
-};
-
-/**
- * Learner returned by http://nemis.education.go.ke/Learner/Listlearners.aspx on the NEMIS website
- */
-export type ListLearner = zod.infer<typeof listLearnerSchema> & {
-    doPostback: string;
-    grade: Grades;
-};
-
-/**
- * List of learners awaiting biodata capture and is returned by http://nemis.education.go.ke/Admission/Listlearnersrep.aspx
- */
-
-export type ListAdmittedLearner = zod.infer<typeof listAdmittedLearnerSchema>;
+import { genderSchema, gradesSchema } from "@libs/zod_validation";
 
 export type Grades = zod.infer<typeof gradesSchema>;
-export type Nationalities = zod.infer<typeof nationalitiesSchema>;
 export type Gender = zod.infer<typeof genderSchema>;
-export type AdmissionApiResults = zod.infer<typeof admissionSchema>;
-
-export type AdmitApiResponses = zod.infer<typeof admissionApiResponseSchema>;
-export type SearchLearnerApiResponses = zod.infer<typeof searchLearnerSchema>;
 
 export type CaptureBiodataResponse = {
     upi?: string;
     message: string;
     alertMessage?: string;
 };
-
-export type DateTimeSchema = {
-    UTCTimestamp: Date;
-    formattedDate: string;
-    timeZone: string;
-};
-
-export interface RequestingLearner extends BasicName {
-    no?: number;
-    name: string;
-    adm: string;
-    gender: string;
-    kcpeYear: number;
-    indexNo: string;
-    birthCertificateNo: string;
-    grade: Grades;
-    remarks: string;
-    upi?: string;
-    postback?: string;
-}
 
 //Learner
 export interface BasicLearner {
@@ -100,7 +22,6 @@ export interface BasicLearner {
     stream?: string;
     upi?: string;
     gender: string;
-    dob: DateTimeSchema; //parse to date
 }
 
 export interface BasicContact {
@@ -224,32 +145,12 @@ export interface AdmitApiCall {
     };
 }
 
-export interface RequestedJoiningLearner extends ApprovedLearner {}
-
 export interface SchoolSelected {
     originalString?: string;
     code: string;
     name: string;
     type: string;
     category: string;
-}
-
-export interface ApprovedLearner {
-    no?: string;
-    indexNo?: string;
-    name?: string;
-    gender?: string;
-    marks?: string;
-    schoolSelected?: SchoolSelected;
-    requestedBy?: string;
-    parentId?: string;
-    parentTel?: string;
-    dateCaptured?: string;
-    approved?: {
-        by?: string;
-        on?: string;
-    };
-    status?: string;
 }
 
 export interface ContinuingLearnerApiResponse {

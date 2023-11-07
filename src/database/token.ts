@@ -27,17 +27,7 @@ export const tokenSchema = new mongoose.Schema({
         ref: 'institution',
         required: true
     },
-    // Reason for the token to be revoked (e.g. user logged out)
-    revoked: {
-        on: {
-            type: dateTimeSchema
-        },
-        by: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'institution'
-        },
-        reason: String
-    },
+
     // true when the associated institution is archived
     archive: archiveSchema
 });

@@ -132,7 +132,7 @@ export const institutionSchema = new mongoose.Schema({
         ]
     },
     nemisInstitutionData: nemisInstitutionDataSchema,
-    archive: archiveSchema
+    archived: archiveSchema
 });
 
 export default mongoose.model(

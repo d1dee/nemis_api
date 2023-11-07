@@ -33,7 +33,7 @@ export default class {
     }
 
     //Generate generic error response
-    error(errorCode: number, message?: string, cause?: any) {
+    sendError(errorCode: number, message?: string, cause?: any) {
         //check if a response has been sent
         if (this.response?.headersSent) {
             return logger.warn('Headers sent');
@@ -166,36 +166,34 @@ export default class {
     }
 
     //method used to send a response to the client
-    respond(data: any, message?: string, statusCode?: number) {
+    sendResponse(data: any, message?: string, statusCode?: number) {
         statusCode = statusCode || 200;
+
         this.setHeaders({
             Authorization: 'Bearer ' + this.request?.token?.token,
             'Access-Control-Expose-Headers': 'Authorization Expires',
-            Expires: new Date(Date.now() + 2.592e9).toUTCString()
+            Expires: this.request.token.expires.formattedDate
         });
 
         // todo: Walk through data object and remove sensitive data
 
-        //check if a response has been sent
         if (this.response?.headersSent) {
             return logger.warn('Headers sent');
         }
-        //check if response is an error
-        if (data instanceof Error) {
-            //logger.error(data);
+
+        if (data instanceof Error)
             this.response.status(500).send({
                 success: false,
                 message: 'Internal Server Error',
                 cause: data.cause || undefined
             });
-        } else {
-            //send the response to the client
+        // Send the response to the client
+        else
             this.response.status(statusCode).send({
                 success: true,
                 message: message || 'Operation complete successfully',
                 data: data || []
             });
-        }
     }
 
     /*private validateDataBeforeSend(data: any) {
