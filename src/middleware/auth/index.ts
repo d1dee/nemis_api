@@ -9,16 +9,13 @@ import institution_schema from "@database/institution";
 import tokenSchema from "@database/token";
 import CustomError from "@libs/error_handler";
 import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
-import { DatabaseInstitution } from "types/nemisApiTypes";
 
 // todo replace with passport
 export default async (req: Request, _: Response, next: NextFunction) => {
     try {
         // If a path is /api/auth/register , skip auth middleware
         if (
-            ['/api/auth/register', '/api/auth/recover'].some(element =>
-                req.path.endsWith(element)
-            ) ||
+            ['/api/auth/register', '/api/auth/recover'].some(element => req.path.endsWith(element)) ||
             !/^\/api\//.test(req.path)
         ) {
             console.debug('Skipping auth middleware');
@@ -40,10 +37,7 @@ export default async (req: Request, _: Response, next: NextFunction) => {
         console.debug('Token: ' + token);
 
         if (!token) {
-            throw new CustomError(
-                'Forbidden, token is undefined. An empty token was received.',
-                403
-            );
+            throw new CustomError('Forbidden, token is undefined. An empty token was received.', 403);
         }
 
         // Get token value to check if it's revoked
@@ -68,15 +62,9 @@ export default async (req: Request, _: Response, next: NextFunction) => {
         }
 
         switch (true) {
-            case tokenFromDb.archived:
+            case tokenFromDb.archive?.isArchived:
                 throw new CustomError(
                     'Forbidden. This token is archived. Register for a  new token at `/auth/register`',
-                    403
-                );
-
-            case tokenFromDb.revoked === undefined:
-                throw new CustomError(
-                    'Forbidden. This token is revoked. Register for a  new token at `/auth/register`',
                     403
                 );
 
@@ -86,18 +74,14 @@ export default async (req: Request, _: Response, next: NextFunction) => {
 
             case Date.parse(tokenFromDb.expires.toString()) < Date.now():
                 if (req.path === '/api/auth/refresh') {
-                    if (tokenFromDb.token !== token)
-                        throw new CustomError('Forbidden. Invalid token', 401);
+                    if (tokenFromDb.token !== token) throw new CustomError('Forbidden. Invalid token', 401);
                     console.debug('Token refresh');
 
-                    req.token = tokenFromDb.toObject();
+                    req.token = tokenFromDb;
                     return next();
                 }
                 console.debug('Token has expired');
-                throw new CustomError(
-                    'Forbidden. Token has expired, refresh token at `/auth/refresh`',
-                    403
-                );
+                throw new CustomError('Forbidden. Token has expired, refresh token at `/auth/refresh`', 403);
         }
 
         //Verify the token
@@ -117,9 +101,8 @@ export default async (req: Request, _: Response, next: NextFunction) => {
             );
         }
 
-        req.institution = <DatabaseInstitution>institution?.toObject();
-        req.token = tokenFromDb.toObject();
-        req.isValidToken = true;
+        req.institution = institution;
+        req.token = tokenFromDb;
 
         return next();
     } catch (err: any) {

@@ -20,7 +20,7 @@ interface Options {
     create?: boolean;
 }
 
-export default class Learner {
+export default class {
     // call parseLearner before calling this method
     async addLearnerToDatabase(learnerJsonArray: NemisLearner[]) {
         try {
@@ -41,7 +41,7 @@ export default class Learner {
             throw err;
         }
     }
-
+    
     async getLearnerFromDatabase(query: {}): Promise<NemisLearnerFromDb[]> {
         try {
             return await learnerModel.find(query).lean();
@@ -52,9 +52,12 @@ export default class Learner {
             throw err;
         }
     }
-
+    
     async addNemisApiResults(
-        learner: { _id: ObjectId | string; nemisApiResultId?: string },
+        learner: {
+            _id: ObjectId | string;
+            nemisApiResultId?: string
+        },
         apiResults: NemisApiResults,
         options: Options
     ) {
@@ -78,7 +81,7 @@ export default class Learner {
             throw err;
         }
     }
-
+    
     // If update is not an array it will be updated in all filters
     async updateLearnerInDatabase(
         filter,
@@ -117,7 +120,7 @@ export default class Learner {
                     filterArray = [filter];
                 else return;
             }
-
+            
             if (Array.isArray(update)) {
                 if (update.length != filterArray.length) {
                     throw new Error(
@@ -154,14 +157,14 @@ export default class Learner {
             throw err;
         }
     }
-
+    
     // Save continuing learners
     async addContinuingLearner(continuingLearners: RequestingLearner[]) {
         try {
             if (!Array.isArray(continuingLearners) || continuingLearners.length < 1)
                 throw new Error("continuingLearners should be an array of requesting learners.");
             // find learner_router in learner_router db and update to point to continuing learner_router
-
+            
             let x = continuingLearners[0];
             let learnerInDb = await learnerModel.findOne({
                 $or: [
@@ -193,240 +196,3 @@ export default class Learner {
         }
     }
 }
-
-/*
-const addLearner = (learnerArray, instId: string | ObjectId, query?: { form: Number, stream: string }): Promise<{ success: boolean, successfulData: any[], failedData: any[] }> => {
-    return new Promise((resolve) => {
-
-        let successfulData: any[] = [];
-        let failedData: any[] = [];
-        let addPromises: Promise<any>[] = [];
-        learnerArray.forEach(learner_router => {
-                if (!learner_router.form && query?.form) {
-                    learner_router.form = query.form;
-                }
-                if (!learner_router.stream && query?.stream) {
-                    learner_router.stream = query.stream;
-                }
-                if (sanitize_data(learner_router).success) {
-                    //prep for db
-                    let learnerMap = new Map(Object.entries(learner_router));
-
-                    ['father', 'mother', 'guardian'].forEach(key => {
-                        learnerMap.set(key, {
-                                name: learnerMap.get(`${key}Name`),
-                                id: learnerMap.get(`${key}Id`),
-                                tel: learnerMap.get(`${key}Tel`)
-                            }
-                        )
-                    });
-
-                    learnerMap.set('inst', instId);
-
-                    ["fatherName", "fatherId", "fatherTel", "motherName", "motherId", "motherTel", "guardianName", "guardianId", "guardianTel"].forEach(key => {
-                        learnerMap.delete(key)
-                    });
-
-                    learnerMap.forEach((value: Parent | string, key) => {
-                        if (typeof value === 'string') {
-                            if (value === '' || value === null || value === undefined) {
-                                learnerMap.delete(key);
-                            }
-                        } else {
-                            if (['father', 'mother', 'guardian'].includes(key)) {
-                                if (value.name === '' || value.name === null || value.name === undefined) {
-                                    learnerMap.delete(key);
-                                }
-                            }
-                        }
-                    });
-
-                    // promise to add to db
-                    addPromises.push(
-                        new Promise((resolve, reject) => {
-                            learnerModel.createIndexes({unique: true, background: false})
-                                .then(() => {
-                                    learner_router = Object.fromEntries(learnerMap)
-                                    learnerModel.updateOne({adm: learner_router.adm}, learner_router, {upsert:
-                                     true,
-                                     rawResult: true})
-                                        .then((doc) => {
-                                            if (doc.upsertedId) {
-                                                inst_schema.findByIdAndUpdate(instId, {$push: {learners: doc.upsertedId}})
-                                                    .then(() => {
-                                                        try {
-                                                            delete learner_router.inst
-                                                            delete learner_router.$setOnInsert
-                                                            successfulData.push(learner_router)
-                                                            resolve(true)
-                                                        } catch (err) {
-                                                            reject(err)
-                                                        }
-
-                                                    }).catch(err => {
-                                                    logger.warn(err)
-                                                    reject(err)
-                                                });
-                                            } else if (doc.acknowledged) {
-                                                try {
-                                                    delete learner_router.inst
-                                                    delete learner_router.$setOnInsert
-                                                    successfulData.push(learner_router)
-                                                    resolve(true)
-                                                } catch (err) {
-                                                    reject(err)
-                                                }
-                                            }
-                                        })
-                                        .catch(err => {
-                                            learnerMap.delete('inst')
-                                            logger.error(err)
-
-                                            failedData.push({
-                                                success: false,
-                                                message: err.message,
-                                                learner_router: Object.fromEntries(learnerMap)
-                                            })
-                                            resolve(false)
-
-                                        })
-
-                                })
-                                .catch(err => {
-                                    logger.error(err)
-                                    reject(err)
-                                })
-                        })
-                    )
-                } else {
-                    failedData.push(sanitize_data(learner_router))
-                }
-
-            }
-        )
-        Promise.all(addPromises).then(() => {
-            resolve({success: successfulData.length > 0, successfulData, failedData})
-        })
-    })
-}
-
-const updateLearner = (learnerArray, instId, query, filter?: {}): Promise<{ success: boolean, successfulData: any[], failedData: any[] }> => {
-    return new Promise((resolve) => {
-
-        let successfulData: any[] = [];
-        let failedData: any[] = [];
-        let addPromises: Promise<any>[] = [];
-        learnerArray.forEach(learner_router => {
-                let sanitizedFilter = {}
-                if (typeof filter !== 'object') {
-                    //find data from learnerMap
-                    let filterMap = new Map(Object.entries(filter || {}));
-                    ['adm', 'upi', 'indexNo'].forEach(key => {
-                        if (learner_router[key]) {
-                            if (learner_router[key] !== '' || learner_router[key] !== null || learner_router[key] !== undefined) {
-                                filterMap.set(key, learner_router[key])
-                            }
-                        }
-                    })
-                    if (filterMap.size === 0) {
-                        failedData.push({
-                            success: false,
-                            message: `No filter provided`,
-                            learner_router: learner_router
-                        })
-                        return
-                    }
-                    sanitizedFilter = Object.fromEntries(filterMap)
-                } else {
-                    //find data from filter
-                    Object.keys(filter).forEach((key) => {
-                        if (!['adm', 'upi', 'indexNo'].includes(key)) {
-                            delete filter[key]
-                        }
-                    })
-                    sanitizedFilter = filter
-                }
-
-                if (!learner_router.form && query?.form) {
-                    learner_router.form = query.form;
-                }
-                if (!learner_router.stream && query?.stream) {
-                    learner_router.stream = query.stream;
-                }
-                let sanitizedData = sanitize_data(learner_router);
-                if (sanitizedData.success) {
-                    //prep for db
-                    let learnerMap = new Map(Object.entries(learner_router));
-
-                    ['father', 'mother', 'guardian'].forEach(key => {
-                        learnerMap.set(key, {
-                                name: learnerMap.get(`${key}Name`),
-                                id: learnerMap.get(`${key}Id`),
-                                tel: learnerMap.get(`${key}Tel`)
-                            }
-                        )
-                    });
-
-                    ["fatherName", "fatherId", "fatherTel", "motherName", "motherId", "motherTel", "guardianName", "guardianId", "guardianTel"].forEach(key => {
-                        learnerMap.delete(key)
-                    });
-
-                    learnerMap.forEach((value: Parent | string, key) => {
-                        if (typeof value === 'string') {
-                            if (value === '') {
-                                learnerMap.delete(key);
-                            }
-                        } else {
-                            if (['father', 'mother', 'guardian'].includes(key)) {
-                                if (value?.name === '' || value?.name === null || value?.name === undefined) {
-                                    learnerMap.delete(key);
-                                }
-                            }
-                        }
-                    });
-
-                    logger.trace(Object.fromEntries(learnerMap))
-                    // promise to add to db
-                    addPromises.push(
-                        new Promise((resolve) => {
-
-                            learnerModel.findOneAndUpdate({
-                                ...sanitizedFilter,
-                                inst: instId
-                            }, Object.fromEntries(learnerMap), {omitUndefined: true, upsert: true, lean: true, new: true})
-                                .then((doc) => {
-                                    logger.trace(`Updated learner_router ${doc.name} with indexNo
-                                     ${doc.indexNo} and id ${doc._id}`)
-
-                                    delete doc._id
-                                    delete doc.__v
-                                    delete doc.inst
-
-                                    successfulData.push(doc)
-                                    resolve(true)
-
-                                })
-                                .catch(err => {
-                                    learnerMap.delete('inst')
-                                    logger.error(err)
-
-                                    failedData.push({
-                                        success: false,
-                                        message: err.message,
-                                        learner_router: Object.fromEntries(learnerMap)
-                                    })
-                                    resolve(false)
-                                })
-                        })
-                    )
-                } else {
-                    failedData.push(sanitize_data(learner_router))
-                }
-            }
-        )
-        Promise.all(addPromises).then(() => {
-            resolve({success: successfulData.length > 0, successfulData, failedData})
-        })
-    })
-}
-*/

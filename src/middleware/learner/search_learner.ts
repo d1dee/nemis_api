@@ -32,7 +32,7 @@ const searchLearner = async (req: Request) => {
                 404
             );
         }
-        req.sendResponse.respond(
+        req.respond.sendResponse(
             searchLearner,
             (searchLearner?.archived?.isArchived ? 'An archived learner ' : 'Learner ') +
                 'with the provided adm, birth certificate or upi was found.'

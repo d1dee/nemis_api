@@ -6,16 +6,13 @@ import { Request } from "express";
 import { newInstitutionSchema } from "@libs/zod_validation";
 import { sendErrorMessage } from "../utils/middleware_error_handler";
 import institutionModel from "@database/institution";
-import { NemisWebService } from "@libs/nemis/nemis_web_handler";
+import { NemisWebService } from "@libs/nemis";
 import JWT from "@libs/JWT";
 import mongoose from "mongoose";
-import { DatabaseInstitution } from "../../../types/nemisApiTypes";
 
 export default async (req: Request) => {
     try {
-        const { username, password, previousRegistration } = await newInstitutionSchema.parseAsync(
-            req.body
-        );
+        const { username, password, previousRegistration } = await newInstitutionSchema.parseAsync(req.body);
 
         const nemis = new NemisWebService();
 
@@ -34,32 +31,35 @@ export default async (req: Request) => {
         );
 
         // Find institution and create if institution doesn't exist using {upsert:true}
-        let institutionDocument = previousRegistration
-            ? ((await institutionModel.findByIdAndUpdate(
-                  previousRegistration._id,
-                  {
-                      isArchived: false,
-                      token: tokenId,
-                      username: username,
-                      password: password
-                  },
-                  { returnDocument: 'after' }
-              )) as DatabaseInstitution)
-            : await institutionModel.create({
-                  _id: institutionId,
-                  ...institution,
-                  username: username,
-                  password: password,
-                  isArchived: false,
-                  token: tokenId
-              });
+        let institutionDocument: any = {
+            _id: institutionId,
+            ...institution,
+            username: username,
+            password: password,
+            isArchived: false,
+            token: tokenId
+        };
 
-        return req.sendResponse.respond(
-            Object.assign(institutionDocument.toObject(), { token: tokenObject }),
+        if (previousRegistration)
+            institutionDocument = await institutionModel.findByIdAndUpdate(
+                previousRegistration._id,
+                {
+                    isArchived: false,
+                    token: tokenId,
+                    username: username,
+                    password: password
+                },
+                { returnDocument: 'after' }
+            );
+        else await institutionModel.create(institutionDocument);
+
+        return req.respond.sendResponse(
+            Object.assign(institutionDocument, { token: tokenObject }),
             'Institution registered successfully.',
             201
         );
     } catch (err: any) {
+        console.error(err);
         sendErrorMessage(req, err);
     }
 };

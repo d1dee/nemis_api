@@ -2,7 +2,7 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { NemisWebService } from "@libs/nemis/web_handler";
+import { NemisWebService } from "@libs/nemis";
 import { parse as htmlParser } from "node-html-parser";
 import { Tabletojson as tableToJson } from "tabletojson/dist/lib/Tabletojson";
 import { Learner } from "types/nemisApiTypes/learner";
@@ -15,7 +15,7 @@ import { z } from "zod";
 
 // noinspection SpellCheckingInspection
 export default class ContinuingLearner extends NemisWebService {
-    validations = {
+    continuingLearnerValidations = {
         continuingLearnerSchema: z.array(
             z
                 .object({
@@ -31,9 +31,7 @@ export default class ContinuingLearner extends NemisWebService {
                     Grade: z.string().trim(),
                     Remark: z.string().trim(),
                     ['UPI']: z.custom(val => (val === '&nbsp;' ? '' : val)),
-                    ['11']: z
-                        .string()
-                        .transform(val => htmlParser(val).querySelector('input')?.attrs?.name)
+                    ['11']: z.string().transform(val => htmlParser(val).querySelector('input')?.attrs?.name)
                 })
                 .partial()
                 .transform(learner => ({
@@ -61,9 +59,7 @@ export default class ContinuingLearner extends NemisWebService {
     //Get requested learners from "http://nemis.education.go.ke/Learner/Listadmrequestsskul.aspx"
     async getRequestedContinuingLearners() {
         try {
-            let learnersHtml = (
-                await this.changeResultsPerPage('/Learner/Listadmrequestsskul.aspx')
-            )?.data;
+            let learnersHtml = (await this.changeResultsPerPage('/Learner/Listadmrequestsskul.aspx'))?.data;
 
             let continuingLearner = htmlParser(learnersHtml)?.querySelector(
                 '#ctl00_ContentPlaceHolder1_grdLearners'
@@ -73,7 +69,7 @@ export default class ContinuingLearner extends NemisWebService {
 
             let learnerArray = tableToJson.convert(continuingLearner);
 
-            return this.validations.continuingLearnerSchema.parse(learnerArray);
+            return this.continuingLearnerValidations.continuingLearnerSchema.parse(learnerArray);
         } catch (err) {
             throw new CustomError('Error while fetching list of requested continuing learners');
         }
@@ -85,7 +81,7 @@ export default class ContinuingLearner extends NemisWebService {
         try {
             await this.axiosInstance.get('/Learner/Listadmrequestsskul.aspx');
 
-            // Let middleware handle most of the data validations
+            // Let middleware handle most of the data continuingLearnerValidations
             await this.axiosInstance({
                 method: 'post',
                 url: '/Learner/Listadmrequestsskul.aspx',
@@ -116,9 +112,7 @@ export default class ContinuingLearner extends NemisWebService {
                     __VIEWSTATE: this.stateObject?.__VIEWSTATE,
                     __VIEWSTATEGENERATOR: this.stateObject?.__VIEWSTATEGENERATOR,
                     ctl00$ContentPlaceHolder1$Button2: '[  SAVE  ]',
-                    ctl00$ContentPlaceHolder1$SelectGender: requestingLearner.gender
-                        .charAt(0)
-                        .toUpperCase(),
+                    ctl00$ContentPlaceHolder1$SelectGender: requestingLearner.gender.charAt(0).toUpperCase(),
                     ctl00$ContentPlaceHolder1$SelectGrade: gradeToNumber(requestingLearner.grade),
                     ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage,
                     ctl00$ContentPlaceHolder1$txtAdmNo: requestingLearner.adm,
@@ -142,7 +136,7 @@ export default class ContinuingLearner extends NemisWebService {
                     500
                 );
             let requestedLearner = tableToJson.convert(requestedLearnerTable);
-            return this.validations.continuingLearnerSchema
+            return this.continuingLearnerValidations.continuingLearnerSchema
                 .parse(requestedLearner)
                 .find(
                     learner =>
@@ -152,10 +146,7 @@ export default class ContinuingLearner extends NemisWebService {
         } catch (err) {
             console.error(err);
             if (err instanceof Error || err instanceof AxiosError)
-                throw new CustomError(
-                    err.message || 'Failed to capture continuing learner_router',
-                    500
-                );
+                throw new CustomError(err.message || 'Failed to capture continuing learner_router', 500);
             throw err;
         }
     }
@@ -164,9 +155,8 @@ export default class ContinuingLearner extends NemisWebService {
     async getPendingContinuingLearners() {
         try {
             // Get an entire list
-            let pendingLearners = (
-                await this.changeResultsPerPage('/Learner/Listadmrequestsskulapp.aspx')
-            )?.data;
+            let pendingLearners = (await this.changeResultsPerPage('/Learner/Listadmrequestsskulapp.aspx'))
+                ?.data;
 
             let pendingLearnerTable =
                 htmlParser(pendingLearners).querySelector('#ctl00_ContentPlaceHolder1_grdLearners')
@@ -176,7 +166,7 @@ export default class ContinuingLearner extends NemisWebService {
                 .convert(pendingLearnerTable, { stripHtmlFromCells: false })
                 .flat();
 
-            return this.validations.continuingLearnerSchema.parse(pendingLearner);
+            return this.continuingLearnerValidations.continuingLearnerSchema.parse(pendingLearner);
         } catch (err) {
             console.error(err);
 
@@ -220,10 +210,7 @@ export default class ContinuingLearner extends NemisWebService {
         } catch (err) {
             console.error(err);
             if (err instanceof Error || err instanceof AxiosError)
-                throw new CustomError(
-                    err.message || 'Failed to capture continuing learner_router',
-                    400
-                );
+                throw new CustomError(err.message || 'Failed to capture continuing learner_router', 400);
             throw err;
         }
     }

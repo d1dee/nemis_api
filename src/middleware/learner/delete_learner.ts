@@ -53,10 +53,7 @@ const deleteSingleLearner = async (req: Request) => {
             { returnDocument: 'after' }
         );*/
 
-        req.sendResponse.respond(
-            archivedLearner.toObject(),
-            'This learners were successfully archived.'
-        );
+        req.respond.sendResponse(archivedLearner.toObject(), 'This learners were successfully archived.');
     } catch (err) {
         sendErrorMessage(req, err);
     }

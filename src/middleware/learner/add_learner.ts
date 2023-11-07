@@ -8,17 +8,6 @@ import { validateExcel, validateLearnerJson } from "@libs/import_excel";
 import CustomError from "@libs/error_handler";
 import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
 import { lowerCaseAllValues } from "@libs/converts";
-import { CompleteLearner } from "../../../types/nemisApiTypes";
-import { ZodIssue } from "zod";
-
-type HandleValidatedData = (
-    validatedJson: Array<
-        CompleteLearner & {
-            validationError?: ZodIssue;
-        }
-    >,
-    req: Request
-) => Promise<any>;
 
 const addLearnerByFile = async (req: Request) => {
     try {
@@ -49,12 +38,11 @@ const addLearnerByJson = async (req: Request) => {
     }
 };
 
-const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
+const handleValidatedData = async (validatedJson: any[], req: Request) => {
     let validationError = validatedJson.filter(x => !!x.validationError);
     if (validationError.length > 0) {
         throw new CustomError(
-            'Validation error.' +
-                'One or more fields failed to validate. Please check the following errors',
+            'Validation error.' + 'One or more fields failed to validate. Please check the following errors',
             400,
             validationError
         );
@@ -67,9 +55,7 @@ const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
                 {
                     ...learner,
                     institutionId: req.institution._id,
-                    continuing: learner.continuing
-                        ? learner.continuing
-                        : req.url.includes('continuing'),
+                    continuing: learner.continuing ? learner.continuing : req.url.includes('continuing'),
                     archived: false
                 },
                 {
@@ -79,10 +65,7 @@ const handleValidatedData: HandleValidatedData = async (validatedJson, req) => {
             )
         )
     );
-    req.sendResponse.respond(
-        insertedDocs,
-        `${insertedDocs.length} learners added to the database.`
-    );
+    req.respond.sendResponse(insertedDocs, `${insertedDocs.length} learners added to the database.`);
 };
 
 export { addLearnerByFile, addLearnerByJson };

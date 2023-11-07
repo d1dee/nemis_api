@@ -3,20 +3,19 @@
  */
 
 import { NemisWebService } from "@libs/nemis";
-import { CaptureBiodataResponse, Grades, SchoolSelected, SelectedLearner } from "types/nemisApiTypes";
+import { CaptureBiodataResponse, Grades, SchoolSelected } from "types/nemisApiTypes";
 import { parse as htmlParser } from "node-html-parser";
 import { Tabletojson as tableToJson } from "tabletojson/dist/lib/Tabletojson";
 import CustomError from "@libs/error_handler";
 import qs from "qs";
 import { writeFileSync } from "fs";
-import { Admission, Learner, ListLearners, Results } from "types/nemisApiTypes/learner";
+import { Admission, AdmittedLearners, Learner, ListLearners, Results } from "types/nemisApiTypes/learner";
 import buffer from "buffer";
 import { gradeToNumber, medicalConditionCode, nationalities, splitNames } from "@libs/converts";
 import FormData from "form-data";
 import { z } from "zod";
 import { format } from "date-fns";
-import { genderSchema } from "@libs/zod_validation";
-import { NEMIS_DATE_SCHEMA } from "@libs/nemis/constants";
+import { GENDER_SCHEMA, NEMIS_DATE_SCHEMA } from "@libs/nemis/constants";
 
 type RequestedBy = {
     requestString: string;
@@ -31,7 +30,7 @@ const nemisBaseUrl = process.env.BASE_URL;
 
 // noinspection SpellCheckingInspection
 export default class extends NemisWebService {
-    validations = {
+    learnerValidations = {
         listLearnerSchema: z
             .object({
                 'Learner UPI': z.string().trim().toLowerCase(),
@@ -45,7 +44,6 @@ export default class extends NemisWebService {
                 'Home Phone': z.string().trim().toLowerCase(),
                 'NHIF No': z.string()
             })
-            .partial()
             .transform(learner => ({
                 upi: learner['Learner UPI'],
                 name: learner['Learner Name'],
@@ -76,7 +74,6 @@ export default class extends NemisWebService {
                     undoAdmission: z.coerce.string()
                 })
             })
-            .partial()
             .transform(learner => {
                 return {
                     indexNo: String(learner['Index']),
@@ -97,12 +94,7 @@ export default class extends NemisWebService {
                     ['No.']: z.number(),
                     ['Index No']: z.string(),
                     ['Student Name']: z.string().toLowerCase(),
-                    ['Gender']: genderSchema.pipe(
-                        z
-                            .string()
-                            .toLowerCase()
-                            .transform(gender => (gender === 'm' ? 'male' : 'female'))
-                    ),
+                    ['Gender']: GENDER_SCHEMA,
                     ['Marks']: z.number().min(0).max(500),
                     ['Current Selected To']: z
                         .string()
@@ -148,6 +140,25 @@ export default class extends NemisWebService {
                     status: learner['Status'],
                     deleteCallback: learner[13]
                 }))
+        ),
+        selectedLaearnerSchema: z.array(
+            z
+                .object({
+                    ['Index']: z.string().toLowerCase(),
+                    ['Name']: z.string().toLowerCase(),
+                    ['Gender']: GENDER_SCHEMA,
+                    ['Year of Birth']: z.number(),
+                    ['Marks']: z.number().min(0).max(500),
+                    ['Sub-County']: z.string().toLowerCase()
+                })
+                .transform(learner => ({
+                    indexNo: learner.Index,
+                    name: learner.Name,
+                    gender: learner.Gender,
+                    yearOfBirth: learner['Year of Birth'],
+                    marks: learner.Marks,
+                    subCounty: learner['Sub-County']
+                }))
         )
     };
 
@@ -170,7 +181,7 @@ export default class extends NemisWebService {
                 '#ctl00_ContentPlaceHolder1_grdLearners'
             );
 
-            if (!listLearnerTable?.outerHTML) return [];
+            if (!listLearnerTable?.outerHTML) return null;
 
             // do_postback doesn't match indexNo of each element, so we find the difference and
             // use it to generate the correct postback
@@ -184,7 +195,7 @@ export default class extends NemisWebService {
                 .flat()
                 .filter(e => !!e['No.']);
 
-            if (listLearnerJson.length === 0) return [];
+            if (listLearnerJson.length === 0) return null;
 
             let firstViewElementNumber = Number(firstViewElement?.match(/(?<=_ctl)[0-9]./)?.shift());
 
@@ -194,7 +205,7 @@ export default class extends NemisWebService {
                 }_BtnView`;
                 firstViewElementNumber++;
                 return {
-                    ...this.validations.listLearnerSchema.parse(element),
+                    ...this.learnerValidations.listLearnerSchema.parse(element),
                     postback: postback.replaceAll(/_/g, '$'),
                     grade: gradeOrForm
                 };
@@ -322,7 +333,7 @@ export default class extends NemisWebService {
             if (!admittedLearnerJson || admittedLearnerJson.length === 0) return [];
 
             return admittedLearnerJson.map((x, i) => {
-                return this.validations.listAdmittedLearnerSchema.parse({
+                return this.learnerValidations.listAdmittedLearnerSchema.parse({
                     ...x,
                     no: i + 1,
                     postback: 'ctl00$ContentPlaceHolder1$grdLearners',
@@ -340,7 +351,7 @@ export default class extends NemisWebService {
         }
     }
 
-    async captureJoiningBiodata(learner: Learner, listLearner: ListLearners[number]) {
+    async captureJoiningBiodata(learner: Learner, admittedLearner: AdmittedLearners[number]) {
         try {
             if (learner.upi)
                 return {
@@ -353,8 +364,8 @@ export default class extends NemisWebService {
                 url: '/Admission/Listlearnersrep.aspx',
                 data: {
                     ...this.stateObject,
-                    __EVENTTARGET: listLearner.postback,
-                    __EVENTARGUMENT: listLearner.actions.captureWithBirthCertificate,
+                    __EVENTTARGET: admittedLearner.postback,
+                    __EVENTARGUMENT: admittedLearner.actions.captureWithBirthCertificate,
                     ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
                 },
                 headers: this.SECURE_HEADERS
@@ -379,14 +390,14 @@ export default class extends NemisWebService {
                         url: '/Admission/Listlearnersrep.aspx',
                         data: {
                             ...this.stateObject,
-                            __EVENTTARGET: listLearner.postback,
-                            __EVENTARGUMENT: listLearner.actions.resetBiodataCapture,
+                            __EVENTTARGET: admittedLearner.postback,
+                            __EVENTARGUMENT: admittedLearner.actions.resetBiodataCapture,
                             ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
                         },
                         headers: this.SECURE_HEADERS
                     });
 
-                    await this.captureJoiningBiodata(learner, listLearner);
+                    await this.captureJoiningBiodata(learner, admittedLearner);
                 }
             } else {
                 writeFileSync(`${debugDir}/html/get_a_learner_${learner?.indexNo}.html`, postResponse?.data);
@@ -534,7 +545,7 @@ export default class extends NemisWebService {
     async transferIn(learner: Learner) {
         try {
             await this.axiosInstance.get('/Learner/StudReceive.aspx');
-            // Send check to receive results that will allow us to capture transfer
+
             await this.axiosInstance.post(
                 '/Learner/StudReceive.aspx',
                 qs.stringify({
@@ -593,7 +604,7 @@ export default class extends NemisWebService {
                 ignoreHiddenRows: true,
                 stripHtmlFromCells: false
             });
-            return this.validations.requestedLeanerSchema.parse(requestedLearnerJson);
+            return this.learnerValidations.requestedLeanerSchema.parse(requestedLearnerJson);
         } catch (err) {
             console.error(err);
             throw err;
@@ -613,17 +624,11 @@ export default class extends NemisWebService {
 
             let requestedLearnerJson = tableToJson.convert(requestedJoiningLearnerTable)?.flat();
 
-            return this.validations.requestedLeanerSchema.parse(requestedLearnerJson);
+            return this.learnerValidations.requestedLeanerSchema.parse(requestedLearnerJson);
         } catch (err) {
             console.error(err);
             throw err;
         }
-    }
-
-    async getDates() {
-        return await this.axiosInstance.get('/generic/api/formone/admissiondates').catch(err => {
-            Promise.reject(err);
-        });
     }
 
     //capture Bio data
@@ -643,9 +648,7 @@ export default class extends NemisWebService {
                         "Can not capture biodata without learners' birth certificate number",
                     400
                 );
-            if (!learner.dob) {
-                throw new CustomError('Date of birth was not submitted for the learner', 400);
-            }
+            if (!learner.dob) throw new CustomError('Date of birth was not submitted for the learner', 400);
 
             // Initial POST to set county
             await this.axiosInstance.get('/Learner/alearner.aspx');
@@ -671,9 +674,8 @@ export default class extends NemisWebService {
 
             let aLearnerHtml = (await this.axiosInstance.post('/Learner/alearner.aspx', postData))?.data;
 
-            if (!/^.+updatePanel\|ctl00_ContentPlaceHolder1_UpdatePanel1/g.test(aLearnerHtml)) {
+            if (!/^.+updatePanel\|ctl00_ContentPlaceHolder1_UpdatePanel1/g.test(aLearnerHtml))
                 throw new CustomError("Failed to submit learner's county.", 500);
-            }
 
             let formDataObject = {};
 
@@ -829,141 +831,99 @@ export default class extends NemisWebService {
     }
 
     //submit to NHIF
-    async submitToNhif(grade: Grades, learnersWithoutNhif: ListLearners) {
+    async submitToNhif(grade: Grades, learner: ListLearners[number]) {
         try {
-            if (!learnersWithoutNhif) {
-                throw {
-                    message: 'learnersWithoutNhif array is empty'
-                };
-            }
-            const postNhif = async (learnerWithoutNhif: ListLearners) => {
-                let submitNhifHtml = (
-                    await this.axiosInstance({
-                        method: 'post',
-                        url: 'Learner/Listlearners.aspx',
-                        data: qs.stringify({
-                            __ASYNCPOST: 'true',
-                            __EVENTARGUMENT: '',
-                            __EVENTTARGET: learnerWithoutNhif.doPostback,
-                            __LASTFOCUS: '',
-                            __VIEWSTATE: this.stateObject?.__VIEWSTATE,
-                            __VIEWSTATEGENERATOR: this.stateObject?.__VIEWSTATEGENERATOR,
-                            ctl00$ContentPlaceHolder1$ScriptManager1:
-                                'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$grdLearners$ctl162$BtnView',
-                            ctl00$ContentPlaceHolder1$SelectBC: '1',
-                            ctl00$ContentPlaceHolder1$SelectCat: gradeToNumber(grade),
-                            ctl00$ContentPlaceHolder1$SelectCat2: '9 ',
-                            ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
-                        })
+            let submitNhifHtml = (
+                await this.axiosInstance({
+                    method: 'post',
+                    url: 'Learner/Listlearners.aspx',
+                    data: qs.stringify({
+                        __ASYNCPOST: 'true',
+                        __EVENTARGUMENT: '',
+                        __EVENTTARGET: learner.postback,
+                        __LASTFOCUS: '',
+                        __VIEWSTATE: this.stateObject?.__VIEWSTATE,
+                        __VIEWSTATEGENERATOR: this.stateObject?.__VIEWSTATEGENERATOR,
+                        ctl00$ContentPlaceHolder1$ScriptManager1:
+                            'ctl00$ContentPlaceHolder1$UpdatePanel1|ctl00$ContentPlaceHolder1$grdLearners$ctl162$BtnView',
+                        ctl00$ContentPlaceHolder1$SelectBC: '1',
+                        ctl00$ContentPlaceHolder1$SelectCat: gradeToNumber(grade),
+                        ctl00$ContentPlaceHolder1$SelectCat2: '9 ',
+                        ctl00$ContentPlaceHolder1$SelectRecs: this.recordsPerPage
                     })
-                )?.data;
-
-                if (!/.+pageRedirect\|\|%2fLearner%2fAlearner.aspx/.test(submitNhifHtml))
-                    return Promise.reject('Failed to get redirect');
-
-                submitNhifHtml = (await this.axiosInstance.get('Learner/Alearner.aspx'))?.data;
-                const scrappedLearner = this.scrapAlearner(submitNhifHtml);
-                const postData = new FormData();
-                postData.append('__EVENTARGUMENT', '');
-                postData.append('__EVENTTARGET', '');
-                postData.append('__EVENTVALIDATION', this.stateObject?.__EVENTVALIDATION);
-                postData.append('__VIEWSTATE', this.stateObject?.__VIEWSTATE);
-                postData.append('__VIEWSTATEGENERATOR', this.stateObject?.__VIEWSTATEGENERATOR);
-                postData.append('__LASTFOCUS', '');
-                postData.append('__VIEWSTATEENCRYPTED', '');
-                postData.append(
-                    'ctl00$ContentPlaceHolder1$Birth_Cert_No',
-                    scrappedLearner.birthCertificateNo
-                );
-                postData.append('ctl00$ContentPlaceHolder1$BtnNHIF', 'SUBMIT TO NHIF');
-                postData.append('ctl00$ContentPlaceHolder1$DOB$ctl00', scrappedLearner.dob);
-                postData.append('ctl00$ContentPlaceHolder1$FirstName', scrappedLearner.names.firstname);
-                postData.append('ctl00$ContentPlaceHolder1$Gender', scrappedLearner.gender);
-                postData.append('ctl00$ContentPlaceHolder1$Nationality', scrappedLearner.nationality);
-                postData.append('ctl00$ContentPlaceHolder1$OtherNames', scrappedLearner.names.lastname);
-                postData.append('ctl00$ContentPlaceHolder1$Surname', scrappedLearner.names.surname);
-                postData.append('ctl00$ContentPlaceHolder1$UPI', scrappedLearner.upi);
-                postData.append('ctl00$ContentPlaceHolder1$ddlcounty', scrappedLearner.county.countyNo);
-                postData.append(
-                    'ctl00$ContentPlaceHolder1$ddlmedicalcondition',
-                    scrappedLearner.medical.code
-                );
-                postData.append('ctl00$ContentPlaceHolder1$ddlsubcounty', scrappedLearner.county.subCountyNo);
-                postData.append('ctl00$ContentPlaceHolder1$mydob', '');
-                postData.append('ctl00$ContentPlaceHolder1$myimage', '');
-                postData.append('ctl00$ContentPlaceHolder1$optspecialneed', scrappedLearner.isSpecial);
-                postData.append('ctl00$ContentPlaceHolder1$txtEmailAddress', scrappedLearner.emailAddress);
-                postData.append('ctl00$ContentPlaceHolder1$txtFatherContacts', scrappedLearner.father.tel);
-                postData.append('ctl00$ContentPlaceHolder1$txtFatherIDNO', scrappedLearner.father.id);
-                postData.append('ctl00$ContentPlaceHolder1$txtFatherName', scrappedLearner.father.name);
-                postData.append('ctl00$ContentPlaceHolder1$txtFatherUPI', scrappedLearner.father.upi);
-                postData.append('ctl00$ContentPlaceHolder1$txtGuardianIDNO', scrappedLearner.guardian.id);
-                postData.append('ctl00$ContentPlaceHolder1$txtGuardianUPI', scrappedLearner.guardian.upi);
-                postData.append(
-                    'ctl00$ContentPlaceHolder1$txtGuardiancontacts',
-                    scrappedLearner.guardian.tel
-                );
-                postData.append('ctl00$ContentPlaceHolder1$txtGuardianname', scrappedLearner.guardian.name);
-                postData.append('ctl00$ContentPlaceHolder1$txtMotherIDNo', scrappedLearner.mother.id);
-                postData.append('ctl00$ContentPlaceHolder1$txtMotherName', scrappedLearner.mother.name);
-                postData.append('ctl00$ContentPlaceHolder1$txtMotherUPI', scrappedLearner.mother.upi);
-                postData.append('ctl00$ContentPlaceHolder1$txtMothersContacts', scrappedLearner.mother.tel);
-                postData.append('ctl00$ContentPlaceHolder1$txtPostalAddress', scrappedLearner.address);
-                postData.append('ctl00$ContentPlaceHolder1$txtSearch', scrappedLearner.txtSearch);
-                postData.append('ctl00$ContentPlaceHolder1$txtmobile', scrappedLearner.txtMobile);
-
-                let postNhifHtml = (
-                    await this.axiosInstance({
-                        method: 'post',
-                        url: 'Learner/Alearner.aspx',
-                        headers: {
-                            ...this.SECURE_HEADERS,
-                            ...postData.getHeaders()
-                        },
-                        data: postData
-                    })
-                )?.data;
-                let successMessageElement = htmlParser(postNhifHtml).querySelector('#LblMsgContact');
-                let successMessage = successMessageElement?.innerText;
-                if (!successMessage)
-                    return Promise.reject(
-                        'Failed to get nhif number since successMessageElement is' + ' empty'
-                    );
-
-                if (successMessage.startsWith('The remote server returned an error:'))
-                    return Promise.reject(successMessage);
-                let parsedReturnObject = {
-                    nhifNo: successMessage.match(/\d.+/g)?.shift()?.trim(),
-                    message: successMessage.replace(/&times;\W|\d+/g, '')?.trim(),
-                    alertHtml: successMessageElement?.outerHTML
-                };
-                if (!parsedReturnObject.nhifNo)
-                    throw {
-                        message:
-                            "Failed to get nhif number since successMessage doesn't contain a" + ' number',
-                        cause: "Couldn't find nhif number on the returned page"
-                    };
-                return parsedReturnObject;
-            };
-            //await postNhif(learnersWithoutNhif[10]);
-            let submitNhifPromise = <
-                PromiseSettledResult<{
-                    nhifNo: string;
-                    alertHtml: string | undefined;
-                    message: string;
-                }>[]
-            >await Promise.allSettled(learnersWithoutNhif.map(x => postNhif(x)));
-            return submitNhifPromise
-                .map((x, i) => {
-                    if (x.status === 'fulfilled') {
-                        return {
-                            ...learnersWithoutNhif[i],
-                            nhifNo: x.value?.nhifNo,
-                            message: x.value?.message
-                        };
-                    }
                 })
-                .filter(x => x);
+            )?.data;
+
+            if (!/.+pageRedirect\|\|%2fLearner%2fAlearner.aspx/.test(submitNhifHtml))
+                throw new Error('Redirection to alearner.aspx failed');
+
+            submitNhifHtml = (await this.axiosInstance.get('Learner/Alearner.aspx'))?.data;
+
+            const scrappedLearner = this.scrapAlearner(submitNhifHtml);
+
+            const postData = new FormData();
+
+            postData.append('__EVENTARGUMENT', '');
+            postData.append('__EVENTTARGET', '');
+            postData.append('__EVENTVALIDATION', this.stateObject?.__EVENTVALIDATION);
+            postData.append('__VIEWSTATE', this.stateObject?.__VIEWSTATE);
+            postData.append('__VIEWSTATEGENERATOR', this.stateObject?.__VIEWSTATEGENERATOR);
+            postData.append('__LASTFOCUS', '');
+            postData.append('__VIEWSTATEENCRYPTED', '');
+            postData.append('ctl00$ContentPlaceHolder1$Birth_Cert_No', scrappedLearner.birthCertificateNo);
+            postData.append('ctl00$ContentPlaceHolder1$BtnNHIF', 'SUBMIT TO NHIF');
+            postData.append('ctl00$ContentPlaceHolder1$DOB$ctl00', scrappedLearner.dob);
+            postData.append('ctl00$ContentPlaceHolder1$FirstName', scrappedLearner.names.firstname);
+            postData.append('ctl00$ContentPlaceHolder1$Gender', scrappedLearner.gender);
+            postData.append('ctl00$ContentPlaceHolder1$Nationality', scrappedLearner.nationality);
+            postData.append('ctl00$ContentPlaceHolder1$OtherNames', scrappedLearner.names.lastname);
+            postData.append('ctl00$ContentPlaceHolder1$Surname', scrappedLearner.names.surname);
+            postData.append('ctl00$ContentPlaceHolder1$UPI', scrappedLearner.upi);
+            postData.append('ctl00$ContentPlaceHolder1$ddlcounty', scrappedLearner.county.countyNo);
+            postData.append('ctl00$ContentPlaceHolder1$ddlmedicalcondition', scrappedLearner.medical.code);
+            postData.append('ctl00$ContentPlaceHolder1$ddlsubcounty', scrappedLearner.county.subCountyNo);
+            postData.append('ctl00$ContentPlaceHolder1$mydob', '');
+            postData.append('ctl00$ContentPlaceHolder1$myimage', '');
+            postData.append('ctl00$ContentPlaceHolder1$optspecialneed', scrappedLearner.isSpecial);
+            postData.append('ctl00$ContentPlaceHolder1$txtEmailAddress', scrappedLearner.emailAddress);
+            postData.append('ctl00$ContentPlaceHolder1$txtFatherContacts', scrappedLearner.father.tel);
+            postData.append('ctl00$ContentPlaceHolder1$txtFatherIDNO', scrappedLearner.father.id);
+            postData.append('ctl00$ContentPlaceHolder1$txtFatherName', scrappedLearner.father.name);
+            postData.append('ctl00$ContentPlaceHolder1$txtFatherUPI', scrappedLearner.father.upi);
+            postData.append('ctl00$ContentPlaceHolder1$txtGuardianIDNO', scrappedLearner.guardian.id);
+            postData.append('ctl00$ContentPlaceHolder1$txtGuardianUPI', scrappedLearner.guardian.upi);
+            postData.append('ctl00$ContentPlaceHolder1$txtGuardiancontacts', scrappedLearner.guardian.tel);
+            postData.append('ctl00$ContentPlaceHolder1$txtGuardianname', scrappedLearner.guardian.name);
+            postData.append('ctl00$ContentPlaceHolder1$txtMotherIDNo', scrappedLearner.mother.id);
+            postData.append('ctl00$ContentPlaceHolder1$txtMotherName', scrappedLearner.mother.name);
+            postData.append('ctl00$ContentPlaceHolder1$txtMotherUPI', scrappedLearner.mother.upi);
+            postData.append('ctl00$ContentPlaceHolder1$txtMothersContacts', scrappedLearner.mother.tel);
+            postData.append('ctl00$ContentPlaceHolder1$txtPostalAddress', scrappedLearner.address);
+            postData.append('ctl00$ContentPlaceHolder1$txtSearch', scrappedLearner.txtSearch);
+            postData.append('ctl00$ContentPlaceHolder1$txtmobile', scrappedLearner.txtMobile);
+
+            let postNhifHtml = (
+                await this.axiosInstance({
+                    method: 'post',
+                    url: 'Learner/Alearner.aspx',
+                    headers: {
+                        ...this.SECURE_HEADERS,
+                        ...postData.getHeaders()
+                    },
+                    data: postData
+                })
+            )?.data;
+
+            let message = htmlParser(postNhifHtml).querySelector('#LblMsgContact')?.innerText;
+
+            if (!message) throw new Error('Failed to get NHIF number');
+
+            if (message.startsWith('The remote server returned an error:'))
+                throw new CustomError(message, 500);
+            return {
+                nhifNo: message.match(/\d.+/g)?.shift()?.trim(),
+                originalMessage: message.replace(/&times;\W|\d+/g, '')?.trim()
+            };
         } catch (err) {
             console.error(err);
             throw err;
@@ -973,6 +933,7 @@ export default class extends NemisWebService {
     // Scrap ../Listlearners.aspx
     scrapAlearner(alearnerHtml: string) {
         if (!alearnerHtml) throw new Error('No data provided from Alearner.aspx');
+
         try {
             let alearnerDocument = htmlParser(alearnerHtml);
             return {
@@ -1054,12 +1015,11 @@ export default class extends NemisWebService {
     /**
      * Retrieves selection list information by scraping the selected learners page,
      * /Admission/Listlearners.aspx, and parsing its html using node-html-parser.
-     * @returns {Array<SelectedLearner>} An object containing institution information.
-     * @throws Error object if the institution page is not found.
      */
-    async getSelectedLearners(): Promise<SelectedLearner[]> {
+    async getSelectedLearners() {
         try {
             await this.axiosInstance.get('/Admission/Listlearners.aspx');
+
             const selectedLearnerHtml = (
                 await this.axiosInstance.post(
                     '/Admission/Listlearners.aspx',
@@ -1074,21 +1034,16 @@ export default class extends NemisWebService {
                     })
                 )
             )?.data;
+
             let selectedLearnerHtmlTable = htmlParser(selectedLearnerHtml).querySelector(
                 '#ctl00_ContentPlaceHolder1_grdLearners'
             )?.outerHTML;
-            if (!selectedLearnerHtmlTable) return [];
+
+            if (!selectedLearnerHtmlTable) return null;
+
             const selectedLearnersJson = tableToJson.convert(selectedLearnerHtmlTable);
-            return selectedLearnersJson.flat().map(selectedLearner => {
-                return {
-                    indexNo: selectedLearner['Index']?.toLowerCase(),
-                    name: selectedLearner['Name']?.toLowerCase(),
-                    gender: selectedLearner['Gender']?.toLowerCase(),
-                    yearOfBirth: selectedLearner['Year of Birth']?.toLowerCase(),
-                    marks: selectedLearner['Marks']?.toLowerCase(),
-                    subCounty: selectedLearner['Sub-County']?.toLowerCase()
-                };
-            });
+
+            return this.learnerValidations.selectedLaearnerSchema.parse(selectedLearnersJson.flat());
         } catch (err) {
             console.error(err);
             throw err;
@@ -1098,6 +1053,7 @@ export default class extends NemisWebService {
     async addContinuingLearner(learner: Learner): Promise<CaptureBiodataResponse> {
         try {
             await this.listLearners(learner.grade);
+
             let addLearnerBC = await this.axiosInstance.post(
                 '/Learner/Listlearners.aspx',
                 qs.stringify({
@@ -1118,11 +1074,7 @@ export default class extends NemisWebService {
             if (addLearnerBC?.data === '1|#||4|26|pageRedirect||%2fLearner%2fAlearner.aspx|') {
                 return this.captureBioData(learner);
             }
-            throw new CustomError(
-                'Server failed to sed a redirect to biodata capture page',
-                400,
-                'failed_redirect'
-            );
+            throw new CustomError('Failed to redirect to alearner.aps```AAAAAAAAAAA', 400);
         } catch (err) {
             console.error(err);
             throw err;

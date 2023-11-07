@@ -8,7 +8,6 @@ import { randomFillSync } from "node:crypto";
 import mongoose from "mongoose";
 import tokenModel from "@database/token";
 import ms from "ms";
-import { DatabaseInstitution, DatabaseToken } from "../../types/nemisApiTypes";
 import institutionModel from "@database/institution";
 
 export default class {
@@ -35,14 +34,11 @@ export default class {
             institutionId: institutionId,
             expires: Date.now() + ms('30 d')
         });
-        return document.toObject() as DatabaseToken;
+        return document.toObject();
     }
 
     // Refresh bearer token
-    async refreshToken(
-        institutionId: mongoose.Types.ObjectId,
-        previousTokenId: mongoose.Types.ObjectId
-    ) {
+    async refreshToken(institutionId: mongoose.Types.ObjectId, previousTokenId: mongoose.Types.ObjectId) {
         try {
             let newTokenId = new mongoose.Types.ObjectId();
 
@@ -61,7 +57,7 @@ export default class {
                 })
             ]);
 
-            return [updatedInstitution?.toObject() as DatabaseInstitution, newTokenObject];
+            return [updatedInstitution?.toObject(), newTokenObject];
         } catch (error) {
             throw error;
         }

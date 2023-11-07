@@ -5,10 +5,12 @@
 import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
 import { Request } from "express";
 import learner from "@database/learner";
-import { NemisWebService } from "@libs/nemis/nemis_web_handler";
+import { NemisWebService } from "@libs/nemis";
 import CustomError from "@libs/error_handler";
-import { CaptureBiodataResponse, ListAdmittedLearner } from "types/nemisApiTypes";
+import { CaptureBiodataResponse } from "types/nemisApiTypes";
 import { uniqueIdentifierSchema } from "@libs/zod_validation";
+import LearnerHandler from "@libs/nemis/learner_handler";
+import { ListAdmittedLearners } from "../../../types/nemisApiTypes/learner";
 
 const captureJoiningLearner = async (req: Request) => {
     try {
@@ -27,10 +29,10 @@ const captureJoiningLearner = async (req: Request) => {
             .sort({ birthCertificateNo: 1 });
 
         // Get list of captured learners frm Nemis website
-        const nemis = new NemisWebService();
+        let nemis = new NemisWebService();
         let cookie = await nemis.login(req.institution.username, req.institution.password);
-
-        let listCapturedLearners = await nemis.listLearners('form 1');
+        let learnerHandler = new LearnerHandler();
+        let listCapturedLearners = (await learnerHandler.listLearners('form 1')) ?? [];
 
         // Sort to reduce search time
         if (listCapturedLearners.length > 10) {
@@ -45,7 +47,7 @@ const captureJoiningLearner = async (req: Request) => {
             );
             if (listLearner) {
                 learner.upi = listLearner.upi;
-                learner.reported = true;
+                learner.hasReported = true;
                 learner.error = undefined;
             } else {
                 learnerToCapture.push(learner);
@@ -53,16 +55,16 @@ const captureJoiningLearner = async (req: Request) => {
         }
 
         // Update database to match with Nemis
-        await Promise.all(learnerNotCaptured.map(x => (x.reported ? x.save() : Promise.resolve())));
+        await Promise.all(learnerNotCaptured.map(x => (x.hasReported ? x.save() : Promise.resolve())));
 
         // Get list of admitted learner to get learner Postback values
         let learnerWithPostback = [] as unknown as [
-            [(typeof learnerNotCaptured)[number], ListAdmittedLearner | CustomError]
+            [(typeof learnerNotCaptured)[number], ListAdmittedLearners[number] | CustomError]
         ];
 
         if (learnerToCapture.length > 0) {
             // Match learnerToCapture with their respective postback
-            let admittedLearner = await nemis.listAdmittedJoiningLearners();
+            let admittedLearner = await learnerHandler.listAdmittedJoiningLearners();
 
             for (let i = 0; i < learnerToCapture.length; i++) {
                 let admitted = admittedLearner.find(x => x.indexNo === learnerToCapture[i].indexNo);
@@ -80,18 +82,17 @@ const captureJoiningLearner = async (req: Request) => {
         // Capture bio-data for the filtered learners
         let captureResults = await Promise.allSettled(
             learnerWithPostback.map(learner => {
-                return new Promise((resolve, reject) => {
+                return new Promise(async (resolve, reject) => {
                     if (learner[1] instanceof CustomError) {
                         reject([learner]);
                     } else {
-                        new NemisWebService(cookie, nemis.getState())
-                            .captureJoiningBiodata(learner[0].toObject(), learner[1])
-                            .then(captureResults => {
-                                resolve([learner[0], captureResults]);
-                            })
-                            .catch(err => {
-                                reject([learner[0], err]);
-                            });
+                        new NemisWebService(cookie, nemis.getState());
+                        let captureResults = await new LearnerHandler().captureJoiningBiodata(
+                            learner[0].toObject(),
+                            learner[1]
+                        );
+
+                        resolve([learner[0], captureResults]);
                     }
                 });
             })
@@ -105,7 +106,7 @@ const captureJoiningLearner = async (req: Request) => {
 
                     value[0].upi = value[1].upi;
                     value[0].error = undefined;
-                    value[0].reported = true;
+                    value[0].hasReported = true;
 
                     return value[0].save();
                 } else {
@@ -130,7 +131,7 @@ const captureJoiningLearner = async (req: Request) => {
         });
 
         if (learnerWithoutBCert.length > 0) {
-            return req.sendResponse.respond(
+            return req.respond.sendResponse(
                 learnerWithoutBCert.map(x => ({
                     ...x.toJSON,
                     error: 'Learner has no birth certificate assigned'
@@ -138,7 +139,7 @@ const captureJoiningLearner = async (req: Request) => {
                 'All learners have already been captured'
             );
         }
-        return req.sendResponse.respond(
+        return req.respond.sendResponse(
             [...results, ...learnerWithoutBCert],
             'All learners have already been captured'
         );
@@ -171,20 +172,20 @@ const captureSingleJoiningLearner = async (req: Request) => {
         }
 
         // Report if learner has reported and has upi
-        if (learnerNotCaptured?.upi && learnerNotCaptured?.reported) {
-            req.sendResponse.respond(learnerNotCaptured, "Learner' bio-data has already been captured.");
+        if (learnerNotCaptured?.upi && learnerNotCaptured?.hasReported) {
+            req.respond.sendResponse(learnerNotCaptured, "Learner' bio-data has already been captured.");
             return;
         }
         // Get list of captured learners frm Nemis website
-        const nemis = new NemisWebService();
+        let nemis = new NemisWebService();
         let cookie = await nemis.login(req.institution.username, req.institution.password);
-
-        let listCapturedLearners = await nemis.listLearners(learnerNotCaptured.grade);
+        const learnerHandler = new LearnerHandler();
+        let listCapturedLearners = await learnerHandler.listLearners(learnerNotCaptured.grade);
 
         // Check if learner is already captured
-        let listLearner = listCapturedLearners.find(
-            x => x.birthCertificateNo === learnerNotCaptured.birthCertificateNo
-        );
+        let listLearner = listCapturedLearners
+            ? listCapturedLearners.find(x => x.birthCertificateNo === learnerNotCaptured.birthCertificateNo)
+            : undefined;
 
         // If learner has already been captured, send response and return
         if (listLearner) {
@@ -194,13 +195,13 @@ const captureSingleJoiningLearner = async (req: Request) => {
                 error: undefined
             });
             await learnerNotCaptured.save();
-            req.sendResponse.respond(learnerNotCaptured, "Learner's bio-data was already captured.");
+            req.respond.sendResponse(learnerNotCaptured, "Learner's bio-data was already captured.");
             return;
         }
 
         // Capture learners bio-data if not captured
         // Match learnerToCapture with respective postback
-        let admittedLearner = await nemis.listAdmittedJoiningLearners();
+        let admittedLearner = await learnerHandler.listAdmittedJoiningLearners();
 
         let admitted = admittedLearner.find(x => x.indexNo === learnerNotCaptured.indexNo);
         if (!admitted) {
@@ -214,16 +215,13 @@ const captureSingleJoiningLearner = async (req: Request) => {
 
         // Capture bio-data for the filtered learners
         let res = await Promise.allSettled([
-            new NemisWebService(cookie, nemis.getState()).captureJoiningBiodata(
-                learnerNotCaptured.toObject(),
-                admitted
-            )
+            new LearnerHandler().captureJoiningBiodata(learnerNotCaptured.toObject(), admitted)
         ]);
 
         // Update database with any errors and upi's captured
         if (res[0].status === 'fulfilled') {
             Object.assign(learnerNotCaptured, {
-                upi: res[0].value.upi,
+                upi: res[0].value?.upi,
                 reported: true,
                 error: undefined
             });
@@ -236,7 +234,7 @@ const captureSingleJoiningLearner = async (req: Request) => {
 
         await learnerNotCaptured.save();
 
-        req.sendResponse.respond(
+        req.respond.sendResponse(
             learnerNotCaptured,
             res[0].status === 'fulfilled'
                 ? "Learner' bio-data was captured successfully"

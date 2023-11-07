@@ -81,7 +81,7 @@ export default async function (req: Request) {
             ? await learnerModel.find(queryObject).limit(query.limit)
             : await learnerModel.find(queryObject);
 
-        req.sendResponse.respond(data);
+        req.respond.sendResponse(data);
     } catch (err) {
         sendErrorMessage(req, err);
     }

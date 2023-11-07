@@ -27,7 +27,7 @@ const usernamePasswordSchema = z.object({
 const newInstitutionSchema = usernamePasswordSchema.transform(async (x, ctx) => {
     let isRegistered = await institution.findOne({ username: { $eq: x.username } });
     // If not archived we need to refresh token not register.
-    if (!isRegistered || isRegistered?.isArchived)
+    if (!isRegistered || isRegistered?.archived?.isArchived)
         return { ...x, previousRegistration: isRegistered };
     else {
         ctx.addIssue({
@@ -59,14 +59,7 @@ const GRADES = [
     'grade 11'
 ] as const;
 
-const MEDICAL_CONDITIONS = [
-    'anemia',
-    'asthma',
-    'convulsions',
-    'diabetes',
-    'epilepsy',
-    'none'
-] as const;
+const MEDICAL_CONDITIONS = ['anemia', 'asthma', 'convulsions', 'diabetes', 'epilepsy', 'none'] as const;
 
 const NATIONALITY = [
     'kenya',
@@ -120,7 +113,7 @@ let idSchema = z.union([
         .transform(x => x.padStart(8, '0'))
 ]);
 
-let gradesSchema = z.enum(GRADES);
+let gradesSchema = z.enum(GRADES).pipe(z.string().toLowerCase().trim());
 
 let genderSchema = z.enum(GENDER);
 

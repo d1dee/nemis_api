@@ -3,7 +3,6 @@
  */
 
 import { Request, Response } from "express";
-import logger from "@libs/logger";
 
 interface SetHeaders {
     Authorization: string;
@@ -36,7 +35,7 @@ export default class {
     sendError(errorCode: number, message?: string, cause?: any) {
         //check if a response has been sent
         if (this.response?.headersSent) {
-            return logger.warn('Headers sent');
+            return console.warn('Headers sent');
         }
         if (process.env.NODE_ENV === 'production') cause = undefined;
 
@@ -178,7 +177,7 @@ export default class {
         // todo: Walk through data object and remove sensitive data
 
         if (this.response?.headersSent) {
-            return logger.warn('Headers sent');
+            return console.warn('Headers sent');
         }
 
         if (data instanceof Error)

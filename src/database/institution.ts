@@ -17,7 +17,7 @@ import {
     INSTITUTION_REGISTRATION_STATUS,
     INSTITUTION_RESIDENCE,
     OWNERSHIP_DOCUMENT_TYPE
-} from "@libs/nemis/validations";
+} from "@libs/nemis/constants";
 import { GRADES } from "@libs/zod_validation";
 import { Institution } from "../../types/nemisApiTypes/institution";
 
@@ -142,8 +142,7 @@ export default mongoose.model(
         .pre(new RegExp('update', 'i'), function (next) {
             // Encrypt password before update
             let update = this.getUpdate() as Partial<Institution>;
-            if (update?.password)
-                this.setUpdate({ ...update, password: encryptString(update.password) });
+            if (update?.password) this.setUpdate({ ...update, password: encryptString(update.password) });
 
             return next();
         })

@@ -6,18 +6,30 @@
  *  Base class that sets up all axios interactions. It is from this class that all other Nemis classes are extended from.
  */
 import axios, { AxiosInstance } from "axios";
-import { NemisInstitutionData } from "types/nemisApiTypes/institution";
 import CustomError from "@libs/error_handler";
 import { writeFileSync } from "fs";
 import { parse as htmlParser } from "node-html-parser";
 import qs from "qs";
-import { institutionSchema } from "./validations";
 import { gradeToNumber } from "@libs/converts";
 import NemisApiService from "./api_handler";
 import { Tabletojson as tableToJson } from "tabletojson";
 import { Grades, StateObject } from "../../../types/nemisApiTypes";
 import { z } from "zod";
 import { utcToZonedTime } from "date-fns-tz";
+import {
+    EDUCATION_SYSTEM,
+    INSTITUTION_ACCOMMODATION_TYPE,
+    INSTITUTION_CATEGORY,
+    INSTITUTION_GENDER,
+    INSTITUTION_LEVEL,
+    INSTITUTION_MOBILITY_TYPE,
+    INSTITUTION_OWNER_TYPE,
+    INSTITUTION_REGISTRATION_STATUS,
+    INSTITUTION_RESIDENCE,
+    INSTITUTION_TYPE,
+    OWNERSHIP_DOCUMENT_TYPE
+} from "@libs/nemis/constants";
+import { gradesSchema } from "@libs/zod_validation";
 
 const homeDir = process.env.HOME_DIR;
 const nemisBaseUrl = process.env.BASE_URL;
@@ -43,6 +55,63 @@ class NemisWebService {
     );
 
     recordsPerPage: string = '10000';
+    validations = {
+        institutionSchema: z.object({
+            //Institution Bio Data Tab
+            name: z.coerce.string().toLowerCase().trim(),
+            knecCode: z.coerce.string().toLowerCase().trim(),
+            code: z.coerce.string().toLowerCase().trim(),
+            gender: z.string().trim().pipe(z.enum(INSTITUTION_GENDER)),
+            supportedGrades: gradesSchema,
+            registrationNumber: z.coerce.string().toLowerCase().trim(),
+            tscCode: z.coerce.string().toLowerCase().trim(),
+            type: z.string().trim().pipe(z.enum(INSTITUTION_TYPE)),
+            registrationStatus: z.string().trim().pipe(z.enum(INSTITUTION_REGISTRATION_STATUS)),
+            accommodation: z.string().trim().pipe(z.enum(INSTITUTION_ACCOMMODATION_TYPE)),
+            category: z.string().trim().pipe(z.enum(INSTITUTION_CATEGORY)),
+            educationLevel: z
+                .string()
+                .trim()
+                .pipe(z.enum(INSTITUTION_LEVEL))
+                .transform(level => {
+                    return {
+                        description: level,
+                        code: INSTITUTION_LEVEL.findIndex(x => level === x) + 1
+                    };
+                }),
+            institutionMobility: z.string().trim().pipe(z.enum(INSTITUTION_MOBILITY_TYPE)),
+            residence: z.string().trim().pipe(z.enum(INSTITUTION_RESIDENCE)),
+            educationSystem: z.string().trim().pipe(z.enum(EDUCATION_SYSTEM)),
+            constituency: z.coerce.string().toLowerCase().trim(),
+            kraPin: z.coerce.string().toLowerCase().trim(),
+            // plusCode:
+            // document.querySelector("#PlusCode")?.attrs?.value?.toLowerCase()||''
+            //,
+            registrationDate: z.coerce.string().toLowerCase().trim(),
+            ward: z.coerce.string().toLowerCase().trim(),
+            zone: z.coerce.string().toLowerCase().trim(),
+            county: z.coerce.string().toLowerCase().trim(),
+            subCounty: z.coerce.string().toLowerCase().trim(),
+            cluster: z.coerce.string().toLowerCase().trim(),
+            // Ownership Details Tab
+            ownership: z.string().trim().pipe(z.enum(INSTITUTION_OWNER_TYPE)),
+            ownershipDocument: z.string().trim().pipe(z.enum(OWNERSHIP_DOCUMENT_TYPE)),
+            owner: z.coerce.string().toLowerCase().trim(),
+            incorporationCertificateNumber: z.coerce.string().toLowerCase().trim(),
+            nearestPoliceStation: z.coerce.string().toLowerCase().trim(),
+            nearestHealthFacility: z.coerce.string().toLowerCase().trim(),
+            nearestTown: z.coerce.string().toLowerCase().trim(),
+            //Institution Contacts Tab
+            postalAddress: z.coerce.string().toLowerCase().trim(),
+            telephoneNumber: z.coerce.string().toLowerCase().trim(),
+            mobileNumber: z.coerce.string().toLowerCase().trim(),
+            altTelephoneNumber: z.coerce.string().toLowerCase().trim(),
+            altMobileNumber: z.coerce.string().toLowerCase().trim(),
+            email: z.coerce.string().toLowerCase().trim(),
+            website: z.coerce.string().toLowerCase().trim(),
+            socialMediaHandles: z.coerce.string().toLowerCase().trim()
+        })
+    };
     protected readonly axiosInstance: AxiosInstance;
     protected readonly SECURE_HEADERS = {
         DNT: '1',
@@ -72,10 +141,6 @@ class NemisWebService {
 
     /**
      * Logs in the user with the given username and password.
-     * @returns {Promise<string>} - A promise that resolves with the user's session cookie if the login is successful.
-     * @throws {object} - An object with properties `message` and `cause` if the login fails.
-     * @param username
-     * @param password
      */
 
     async login(username: string, password: string): Promise<string> {
@@ -111,17 +176,16 @@ class NemisWebService {
     /**
      * Retrieves institution information by scraping the institution page,
      * /Institution/Institution.aspx, and parsing its html using node-html-parser.
-     * @returns {Promise<Institution>} An object containing institution information.
-     * @throws Error object if the institution page is not found.
+     
      */
-    async getInstitution(institutionCode: string): Promise<NemisInstitutionData> {
+    async getInstitution(institutionCode: string) {
         try {
             let institutionHtml = (await this.axiosInstance.get('/Institution/Institution.aspx'))?.data;
 
             let supportedGrades = (await new NemisApiService().homepageApi(institutionCode)).schoolDashboard;
 
             let document = htmlParser(institutionHtml);
-            return institutionSchema.strip().parse({
+            return this.validations.institutionSchema.strip().parse({
                 //Institution Bio Data Tab
                 name: document.querySelector('#ctl00_ContentPlaceHolder1_Institution_Name')?.attrs?.value,
                 knecCode: document.querySelector('#ctl00_ContentPlaceHolder1_Knec_Code')?.attrs?.value,

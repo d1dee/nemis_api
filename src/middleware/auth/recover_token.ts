@@ -5,23 +5,22 @@
 import CustomError from "@libs/error_handler";
 import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
 import { Request } from "express";
-import { DatabaseToken } from "types/nemisApiTypes";
 import { validateUsernamePassword } from "@middleware/utils/query_params";
 
 export default async (req: Request) => {
     try {
         const institution = await validateUsernamePassword(req.body);
 
-        let token = (await institution.populate('token')).token as DatabaseToken | undefined;
+        let token = req.token;
 
-        if (institution?.archived?.isArchived || token?.archived) {
+        if (institution?.archived?.isArchived || token.archive?.isArchived) {
             throw new CustomError(
                 'Institution data was deleted from the local database. Use register to get a new token '
             );
         }
         if (!token) throw new CustomError('No valid token associated with the institution.', 400);
         // Send token saved in Database
-        req.sendResponse.respond(
+        req.respond.sendResponse(
             institution,
             token.expires.UTCTimestamp.getTime() < Date.now()
                 ? 'The recovered token has already expired. Use `/auth/refresh` to get a new token'

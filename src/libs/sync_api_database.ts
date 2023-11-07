@@ -2,43 +2,43 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { DatabaseInstitution, ListLearner } from "types/nemisApiTypes";
-import { NemisWebService } from "@libs/nemis/nemis_web_handler";
+import { NemisWebService } from "@libs/nemis";
 import { GRADES } from "./zod_validation";
 import learner from "@database/learner";
+import { InstitutionDocument } from "../../types/nemisApiTypes/institution";
+import LearnerHandler from "@libs/nemis/learner_handler";
+import { ListLearners } from "../../types/nemisApiTypes/learner";
 
-const sync = async (institution: DatabaseInstitution) => {
+const sync = async (institution: InstitutionDocument) => {
     try {
+        const supportedGrades = institution?.nemisInstitutionData?.supportedGrades;
+        if (!supportedGrades) throw new Error('Institution has no supported grades in the database.');
         // List all learners
         let listAllLearners = await Promise.all(
             // Use a new instance of NemisWebService to avoid state conflict
-            institution.supportedGrades.map((grade): Promise<ListLearner[]> => {
-                // Nemis state is tied to the cookie returned, so we log in for each grade  to have separate states for each
-                return new Promise(async (resolve, reject) => {
-                    try {
-                        let nemis = new NemisWebService();
-                        await nemis.login(institution.username, institution.password);
-                        resolve(await nemis.listLearners(grade));
-                    } catch (err) {
-                        reject(err);
-                    }
-                });
-            })
+            supportedGrades.map(grade =>
+                new NemisWebService()
+                    .login(institution.username, institution.password)
+                    .then(() => new LearnerHandler().listLearners(grade))
+            )
         );
 
         // Map list learner to an easy-to-use object
-        let mappedListLearner = {} as { [K in (typeof GRADES)[number]]: ListLearner[] };
-        institution.supportedGrades.forEach((grade, i) => {
+        let mappedListLearner = {} as { [K in (typeof GRADES)[number]]: ListLearners };
+
+        supportedGrades.forEach((grade, i) => {
             Object.assign(mappedListLearner, {
-                [grade]: listAllLearners[i].sort((a, b) =>
-                    a.birthCertificateNo?.localeCompare(b.birthCertificateNo)
-                )
+                [grade]: listAllLearners[i]
+                    ? listAllLearners[i]!.sort((a, b) =>
+                          a.birthCertificateNo?.localeCompare(b.birthCertificateNo)
+                      )
+                    : []
             });
         });
 
         // Get learner from database
         let databaseLearner = await Promise.all(
-            institution.supportedGrades.map(
+            supportedGrades.map(
                 grade =>
                     learner
                         .find({
@@ -59,7 +59,7 @@ const sync = async (institution: DatabaseInstitution) => {
         let mappedDatabaseLearner = {} as {
             [K in (typeof GRADES)[number]]: (typeof databaseLearner)[number];
         };
-        institution.supportedGrades.forEach((grade, i) => {
+        supportedGrades.forEach((grade, i) => {
             Object.assign(mappedDatabaseLearner, {
                 [grade]: databaseLearner[i]
             });
@@ -69,7 +69,7 @@ const sync = async (institution: DatabaseInstitution) => {
         // we can go ahead and start to build a combined list with updates on database learners
         let updatedLearner = [] as (typeof databaseLearner)[number];
 
-        for (const grade of institution.supportedGrades) {
+        for (const grade of supportedGrades) {
             let databaseLearner = mappedDatabaseLearner[grade];
             let listLearner = mappedListLearner[grade];
             if (!Array.isArray(listLearner) || listLearner.length === 0) {
