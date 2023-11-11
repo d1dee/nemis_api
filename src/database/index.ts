@@ -7,39 +7,10 @@ import institutionModel from "./institution";
 import learnerModel from "./learner";
 import tokenModel from "./token";
 import nemisApiModel from "@database/nemis_api";
-import { NATIONALITY } from "@libs/zod_validation";
 
 mongoose.set('bufferCommands', false);
 mongoose.set('strictQuery', true);
 mongoose.set('autoIndex', true);
-
-export const dateTimeSchema = new mongoose.Schema({
-    UTCTimestamp: { required: true, type: Date },
-    formattedDate: { required: true, type: String },
-    timeZone: { required: true, type: String }
-});
-
-export const archiveSchema = new mongoose.Schema({
-    isArchived: { type: Boolean, default: false },
-    archivedOn: dateTimeSchema,
-    reason: String
-});
-
-export const geoLocationSchema = new mongoose.Schema({
-    county: {
-        type: String,
-        index: true,
-        collation: { locale: 'en', strength: 2 }
-    },
-    subCounty: {
-        type: String,
-        index: true,
-        collation: { locale: 'en', strength: 2 }
-    },
-    countyNo: Number,
-    subCountyNo: Number,
-    nationality: { type: String, enum: NATIONALITY, default: 'kenya' }
-});
 
 export default async (dbUrl: string) => {
     try {

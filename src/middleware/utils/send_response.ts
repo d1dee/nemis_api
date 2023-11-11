@@ -169,9 +169,9 @@ export default class {
         statusCode = statusCode || 200;
 
         this.setHeaders({
-            Authorization: 'Bearer ' + this.request?.token?.token,
+            Authorization: `Bearer ${this.request?.token?.token}`,
             'Access-Control-Expose-Headers': 'Authorization Expires',
-            Expires: this.request.token.expires.formattedDate
+            Expires: this.request?.token?.expires?.formattedDate
         });
 
         // todo: Walk through data object and remove sensitive data

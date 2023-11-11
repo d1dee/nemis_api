@@ -4,10 +4,10 @@
 
 import mongoose from "mongoose";
 import { GRADES, MEDICAL_CONDITIONS } from "@libs/zod_validation";
-import { archiveSchema, dateTimeSchema, geoLocationSchema } from "@database/index";
+import { archiveSchema, dateTimeSchema, geoLocationSchema } from "@database/shared_schemas";
 import { dateTime } from "@libs/converts";
 
-export const parentInfoSchema = new mongoose.Schema({
+export const parentInfoSchema = {
     name: {
         type: String,
         index: true,
@@ -18,7 +18,7 @@ export const parentInfoSchema = new mongoose.Schema({
     },
     tel: String,
     id: String
-});
+};
 
 export const learnerTransferSchema = new mongoose.Schema({
     transferredOn: { type: dateTimeSchema, required: true },
@@ -35,7 +35,7 @@ export const learnerTransferSchema = new mongoose.Schema({
     }
 });
 
-export const continuingLearnerSchema = new mongoose.Schema({
+export const continuingLearnerSchema = {
     remarks: String,
     postback: {
         type: String,
@@ -44,7 +44,7 @@ export const continuingLearnerSchema = new mongoose.Schema({
             partialFilterExpression: { postback: { $exists: true, $type: 'string' } }
         }
     }
-});
+};
 
 export const learnerSchema = new mongoose.Schema({
     //Basic learner details

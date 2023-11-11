@@ -3,7 +3,7 @@
  */
 
 import * as mongoose from "mongoose";
-import { archiveSchema, dateTimeSchema } from "@database/index";
+import { archiveSchema, dateTimeSchema } from "@database/shared_schemas";
 import { dateTime } from "@libs/converts";
 
 export const tokenSchema = new mongoose.Schema({

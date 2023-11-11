@@ -33,19 +33,20 @@ export default async (req: Request) => {
         // Find institution and create if institution doesn't exist using {upsert:true}
         let institutionDocument: any = {
             _id: institutionId,
-            ...institution,
+            nemisInstitutionData: institution,
             username: username,
             password: password,
             isArchived: false,
-            token: tokenId
+            token: { currentToken: tokenId }
         };
 
         if (previousRegistration)
             institutionDocument = await institutionModel.findByIdAndUpdate(
                 previousRegistration._id,
                 {
-                    isArchived: false,
-                    token: tokenId,
+                    archived: false,
+                    $push: { 'token.archivedTokens': previousRegistration.token.currentToken },
+                    'toke.currentToken': tokenId,
                     username: username,
                     password: password
                 },
@@ -53,8 +54,10 @@ export default async (req: Request) => {
             );
         else await institutionModel.create(institutionDocument);
 
+        req.token = tokenObject;
+
         return req.respond.sendResponse(
-            Object.assign(institutionDocument, { token: tokenObject }),
+            { ...institutionDocument.toObject(), token: tokenObject },
             'Institution registered successfully.',
             201
         );

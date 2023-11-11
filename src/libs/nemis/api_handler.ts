@@ -248,7 +248,50 @@ export default class {
                 ...res?.reportedlabel?.match(
                     /(?<code>^\d+): (?<name>.+), type: (?<type>.*), category: (?<category>.*), upi: (?<upi>.*)/i
                 )?.groups
-            }))
+            })),
+        schoolDashboard: z.array(
+            z
+                .object({
+                    institution_Code: z.coerce.string().toLowerCase().trim(),
+                    class_Code: z.coerce.number(),
+                    class_Name: z.coerce.string().toLowerCase().trim(),
+                    bC_Boys: z.coerce.number(),
+                    bC_Girls: z.coerce.number(),
+                    bC_Unk: z.coerce.number(),
+                    bC_Total: z.coerce.number(),
+                    wbC_Boys: z.coerce.number(),
+                    wbC_Girls: z.coerce.number(),
+                    wbC_Unk: z.coerce.number(),
+                    wbC_Total: z.coerce.number(),
+                    boys: z.coerce.number(),
+                    girls: z.coerce.number(),
+                    unk: z.coerce.number(),
+                    total: z.coerce.number(),
+                    m: z.coerce.number(),
+                    f: z.coerce.number(),
+                    unknown: z.coerce.number(),
+                    uN_KNOWN: z.coerce.number()
+                })
+                .transform(gradeData => ({
+                    institutionCode: gradeData.institution_Code,
+                    code: gradeData.class_Code,
+                    name: gradeData.class_Name,
+                    birthCertificateCapturedBoys: gradeData.bC_Boys,
+                    birthCertificateCapturedGirls: gradeData.bC_Girls,
+                    birthCertificateCapturedUnknown: gradeData.bC_Unk,
+                    birthCertificateCapturedTotals: gradeData.bC_Total,
+                    noBirthCertificateCapturedBoys: gradeData.wbC_Boys,
+                    noBirthCertificateCapturedGirls: gradeData.wbC_Girls,
+                    noBirthCertificateCapturedUnknown: gradeData.wbC_Unk,
+                    noBirthCertificateCapturedTotals: gradeData.wbC_Total,
+                    totalBoys: gradeData.boys,
+                    totalGirls: gradeData.girls,
+                    total: gradeData.total,
+                    unknown: gradeData.unknown,
+                    ukknown2: gradeData.uN_KNOWN,
+                    unknownUnk: gradeData.unk
+                }))
+        )
     };
     private axiosInstance;
     private userAgent =
@@ -277,7 +320,8 @@ export default class {
         try {
             let schoolDashboard = (await this.axiosInstance.get('/SchDashboard/' + encodeURIComponent(code)))
                 .data;
-            return { schoolDashboard: schoolDashboard };
+            let k = this.apiValidation.schoolDashboard.parse(schoolDashboard);
+            return k;
         } catch (err) {
             throw new CustomError('Failed to get homepage apis. Try again later.', 500);
         }

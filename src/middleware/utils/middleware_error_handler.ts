@@ -13,26 +13,26 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     if (!err && next) next();
     // else handle error
     let statusCode = err?.status || err?.statusCode;
-    
+
     let message = undefined;
-    let cause = process.env.NODE_ENV === "production" ? undefined : err?.cause ?? err;
-    
+    let cause = process.env.NODE_ENV === 'production' ? undefined : err?.cause ?? err;
+
     if (err instanceof CustomError) {
         message = err.message;
         statusCode = err.code;
     }
-    
+
     if (err instanceof AxiosError) {
         let nemisErrorFormat = formatNemisErrors(err);
         message = err?.message;
         statusCode = err?.response?.status || 500;
     }
-    
+
     if (err instanceof ZodError) {
         statusCode = 422;
         message = `Validation error. ${JSON.stringify(err.flatten().fieldErrors)}`;
     }
-    
+
     if (err instanceof SyntaxError) {
         // @ts-ignore
         if (err?.body) {
@@ -40,15 +40,12 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
             // @ts-ignore
             statusCode = err?.statusCode;
         }
-        
-        
     }
     // Any other error return an 'Internal server error'
     !statusCode ? (statusCode = 500) : undefined;
-    !message ? (message = "Internal server error, an unknown error has occurred.") : undefined;
-    
+    !message ? (message = 'Internal server error, an unknown error has occurred.') : undefined;
+
     return req.respond.sendError(statusCode, message, cause);
 }
 
-const formatNemisErrors = (error: any) => {
-};
+const formatNemisErrors = (error: any) => {};

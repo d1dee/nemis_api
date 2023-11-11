@@ -3,16 +3,15 @@
  */
 
 import Respond from "@middleware/utils/send_response";
-import { Institution } from "../nemisApiTypes/institution";
-import { Token } from "../nemisApiTypes/token";
-import { Document } from "mongoose";
+import { TokenDocument } from "../nemisApiTypes/token";
+import { InstitutionDocument } from "../nemisApiTypes/institution";
 
 declare module 'express-serve-static-core' {
     export interface Request {
         // The current institution associated with the bearer token in req.Authorization
-        institution: Institution & Document;
+        institution: InstitutionDocument;
         // Bearer authorization token
-        token: Token & Document;
+        token: TokenDocument;
         // A custom class used to format  error messages and responses before sending them to the client
         respond: Respond;
     }

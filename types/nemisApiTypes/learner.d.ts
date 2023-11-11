@@ -9,7 +9,8 @@ import LearnerHandler from "@libs/nemis/learner_handler";
 
 // Learner as returned by the database.
 export type Learner = InferSchemaType<typeof learnerSchema>;
-export type LearnerDocument = Learner & Document;
+
+export interface LearnerDocument extends Learner, Document {}
 
 export type Results = Awaited<ReturnType<ApiHandler['results']>>;
 export type Admission = Awaited<ReturnType<ApiHandler['admission']>>;

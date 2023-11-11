@@ -8,9 +8,15 @@ import JWT from "@libs/JWT";
 
 export default async (req: Request) => {
     try {
-        let [_, newTokenObject] = await new JWT().refreshToken(req.token.institutionId, req.token._id);
+        let { reason } = req.query;
 
-        req.respond.sendResponse(newTokenObject, 'Token refreshed.');
+        let [token, institution] = await new JWT().refreshToken(
+            req.token.institutionId,
+            req.token._id,
+            typeof reason === 'string' ? reason : JSON.stringify(reason ?? 'User requested refresh.')
+        );
+
+        req.respond.sendResponse({ ...institution.toObject(), token: token }, 'Token refreshed.');
     } catch (err: any) {
         console.error(err);
         sendErrorMessage(req, err);

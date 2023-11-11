@@ -26,7 +26,7 @@ export default async () => {
         }
 
         // Wait database to connect
-        await connectDb(process.env.DATBASE_URL!);
+        await connectDb(process.env.DATABASE_URL!);
 
         console.info('Database connected ✨');
     } catch (err) {

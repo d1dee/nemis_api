@@ -1,10 +1,10 @@
 /*
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
+import { archiveSchema, dateTimeSchema } from "@database/shared_schemas";
 
-import * as mongoose from "mongoose";
 import { decryptString, encryptString } from "@libs/crypt";
-import { archiveSchema, dateTimeSchema } from "@database/index";
+
 import { dateTime } from "@libs/converts";
 import {
     EDUCATION_SYSTEM,
@@ -20,6 +20,7 @@ import {
 } from "@libs/nemis/constants";
 import { GRADES } from "@libs/zod_validation";
 import { Institution } from "../../types/nemisApiTypes/institution";
+import mongoose from "mongoose";
 
 export const nemisInstitutionDataSchema = new mongoose.Schema({
     name: { type: String, index: true },
@@ -115,21 +116,24 @@ export const institutionSchema = new mongoose.Schema({
     },
     password: { type: String, required: true },
     timeStamps: {
-        createdAt: { type: dateTimeSchema, default: dateTime, required: true },
-        lastLogin: { type: dateTimeSchema, default: dateTime, required: true }
+        createdAt: { type: dateTimeSchema, default: dateTime(), required: true },
+        lastLogin: { type: dateTimeSchema, default: dateTime(), required: true }
     },
     token: {
-        currentToken: {
-            index: true,
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'token'
-        },
-        archivedTokens: [
-            {
+        type: {
+            currentToken: {
+                index: true,
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'token'
-            }
-        ]
+            },
+            archivedTokens: [
+                {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'token'
+                }
+            ]
+        },
+        required: true
     },
     nemisInstitutionData: nemisInstitutionDataSchema,
     archived: archiveSchema

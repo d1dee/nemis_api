@@ -1646,8 +1646,7 @@ export function lowerCaseAllValues(
         keys: boolean;
     }
 ): any {
-    if (!object || typeof object !== 'object' || object.constructor.name !== 'Object')
-        return object;
+    if (!object || typeof object !== 'object' || object.constructor.name !== 'Object') return object;
 
     let lowerCased = Object.entries(object).map(keyValuePair => {
         if (typeof keyValuePair[1] === 'string')
@@ -1663,10 +1662,7 @@ export function lowerCaseAllValues(
                 ];
             }
         if (typeof keyValuePair[1] === 'object') {
-            return [
-                keyValuePair[0]?.toLowerCase()?.trim(),
-                lowerCaseAllValues(keyValuePair[1], opts)
-            ];
+            return [keyValuePair[0]?.toLowerCase()?.trim(), lowerCaseAllValues(keyValuePair[1], opts)];
         }
         return keyValuePair;
     });
@@ -1685,12 +1681,16 @@ export const dateTime = function (date?: Date) {
     } else {
         return {
             UTCTimestamp: new Date(),
-            formattedDate: formatInTimeZone(
-                Date.now(),
-                'Africa/Nairobi',
-                'yyyy-MM-dd HH:mm:ss zzz'
-            ),
+            formattedDate: formatInTimeZone(Date.now(), 'Africa/Nairobi', 'yyyy-MM-dd HH:mm:ss zzz'),
             timeZone: 'Africa/Nairobi'
         };
     }
+};
+
+export const archiver = (reason: string) => {
+    return {
+        isArchived: true,
+        archivedOn: dateTime(),
+        reason: reason
+    };
 };

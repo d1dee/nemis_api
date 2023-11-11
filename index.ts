@@ -27,17 +27,14 @@ app_init()
             authMiddleware,
             express.urlencoded({ extended: true }),
             express.json({ limit: '10mb' }),
-            (err: any, req: Request, res: Response, next: NextFunction) =>
-                sendErrorMessage(req, err, next)
+            (err: any, req: Request, res: Response, next: NextFunction) => sendErrorMessage(req, err, next)
         );
 
         app.use('/api', apiRouter);
 
         app.get('/', (req: Request) => req.respond.sendResponse('v0.1-alpha'));
         // Send API documentation on this route
-        app.all('*', (req: Request) =>
-            req.respond.sendError(404, 'No endpoint matching: ' + req.path)
-        );
+        app.all('*', (req: Request) => req.respond.sendError(404, 'No endpoint matching: ' + req.path));
         // /start express server and listen on port 3000 exporting the app
         app.listen(process.env.PORT || 3000, () =>
             console.debug(`Server started on port ${process.env.PORT || 3000}`)

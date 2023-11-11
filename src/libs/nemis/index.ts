@@ -62,7 +62,7 @@ class NemisWebService {
             knecCode: z.coerce.string().toLowerCase().trim(),
             code: z.coerce.string().toLowerCase().trim(),
             gender: z.string().trim().pipe(z.enum(INSTITUTION_GENDER)),
-            supportedGrades: gradesSchema,
+            supportedGrades: z.array(gradesSchema),
             registrationNumber: z.coerce.string().toLowerCase().trim(),
             tscCode: z.coerce.string().toLowerCase().trim(),
             type: z.string().trim().pipe(z.enum(INSTITUTION_TYPE)),
@@ -161,6 +161,7 @@ class NemisWebService {
                 })
             );
             //Login successful if redirected to default.aspx
+
             if (/pageRedirect.+Default.aspx/.test(response?.data)) {
                 //if we got redirected to Default.aspx, then login was succeeded
                 if (this.#cookie) return this.#cookie;
@@ -182,10 +183,13 @@ class NemisWebService {
         try {
             let institutionHtml = (await this.axiosInstance.get('/Institution/Institution.aspx'))?.data;
 
-            let supportedGrades = (await new NemisApiService().homepageApi(institutionCode)).schoolDashboard;
+            let supportedGrades = await new NemisApiService().homepageApi(institutionCode);
+
+            if (!Array.isArray(supportedGrades))
+                throw new Error('Failed to get  supported grades from nemis api');
 
             let document = htmlParser(institutionHtml);
-            return this.validations.institutionSchema.strip().parse({
+            let instData = {
                 //Institution Bio Data Tab
                 name: document.querySelector('#ctl00_ContentPlaceHolder1_Institution_Name')?.attrs?.value,
                 knecCode: document.querySelector('#ctl00_ContentPlaceHolder1_Knec_Code')?.attrs?.value,
@@ -194,7 +198,7 @@ class NemisWebService {
                     .querySelector('#ctl00_ContentPlaceHolder1_Classification_by_Gender')
                     ?.outerHTML?.match(/(?<=selected" value="\d">)\w.*?(?=<)/)
                     ?.toString(),
-                supportedGrades: supportedGrades,
+                supportedGrades: supportedGrades.map(grade => grade.name),
                 registrationNumber: document.querySelector(
                     '#ctl00_ContentPlaceHolder1_Institution_Current_Code'
                 )?.attrs?.value,
@@ -297,7 +301,8 @@ class NemisWebService {
                 socialMediaHandles: document
                     .querySelector('#ctl00_ContentPlaceHolder1_Social_Media')
                     ?.attrs?.value?.toLowerCase()
-            });
+            };
+            return this.validations.institutionSchema.strip().parse(instData);
         } catch (err) {
             console.error(err);
             throw err;

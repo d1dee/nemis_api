@@ -3,7 +3,7 @@
  */
 
 import mongoose from "mongoose";
-import { dateTimeSchema } from "@database/index";
+import { dateTimeSchema } from "@database/shared_schemas";
 import { dateTime } from "@libs/converts";
 
 export const nemisApiSchema = new mongoose.Schema({
