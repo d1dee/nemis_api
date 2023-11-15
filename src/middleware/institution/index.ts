@@ -15,9 +15,7 @@ const getInstitution = (req: Request) => {
         if (!req.token || !req.institution)
             throw new CustomError('Something went terribly wrong. Please contact the administrator', 500);
 
-        let institutionObject = Object.assign(req.institution, { token: req.token });
-
-        return req.respond.sendResponse(institutionObject);
+        return req.respond.sendResponse({ ...req.institution.toObject(), currentToken: req.token });
     } catch (err: any) {
         //Handle errors here and return a response
         console.error(err);
@@ -56,7 +54,7 @@ const updateInstitution = async (req: Request) => {
             {
                 ...institution.toObject(),
                 ...update,
-                token: req.token.toObject()
+                currentToken: req.token.toObject()
             },
             'Institution data was successfully updated'
         );
@@ -71,15 +69,14 @@ const deleteInstitution = async (req: Request) => {
         await validateUsernamePassword(req.body);
 
         let archive = archiver(JSON.stringify(req.query.reason ?? 'No reason provided'));
-        let update = {
-            archived: archive,
-            $push: { 'token.archivedToken': req.token._id },
-            'token.currentToken': null
-        };
 
         await Promise.allSettled([
-            req.institution.update(update).exec(),
-            req.token.update({ archive: archive }).exec()
+            req.institution
+                .updateOne({
+                    archived: archive
+                })
+                .exec(),
+            req.token.updateOne({ archive: archive }).exec()
         ]);
 
         console.warn(
@@ -89,8 +86,8 @@ const deleteInstitution = async (req: Request) => {
         req.respond.sendResponse(
             {
                 ...req.institution.toObject(),
-                ...update,
-                token: { ...req.token.toObject(), archive: archive }
+                archived: archive,
+                currentToken: { ...req.token.toObject(), archive: archive }
             },
             'Institution deleted'
         );

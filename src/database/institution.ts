@@ -18,7 +18,7 @@ import {
     INSTITUTION_RESIDENCE,
     OWNERSHIP_DOCUMENT_TYPE
 } from "@libs/nemis/constants";
-import { GRADES } from "@libs/zod_validation";
+import { GRADES } from "@libs/constants";
 import { Institution } from "../../types/nemisApiTypes/institution";
 import mongoose from "mongoose";
 
@@ -119,22 +119,14 @@ export const institutionSchema = new mongoose.Schema({
         createdAt: { type: dateTimeSchema, default: dateTime(), required: true },
         lastLogin: { type: dateTimeSchema, default: dateTime(), required: true }
     },
-    token: {
-        type: {
-            currentToken: {
-                index: true,
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'token'
-            },
-            archivedTokens: [
-                {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'token'
-                }
-            ]
-        },
+
+    currentToken: {
+        index: true,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'token',
         required: true
     },
+
     nemisInstitutionData: nemisInstitutionDataSchema,
     archived: archiveSchema
 });

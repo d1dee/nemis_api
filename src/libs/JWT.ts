@@ -31,7 +31,7 @@ export default class {
 
             if (!databaseToken) {
                 console.error('Bearer token not found in the database');
-                throw new CustomError('Token not found in the database.', 500);
+                throw new CustomError('Token not found.', 400);
             }
             if (databaseToken.archive?.isArchived) {
                 console.warn('Token is archived');
@@ -98,10 +98,13 @@ export default class {
 
             // Run database updates in parallel
             const [updatedInstitution] = await Promise.all([
-                institutionModel.findByIdAndUpdate(institutionId, {
-                    $push: { 'token.archivedTokens': previousTokenId },
-                    'token.currentToken': newTokenObject._id
-                }),
+                institutionModel.findByIdAndUpdate(
+                    institutionId,
+                    {
+                        currentToken: newTokenId
+                    },
+                    { returnDocument: 'after' }
+                ),
                 tokenModel.findByIdAndUpdate(previousTokenId, {
                     'archive.isArchived': true,
                     'archive.archivedOn': dateTime(),

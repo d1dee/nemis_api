@@ -3,7 +3,6 @@
  */
 
 import { NemisWebService } from "@libs/nemis";
-import { CaptureBiodataResponse, Grades, SchoolSelected } from "types/nemisApiTypes";
 import { parse as htmlParser } from "node-html-parser";
 import { Tabletojson as tableToJson } from "tabletojson/dist/lib/Tabletojson";
 import CustomError from "@libs/error_handler";
@@ -15,12 +14,21 @@ import { gradeToNumber, medicalConditionCode, nationalities, splitNames } from "
 import FormData from "form-data";
 import { z } from "zod";
 import { format } from "date-fns";
-import { GENDER_SCHEMA, NEMIS_DATE_SCHEMA } from "@libs/nemis/constants";
+import { Z_NEMIS_DATE } from "@libs/nemis/constants";
+import { Z_GENDER, Z_NUMBER, Z_STRING } from "@libs/constants";
+import { Grade } from "../../../types/nemisApiTypes/institution";
 
 type RequestedBy = {
     requestString: string;
     id: string;
     tel: string;
+};
+type SchoolSelected = {
+    originalString?: string;
+    code: string;
+    name: string;
+    type: string;
+    category: string;
 };
 
 const apiAuthorization = process.env.NEMIS_API_AUTH;
@@ -33,16 +41,16 @@ export default class extends NemisWebService {
     learnerValidations = {
         listLearnerSchema: z
             .object({
-                'Learner UPI': z.string().trim().toLowerCase(),
-                'Learner Name': z.string().trim().toLowerCase(),
-                Gender: z.string().trim().toLowerCase(),
-                'Date of Birth': NEMIS_DATE_SCHEMA,
+                'Learner UPI': Z_STRING.trim().toLowerCase(),
+                'Learner Name': Z_STRING.trim().toLowerCase(),
+                Gender: Z_STRING.trim().toLowerCase(),
+                'Date of Birth': Z_NEMIS_DATE,
                 AGE: z.coerce.number(),
-                'Birth Cert No': z.string().trim().toLowerCase(),
+                'Birth Cert No': Z_STRING.trim().toLowerCase(),
                 Disability: z.coerce.boolean(),
-                'Medical Condition': z.string().trim().toLowerCase(),
-                'Home Phone': z.string().trim().toLowerCase(),
-                'NHIF No': z.string()
+                'Medical Condition': Z_STRING.trim().toLowerCase(),
+                'Home Phone': Z_STRING.trim().toLowerCase(),
+                'NHIF No': Z_STRING
             })
             .transform(learner => ({
                 upi: learner['Learner UPI'],
@@ -58,31 +66,31 @@ export default class extends NemisWebService {
             })),
         listAdmittedLearnerSchema: z
             .object({
-                Index: z.coerce.string().trim().toLowerCase(),
-                Name: z.coerce.string().trim().toLowerCase(),
-                Gender: z.coerce.string().trim().toLowerCase(),
-                'Year of Birth': z.coerce.string().trim().toLowerCase(),
-                Marks: z.coerce.number(z.coerce.string().trim().toLowerCase()),
-                'Sub-County': z.coerce.string().trim().toLowerCase(),
-                UPI: z.coerce.string().trim().toLowerCase(),
-                no: z.number(),
-                postback: z.string(),
+                Index: Z_STRING,
+                Name: Z_STRING,
+                Gender: Z_STRING,
+                'Year of Birth': Z_STRING,
+                Marks: Z_NUMBER,
+                'Sub-County': Z_STRING,
+                UPI: Z_STRING,
+                no: Z_NUMBER,
+                postback: Z_STRING,
                 actions: z.object({
-                    captureWithBirthCertificate: z.coerce.string(),
-                    captureWithoutBirthCertificate: z.coerce.string(),
-                    resetBiodataCapture: z.coerce.string(),
-                    undoAdmission: z.coerce.string()
+                    captureWithBirthCertificate: Z_STRING,
+                    captureWithoutBirthCertificate: Z_STRING,
+                    resetBiodataCapture: Z_STRING,
+                    undoAdmission: Z_STRING
                 })
             })
             .transform(learner => {
                 return {
-                    indexNo: String(learner['Index']),
-                    name: String(learner['Name']),
-                    gender: String(learner['Gender']),
-                    yob: Number(learner['Year of Birth']),
-                    marks: Number(learner['Marks']),
-                    subCounty: String(learner['Sub-County']),
-                    upi: learner['UPI'] === '&nbsp;' ? undefined : String(learner['UPI']),
+                    indexNo: learner['Index'],
+                    name: learner['Name'],
+                    gender: learner['Gender'],
+                    yob: learner['Year of Birth'],
+                    marks: learner['Marks'],
+                    subCounty: learner['Sub-County'],
+                    upi: learner['UPI'] === '&nbsp;' ? undefined : learner['UPI'],
                     no: learner.no,
                     postback: learner.postback,
                     actions: learner.actions
@@ -91,35 +99,32 @@ export default class extends NemisWebService {
         requestedLeanerSchema: z.array(
             z
                 .object({
-                    ['No.']: z.number(),
-                    ['Index No']: z.string(),
-                    ['Student Name']: z.string().toLowerCase(),
-                    ['Gender']: GENDER_SCHEMA,
-                    ['Marks']: z.number().min(0).max(500),
-                    ['Current Selected To']: z
-                        .string()
-                        .toLowerCase()
-                        .transform(
-                            label =>
-                                <SchoolSelected>{
-                                    originalString: label,
-                                    ...[
-                                        ...label?.matchAll(
-                                            /(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
-                                        )
-                                    ][0]?.groups
-                                }
-                        ),
-                    ['Request Description']: z.string().toLowerCase(),
-                    ["Parent's IDNo"]: z.string().toLowerCase(),
-                    ['Mobile No']: z.string().toLowerCase(),
-                    ['Date Captured']: z.string().toLowerCase(),
+                    ['No.']: Z_NUMBER,
+                    ['Index No']: Z_STRING,
+                    ['Student Name']: Z_STRING,
+                    ['Gender']: Z_GENDER,
+                    ['Marks']: Z_NUMBER.min(0).max(500),
+                    ['Current Selected To']: Z_STRING.transform(
+                        label =>
+                            <SchoolSelected>{
+                                originalString: label,
+                                ...[
+                                    ...label?.matchAll(
+                                        /(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z]+)/gi
+                                    )
+                                ][0]?.groups
+                            }
+                    ),
+                    ['Request Description']: Z_STRING,
+                    ["Parent's IDNo"]: Z_STRING,
+                    ['Mobile No']: Z_STRING,
+                    ['Date Captured']: Z_STRING,
 
-                    ['Approved By']: z.string().toLowerCase(),
-                    ['Approved On']: NEMIS_DATE_SCHEMA,
+                    ['Approved By']: Z_STRING,
+                    ['Approved On']: Z_NEMIS_DATE,
 
-                    ['Status']: z.string().toLowerCase(),
-                    [13]: z.string().regex(/ctl.*?Del/g)
+                    ['Status']: Z_STRING,
+                    [13]: Z_STRING.regex(/ctl.*?Del/g)
                 })
                 .partial()
                 .transform(learner => ({
@@ -144,12 +149,12 @@ export default class extends NemisWebService {
         selectedLaearnerSchema: z.array(
             z
                 .object({
-                    ['Index']: z.string().toLowerCase(),
-                    ['Name']: z.string().toLowerCase(),
-                    ['Gender']: GENDER_SCHEMA,
-                    ['Year of Birth']: z.number(),
-                    ['Marks']: z.number().min(0).max(500),
-                    ['Sub-County']: z.string().toLowerCase()
+                    ['Index']: Z_STRING,
+                    ['Name']: Z_STRING,
+                    ['Gender']: Z_GENDER,
+                    ['Year of Birth']: Z_NUMBER,
+                    ['Marks']: Z_NUMBER.min(0).max(500),
+                    ['Sub-County']: Z_STRING
                 })
                 .transform(learner => ({
                     indexNo: learner.Index,
@@ -170,7 +175,7 @@ export default class extends NemisWebService {
      * Retrieves already admitted learners information by scraping the list learners page,
      * /Leaner/Listlearners.aspx, and parsing its html using node-html-parser.
      */
-    async listLearners(gradeOrForm: Grades) {
+    async listLearners(gradeOrForm: Grade) {
         try {
             let listLearnersHtml = (
                 await this.changeResultsPerPage('/Learner/Listlearners.aspx', gradeOrForm)
@@ -831,7 +836,7 @@ export default class extends NemisWebService {
     }
 
     //submit to NHIF
-    async submitToNhif(grade: Grades, learner: ListLearners[number]) {
+    async submitToNhif(grade: Grade, learner: ListLearners[number]) {
         try {
             let submitNhifHtml = (
                 await this.axiosInstance({
@@ -1050,7 +1055,7 @@ export default class extends NemisWebService {
         }
     }
 
-    async addContinuingLearner(learner: Learner): Promise<CaptureBiodataResponse> {
+    async addContinuingLearner(learner: Learner) {
         try {
             await this.listLearners(learner.grade);
 

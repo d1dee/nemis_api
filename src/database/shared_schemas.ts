@@ -2,7 +2,7 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { NATIONALITY } from "@libs/zod_validation";
+import { NATIONALITY } from "@libs/constants";
 
 let dateTimeSchema = {
     UTCTimestamp: { required: true, type: Date },

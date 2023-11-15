@@ -3,7 +3,7 @@
  */
 
 import { NemisWebService } from "@libs/nemis";
-import { GRADES } from "./zod_validation";
+import { GRADES } from "./constants";
 import learner from "@database/learner";
 import { InstitutionDocument } from "../../types/nemisApiTypes/institution";
 import LearnerHandler from "@libs/nemis/learner_handler";
@@ -70,17 +70,21 @@ const sync = async (institution: InstitutionDocument) => {
         let updatedLearner = [] as (typeof databaseLearner)[number];
 
         for (const grade of supportedGrades) {
+            // @ts-ignore
             let databaseLearner = mappedDatabaseLearner[grade];
+            // @ts-ignore
             let listLearner = mappedListLearner[grade];
             if (!Array.isArray(listLearner) || listLearner.length === 0) {
                 continue;
             }
+            // @ts-ignore
             databaseLearner.forEach(learner => {
                 // If learner has a birth certificate number
                 if (learner.birthCertificateNo) {
                     // todo: set up binary search to reduce time
                     let filteredLearnerLocation = [] as number[];
                     let i = 0;
+                    // @ts-ignore
                     let filteredLearner = listLearner.filter(x => {
                         if (x.birthCertificateNo === learner.birthCertificateNo) {
                             filteredLearnerLocation.push(i);

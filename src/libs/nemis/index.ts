@@ -13,25 +13,35 @@ import qs from "qs";
 import { gradeToNumber } from "@libs/converts";
 import NemisApiService from "./api_handler";
 import { Tabletojson as tableToJson } from "tabletojson";
-import { Grades, StateObject } from "../../../types/nemisApiTypes";
+import { Grade } from "../../../types/nemisApiTypes/institution";
 import { z } from "zod";
 import { utcToZonedTime } from "date-fns-tz";
 import {
-    EDUCATION_SYSTEM,
-    INSTITUTION_ACCOMMODATION_TYPE,
-    INSTITUTION_CATEGORY,
-    INSTITUTION_GENDER,
-    INSTITUTION_LEVEL,
-    INSTITUTION_MOBILITY_TYPE,
-    INSTITUTION_OWNER_TYPE,
-    INSTITUTION_REGISTRATION_STATUS,
-    INSTITUTION_RESIDENCE,
-    INSTITUTION_TYPE,
-    OWNERSHIP_DOCUMENT_TYPE
+    Z_INST_ACCOMMODATION,
+    Z_INST_CATEGORY,
+    Z_INST_EDUCATION_LEVEL,
+    Z_INST_EDUCATION_SYSTEM,
+    Z_INST_GENDER,
+    Z_INST_MOBILITY,
+    Z_INST_OWNERSHIP,
+    Z_INST_OWNERSHIP_DOCUMENT,
+    Z_INST_REGISTRATION_STATUS,
+    Z_INST_RESIDENCE,
+    Z_INST_TYPE
 } from "@libs/nemis/constants";
-import { gradesSchema } from "@libs/zod_validation";
+import { Z_GRADE, Z_STRING } from "@libs/constants";
 
-const homeDir = process.env.HOME_DIR;
+type StateObject = {
+    __VIEWSTATEGENERATOR: string;
+    __EVENTARGUMENT?: string;
+    __VIEWSTATE: string;
+    __VIEWSTATEENCRYPTED?: string;
+    __LASTFOCUS?: string;
+    __EVENTTARGET?: string;
+    __EVENTVALIDATION: string;
+};
+
+const homeDir = process.cwd();
 const nemisBaseUrl = process.env.BASE_URL;
 
 // noinspection SpellCheckingInspection
@@ -56,61 +66,64 @@ class NemisWebService {
 
     recordsPerPage: string = '10000';
     validations = {
-        institutionSchema: z.object({
-            //Institution Bio Data Tab
-            name: z.coerce.string().toLowerCase().trim(),
-            knecCode: z.coerce.string().toLowerCase().trim(),
-            code: z.coerce.string().toLowerCase().trim(),
-            gender: z.string().trim().pipe(z.enum(INSTITUTION_GENDER)),
-            supportedGrades: z.array(gradesSchema),
-            registrationNumber: z.coerce.string().toLowerCase().trim(),
-            tscCode: z.coerce.string().toLowerCase().trim(),
-            type: z.string().trim().pipe(z.enum(INSTITUTION_TYPE)),
-            registrationStatus: z.string().trim().pipe(z.enum(INSTITUTION_REGISTRATION_STATUS)),
-            accommodation: z.string().trim().pipe(z.enum(INSTITUTION_ACCOMMODATION_TYPE)),
-            category: z.string().trim().pipe(z.enum(INSTITUTION_CATEGORY)),
-            educationLevel: z
-                .string()
-                .trim()
-                .pipe(z.enum(INSTITUTION_LEVEL))
-                .transform(level => {
-                    return {
-                        description: level,
-                        code: INSTITUTION_LEVEL.findIndex(x => level === x) + 1
-                    };
-                }),
-            institutionMobility: z.string().trim().pipe(z.enum(INSTITUTION_MOBILITY_TYPE)),
-            residence: z.string().trim().pipe(z.enum(INSTITUTION_RESIDENCE)),
-            educationSystem: z.string().trim().pipe(z.enum(EDUCATION_SYSTEM)),
-            constituency: z.coerce.string().toLowerCase().trim(),
-            kraPin: z.coerce.string().toLowerCase().trim(),
-            // plusCode:
-            // document.querySelector("#PlusCode")?.attrs?.value?.toLowerCase()||''
-            //,
-            registrationDate: z.coerce.string().toLowerCase().trim(),
-            ward: z.coerce.string().toLowerCase().trim(),
-            zone: z.coerce.string().toLowerCase().trim(),
-            county: z.coerce.string().toLowerCase().trim(),
-            subCounty: z.coerce.string().toLowerCase().trim(),
-            cluster: z.coerce.string().toLowerCase().trim(),
-            // Ownership Details Tab
-            ownership: z.string().trim().pipe(z.enum(INSTITUTION_OWNER_TYPE)),
-            ownershipDocument: z.string().trim().pipe(z.enum(OWNERSHIP_DOCUMENT_TYPE)),
-            owner: z.coerce.string().toLowerCase().trim(),
-            incorporationCertificateNumber: z.coerce.string().toLowerCase().trim(),
-            nearestPoliceStation: z.coerce.string().toLowerCase().trim(),
-            nearestHealthFacility: z.coerce.string().toLowerCase().trim(),
-            nearestTown: z.coerce.string().toLowerCase().trim(),
-            //Institution Contacts Tab
-            postalAddress: z.coerce.string().toLowerCase().trim(),
-            telephoneNumber: z.coerce.string().toLowerCase().trim(),
-            mobileNumber: z.coerce.string().toLowerCase().trim(),
-            altTelephoneNumber: z.coerce.string().toLowerCase().trim(),
-            altMobileNumber: z.coerce.string().toLowerCase().trim(),
-            email: z.coerce.string().toLowerCase().trim(),
-            website: z.coerce.string().toLowerCase().trim(),
-            socialMediaHandles: z.coerce.string().toLowerCase().trim()
-        })
+        institutionSchema: z
+            .object({
+                //Institution Bio Data Tab
+                name: Z_STRING,
+                knecCode: Z_STRING,
+                code: Z_STRING,
+                gender: Z_INST_GENDER,
+                supportedGrades: z.array(Z_GRADE),
+                registrationNumber: Z_STRING,
+                tscCode: Z_STRING,
+                type: Z_INST_TYPE,
+                registrationStatus: Z_INST_REGISTRATION_STATUS,
+                accommodation: Z_INST_ACCOMMODATION,
+                category: Z_INST_CATEGORY,
+                educationLevel: Z_INST_EDUCATION_LEVEL,
+                institutionMobility: Z_INST_MOBILITY,
+                residence: Z_INST_RESIDENCE,
+                educationSystem: Z_INST_EDUCATION_SYSTEM,
+                constituency: Z_STRING,
+                kraPin: Z_STRING,
+                // plusCode:
+                // document.querySelector("#PlusCode")?.attrs?.value?.toLowerCase()||''
+                //,
+                registrationDate: Z_STRING,
+                ward: Z_STRING,
+                zone: Z_STRING,
+                county: Z_STRING,
+                subCounty: Z_STRING,
+                cluster: Z_STRING,
+                // Ownership Details Tab
+                ownership: Z_INST_OWNERSHIP,
+                ownershipDocument: Z_INST_OWNERSHIP_DOCUMENT,
+                owner: Z_STRING,
+                incorporationCertificateNumber: Z_STRING,
+                nearestPoliceStation: Z_STRING,
+                nearestHealthFacility: Z_STRING,
+                nearestTown: Z_STRING,
+                //Institution Contacts Tab
+                postalAddress: Z_STRING,
+                telephoneNumber: Z_STRING,
+                mobileNumber: Z_STRING,
+                altTelephoneNumber: Z_STRING,
+                altMobileNumber: Z_STRING,
+                email: Z_STRING,
+                website: Z_STRING,
+                socialMediaHandles: Z_STRING
+            })
+            .partial()
+            .required({
+                name: true,
+                knecCode: true,
+                code: true,
+                gender: true,
+                supportedGrades: true,
+                educationLevel: true,
+                county: true,
+                subCounty: true
+            })
     };
     protected readonly axiosInstance: AxiosInstance;
     protected readonly SECURE_HEADERS = {
@@ -123,7 +136,7 @@ class NemisWebService {
         host: 'nemis.education.go.ke'
     };
     //Axios instance
-    protected stateObject: StateObject | undefined = undefined;
+    protected stateObject;
     #cookie: string | undefined = undefined;
 
     constructor(cookie?: string, stateObject?: StateObject) {
@@ -313,7 +326,7 @@ class NemisWebService {
      *  since the number of results per page persists over request if over multiple pages, we use
      *  this method to check if we really need to change the number of results per page
      */
-    async changeResultsPerPage(url: string, gradeOrForm?: Grades) {
+    async changeResultsPerPage(url: string, gradeOrForm?: Grade) {
         try {
             let getResponse = await this.axiosInstance.get(url);
             // Check if we all getting the entire list

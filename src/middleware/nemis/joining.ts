@@ -7,7 +7,6 @@ import { Request } from "express";
 import learner from "@database/learner";
 import { NemisWebService } from "@libs/nemis";
 import CustomError from "@libs/error_handler";
-import { CaptureBiodataResponse } from "types/nemisApiTypes";
 import { uniqueIdentifierSchema } from "@libs/zod_validation";
 import LearnerHandler from "@libs/nemis/learner_handler";
 import { ListAdmittedLearners } from "../../../types/nemisApiTypes/learner";
@@ -102,6 +101,7 @@ const captureJoiningLearner = async (req: Request) => {
         let results = await Promise.all(
             captureResults.map(x => {
                 if (x.status === 'fulfilled') {
+                    // @ts-ignore
                     let value = x.value as [(typeof learnerNotCaptured)[number], CaptureBiodataResponse];
 
                     value[0].upi = value[1].upi;

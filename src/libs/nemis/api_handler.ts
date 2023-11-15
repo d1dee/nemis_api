@@ -9,7 +9,7 @@ import CustomError from "@libs/error_handler";
 import axios from "axios";
 import { lowerCaseAllValues, medicalConditionDesc, nationalities } from "@libs/converts";
 import { z } from "zod";
-import { GENDER_SCHEMA } from "@libs/nemis/constants";
+import { Z_GENDER } from "@libs/constants";
 
 const apiAuthorization = process.env.NEMIS_API_AUTH;
 const apiBaseUrl = 'http://nemis.education.go.ke/generic2/api'; // https is not supported
@@ -21,7 +21,7 @@ export default class {
                 xcat: z.string(),
                 xcatdesc: z.string(),
                 upi: z.string(),
-                names: z.coerce.string().transform(x => x.replaceAll(',', '')),
+                names: z.string().transform(x => x.replaceAll(',', '')),
                 surname: z.string(),
                 firstname: z.string(),
                 othernames: z.string(),
@@ -124,7 +124,7 @@ export default class {
         resultsSchema: z
             .object({
                 index_no: z.string().trim(),
-                ge: GENDER_SCHEMA,
+                ge: Z_GENDER,
                 name: z.string().trim(),
                 school_name: z.string().trim(),
                 tot: z.string().trim(),

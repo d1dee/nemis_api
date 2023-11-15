@@ -3,7 +3,7 @@
  */
 
 //converts county names adn sub county names to their respective code as per nemis
-import { Grades } from "types/nemisApiTypes";
+import { Grade } from "types/nemisApiTypes/institution";
 import { formatInTimeZone } from "date-fns-tz";
 
 export const countyToNo = (county?: string, subCounty?: string) => {
@@ -1445,12 +1445,9 @@ export const countyToNo = (county?: string, subCounty?: string) => {
             break;
         //if not matched return undefined to be handled by the calling function
         default:
-            return undefined;
+            return new Error('An unknown county was supplied.');
     }
-    return {
-        countyNo: countyNo,
-        subCountyNo: subCountyNo
-    };
+    return [countyNo, subCountyNo];
 };
 //converts nationalities to their respective codes and vice-vasa as per nemis
 export const nationalities = (nationality: number | string): number | string => {
@@ -1519,7 +1516,7 @@ export const nationalities = (nationality: number | string): number | string => 
 };
 
 //converts classes as per nemis
-export const gradeToNumber = (grade: Grades) => {
+export const gradeToNumber = (grade: Grade) => {
     if (!grade) throw new Error('Grade was not defined.');
     switch (grade) {
         case 'form 1':

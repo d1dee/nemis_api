@@ -3,7 +3,7 @@
  */
 
 import mongoose from "mongoose";
-import { GRADES, MEDICAL_CONDITIONS } from "@libs/zod_validation";
+import { GRADES, MEDICAL_CONDITIONS } from "@libs/constants";
 import { archiveSchema, dateTimeSchema, geoLocationSchema } from "@database/shared_schemas";
 import { dateTime } from "@libs/converts";
 
@@ -20,20 +20,20 @@ export const parentInfoSchema = {
     id: String
 };
 
-export const learnerTransferSchema = new mongoose.Schema({
+export const learnerTransferSchema = {
     transferredOn: { type: dateTimeSchema, required: true },
-    transferReason: String,
-    transferMethod: {
+    reason: String,
+    method: {
         type: String,
         enum: ["in,'out"] as const,
         required: true
     },
     institution: {
-        code: { type: String, required: true },
+        code: { type: String },
         name: { type: String, required: true },
         _id: { type: mongoose.Schema.Types.ObjectId, ref: 'institution' }
     }
-});
+};
 
 export const continuingLearnerSchema = {
     remarks: String,
@@ -102,7 +102,7 @@ export const learnerSchema = new mongoose.Schema({
         index: true,
         collation: { locale: 'en', strength: 2 }
     },
-    kcpeYear: { type: Number, default: new Date().getFullYear(), required: true },
+    kcpeYear: { type: Number, default: new Date().getFullYear() - 1, required: true },
     indexNo: {
         type: String,
         sparse: true,
@@ -125,8 +125,9 @@ export const learnerSchema = new mongoose.Schema({
         ref: 'nemisLearner'
     },
 
-    transfer: learnerTransferSchema,
+    transfer: { type: learnerTransferSchema },
     // If learner was added as a continuing learner
+    isContinuing: Boolean,
     continuing: continuingLearnerSchema,
 
     // Contacts details

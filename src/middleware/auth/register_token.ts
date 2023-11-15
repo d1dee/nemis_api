@@ -37,7 +37,7 @@ export default async (req: Request) => {
             username: username,
             password: password,
             isArchived: false,
-            token: { currentToken: tokenId }
+            currentToken: tokenId
         };
 
         if (previousRegistration)
@@ -45,19 +45,18 @@ export default async (req: Request) => {
                 previousRegistration._id,
                 {
                     archived: false,
-                    $push: { 'token.archivedTokens': previousRegistration.token.currentToken },
-                    'toke.currentToken': tokenId,
+                    currentToken: tokenId,
                     username: username,
                     password: password
                 },
                 { returnDocument: 'after' }
             );
-        else await institutionModel.create(institutionDocument);
+        else institutionDocument = await institutionModel.create(institutionDocument);
 
         req.token = tokenObject;
 
         return req.respond.sendResponse(
-            { ...institutionDocument.toObject(), token: tokenObject },
+            { ...institutionDocument.toObject(), currentToken: tokenObject },
             'Institution registered successfully.',
             201
         );

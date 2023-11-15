@@ -9,7 +9,7 @@ import { sendErrorMessage } from "../utils/middleware_error_handler";
 import { NemisWebService } from "@libs/nemis";
 import LearnerHandler from "@libs/nemis/learner_handler";
 import { uniqueIdentifierSchema } from "@libs/zod_validation";
-import { Grades } from "../../../types/nemisApiTypes";
+import { Grade } from "../../../types/nemisApiTypes/institution";
 import { LearnerDocument, ListLearners, SearchLearner } from "../../../types/nemisApiTypes/learner";
 import NemisApi from "@libs/nemis/api_handler";
 
@@ -53,7 +53,7 @@ const captureContinuingLearner = async (req: Request) => {
             )
         );
 
-        let mappedListLearner: { [K in Grades]?: ListLearners } = {};
+        let mappedListLearner: { [K in Grade]?: ListLearners } = {};
 
         listLearner.forEach((list, i) => {
             Object.assign(mappedListLearner, {
