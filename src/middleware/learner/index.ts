@@ -3,6 +3,7 @@
  */
 import { z } from "zod";
 import {
+    Z_DATE_TIME,
     Z_GENDER,
     Z_GRADE,
     Z_ID,
@@ -11,11 +12,12 @@ import {
     Z_NAMES,
     Z_NATIONALITIES,
     Z_NUMBER,
+    Z_NUMBER_STRING,
     Z_PHONE_NUMBER,
     Z_STRING,
     Z_TRANSFER_METHOD
 } from "@libs/constants";
-import { countyToNo, dateTime, lowerCaseAllValues } from "@libs/converts";
+import { countyToNo, dateTime } from "@libs/converts";
 import CustomError from "@libs/error_handler";
 import { validateExcel } from "@libs/import_excel";
 import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
@@ -25,12 +27,14 @@ import learner from "@database/learner";
 import { sub } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { sync } from "@libs/sync_api_database";
+import { fromZodError } from "zod-validation-error";
 
 export default class Learner {
     private readonly req;
     private readonly sendResponse;
     private partial: any = {
         transferredOn: true,
+        subCounty: true,
         transferredFrom: true,
         transferMethod: true,
         transferReason: true,
@@ -58,12 +62,7 @@ export default class Learner {
             .object({
                 adm: z.union([Z_STRING, Z_NUMBER]),
                 name: Z_NAMES,
-                dob: z.coerce
-                    .date({
-                        invalid_type_error:
-                            'Invalid date was provided, make sure date of birth is in the format "YYYY/MM/DD"'
-                    })
-                    .transform(date => dateTime(date)),
+                dob: Z_DATE_TIME,
                 grade: Z_GRADE,
                 stream: Z_STRING,
                 upi: Z_STRING.min(4),
@@ -78,10 +77,10 @@ export default class Learner {
                 guardianTel: Z_PHONE_NUMBER,
                 guardianId: Z_ID,
 
-                address: Z_STRING,
+                address: Z_NUMBER_STRING,
                 county: Z_STRING,
                 subCounty: Z_STRING,
-                birthCertificateNo: Z_STRING,
+                birthCertificateNo: Z_NUMBER_STRING,
                 medicalCondition: Z_MEDICAL_CONDITION,
                 isSpecial: z.boolean().default(false),
                 marks: Z_NUMBER.min(0).max(500),
@@ -94,7 +93,7 @@ export default class Learner {
 
                 nationality: Z_NATIONALITIES,
                 continuing: z.boolean().default(false),
-                kcpeYear: Z_NUMBER.pipe(Z_STRING.min(4)).default(new Date().getFullYear())
+                kcpeYear: Z_NUMBER.default(new Date().getFullYear()).pipe(Z_STRING.min(4))
             })
             .partial(this.partial)
             .transform((learner, ctx) => {
@@ -197,8 +196,29 @@ export default class Learner {
                     400
                 );
             }
+
+            let excelJson = validateExcel(this.req.body.file);
+            if (!Array.isArray(excelJson))
+                throw new CustomError(
+                    `File validation failed. Expected and array but instead received ${typeof excelJson}`
+                );
             // Validate requested fil
-            let learnerJson = this.validateLearnerJson(validateExcel(this.req.body.file));
+            let validResults = [];
+            let invalidResults = [];
+
+            excelJson.forEach(learner => {
+                let res = this.validations.learner.safeParse(excelJson);
+                if (res.success) validResults.push(res.data);
+                else
+                    invalidResults.push({
+                        invalidObject: learner,
+                        errorMessage: fromZodError(res.error)
+                    });
+            });
+
+            if (invalidResults.length > 0) {
+                this.req.respond.sendError(403, 'validation failed', validationResults);
+            }
 
             // await this.handleValidatedData(learnerJson);
         } catch (err: any) {
@@ -210,10 +230,10 @@ export default class Learner {
         try {
             // Validate requested learner
             let validatedLearner = Array.isArray(this.req.body)
-                ? this.req.body.map(learner => this.validateLearnerJson(lowerCaseAllValues(learner)))
-                : [this.validateLearnerJson(lowerCaseAllValues(this.req.body))];
+                ? z.array(this.validations.learner).safeParse(learner)
+                : this.validations.learner.safeParse(this.req.body);
 
-            await this.handleValidatedData(validatedLearner);
+            await this.handleValidatedData([]);
         } catch (err: any) {
             sendErrorMessage(this.req, err);
         }
@@ -425,19 +445,4 @@ export default class Learner {
             sendErrorMessage(this.req, err);
         }
     }
-
-    /**
-     Validates a learner object based on a Zod schema and applies additional custom validation logic.
-     Returns a Learner object if the validation is successful,
-     or a Learner object with a validation error property if the validation fails.
-     */
-
-    validateLearnerJson = (learnerJson: any[]) => {
-        try {
-            let validate = this.validations.learner.parse(learnerJson[0]);
-            return validate;
-        } catch (err: any) {
-            throw err;
-        }
-    };
 }
