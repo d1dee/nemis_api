@@ -11,7 +11,7 @@ const learnerRoute = Router();
 
 // Add continuing and joining learners
 learnerRoute.post(['/add/joining/json', '/add/continuing/json'], (req: Request) =>
-    new Learner(req).addLearnerByJson()
+    new Learner(req).learnerValidation(req.body)
 );
 learnerRoute.post(
     ['/add/joining/excel', '/add/continuing/excel'],

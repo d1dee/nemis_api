@@ -52,7 +52,7 @@ export const Z_NUMBER = z.coerce.number();
 export const Z_GENDER = Z_STRING.transform(gender => (gender.startsWith('m') ? 'male' : 'female')).pipe(
     z.enum(GENDER)
 );
-export const Z_NUMBER_STRING = z.union([Z_STRING, Z_NUMBER.transform(val => String(val))]);
+export const Z_NUMBER_STRING = z.union([Z_STRING, Z_NUMBER.pipe(z.coerce.string())]);
 export const Z_GRADE = Z_STRING.pipe(z.enum(GRADES));
 export const Z_PHONE_NUMBER = Z_NUMBER_STRING.transform(val =>
     val.length === 9 && val.startsWith('7') ? val.padStart(10, '0') : val
@@ -77,10 +77,29 @@ export const Z_INDEX_NUMBER = Z_NUMBER_STRING.pipe(
         'Index number should be 11 characters long, if index number starts with a zero (0), make sure it is included.'
     )
 );
-export const Z_TRANSFER_METHOD = Z_STRING.pipe(z.enum(["in,'out"]));
+export const Z_TRANSFER_METHOD = Z_STRING.pipe(z.enum(['in', 'out']));
 export const Z_NATIONALITIES = Z_STRING.default('kenya').pipe(z.enum(NATIONALITY));
 export const Z_CONTACTS = z.object({
     name: Z_STRING,
     tel: Z_STRING,
     id: Z_STRING
 });
+
+export const LEARNER_FIELDS = [
+    'name',
+    'adm',
+    'grade',
+    'dob',
+    'stream',
+    'upi',
+    'gender',
+    'subCounty',
+    'birthCertificateNo',
+    'medicalCondition',
+    'isSpecial',
+    'marks',
+    'indexNo',
+    'nationality',
+    'continuing',
+    'kcpeYear'
+] as const;

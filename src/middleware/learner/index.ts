@@ -3,17 +3,16 @@
  */
 import { z } from "zod";
 import {
+    LEARNER_FIELDS,
     Z_DATE_TIME,
     Z_GENDER,
     Z_GRADE,
-    Z_ID,
     Z_INDEX_NUMBER,
     Z_MEDICAL_CONDITION,
     Z_NAMES,
     Z_NATIONALITIES,
     Z_NUMBER,
     Z_NUMBER_STRING,
-    Z_PHONE_NUMBER,
     Z_STRING,
     Z_TRANSFER_METHOD
 } from "@libs/constants";
@@ -25,59 +24,49 @@ import { Request } from "express";
 import learnerModel from "@database/learner";
 import learner from "@database/learner";
 import { sub } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz";
 import { sync } from "@libs/sync_api_database";
 import { fromZodError } from "zod-validation-error";
+import { Z_PARENT_CONTACTS, Z_STRING_TO_ARRAY, Z_TRANSFER } from "@middleware/constants";
+import {
+    DefaultLearnerValidationFields,
+    ExtraValidationFields,
+    LearnerValidationFields,
+    ValidLearner
+} from "../../../types/nemisApiTypes/learner";
 
 export default class Learner {
-    private readonly req;
-    private readonly sendResponse;
-    private partial: any = {
-        transferredOn: true,
-        subCounty: true,
-        transferredFrom: true,
-        transferMethod: true,
-        transferReason: true,
-        medicalCondition: true,
-        isSpecial: true,
-        nationality: true,
-        upi: true,
-        continuing: true,
-        address: true,
-        marks: true,
-        kcpeYear: true,
-        // All parents are optional so that we can later check for complete parent data during transform()
-        fatherName: true,
-        fatherTel: true,
-        fatherId: true,
-        motherName: true,
-        motherTel: true,
-        motherId: true,
-        guardianName: true,
-        guardianTel: true,
-        guardianId: true
-    };
-    validations = {
+    private req;
+    private sendResponse;
+
+    private defaultRequiredFields = ['name', 'adm', 'grade'];
+    private defaultExtraFields = ['contacts', 'county'] as const;
+    private required: LearnerValidationFields = { name: true, adm: true, grade: true };
+
+    private requiredExtras: ExtraValidationFields[] = [];
+
+    public validations = {
+        listLearnerQuery: z
+            .object({
+                limit: Z_NUMBER.multipleOf(10, 'Limit must be multiple of 10'),
+                grade: Z_STRING_TO_ARRAY.pipe(z.array(Z_GRADE)),
+                gender: Z_STRING_TO_ARRAY.pipe(z.array(Z_GENDER)),
+                transferred: Z_STRING_TO_ARRAY.pipe(z.array(Z_TRANSFER_METHOD)),
+                stream: Z_STRING_TO_ARRAY,
+                withUpi: Z_STRING.transform(arg => arg === 'true'),
+                withError: Z_STRING.transform(arg => arg === 'true'),
+                name: Z_STRING.min(3, 'Name string must be at least 3 letters long.'),
+                age: Z_NUMBER.min(3, 'Minimum age is 3 years')
+            })
+            .partial(),
         learner: z
             .object({
-                adm: z.union([Z_STRING, Z_NUMBER]),
+                adm: z.union([Z_STRING, Z_NUMBER.pipe(z.coerce.string())]),
                 name: Z_NAMES,
                 dob: Z_DATE_TIME,
                 grade: Z_GRADE,
                 stream: Z_STRING,
                 upi: Z_STRING.min(4),
                 gender: Z_GENDER,
-                fatherName: Z_NAMES,
-                fatherTel: Z_PHONE_NUMBER,
-                fatherId: Z_ID,
-                motherName: Z_NAMES,
-                motherTel: Z_PHONE_NUMBER,
-                motherId: Z_ID,
-                guardianName: Z_NAMES,
-                guardianTel: Z_PHONE_NUMBER,
-                guardianId: Z_ID,
-
-                address: Z_NUMBER_STRING,
                 county: Z_STRING,
                 subCounty: Z_STRING,
                 birthCertificateNo: Z_NUMBER_STRING,
@@ -85,42 +74,59 @@ export default class Learner {
                 isSpecial: z.boolean().default(false),
                 marks: Z_NUMBER.min(0).max(500),
                 indexNo: Z_INDEX_NUMBER,
-
-                transferredOn: z.coerce.date(),
-                transferReason: Z_STRING,
-                transferMethod: Z_TRANSFER_METHOD,
-                transferredFrom: Z_STRING,
-
                 nationality: Z_NATIONALITIES,
-                continuing: z.boolean().default(false),
-                kcpeYear: Z_NUMBER.default(new Date().getFullYear()).pipe(Z_STRING.min(4))
+                continuing: z.boolean(),
+                kcpeYear: Z_NUMBER_STRING
             })
-            .partial(this.partial)
+            .merge(Z_PARENT_CONTACTS)
+            .merge(Z_TRANSFER)
+            // Make everything optional
+            .partial()
+            // Only require the necessary fields
+            .required(this.required)
+            // Transform to align with database schema
             .transform((learner, ctx) => {
                 let countyNumber = countyToNo(learner.county, learner.subCounty);
-                if (countyNumber instanceof Error && !this.partial?.county) {
+                if (countyNumber instanceof Error && this.requiredExtras.includes('county')) {
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
                         message: `${learner?.county} is not a valid county.`
                     });
-                    return z.never;
+                    z.never();
                 }
+                const [countyNo, subCountyNo] = Array.isArray(countyNumber) ? countyNumber : [];
+
                 const completeContact =
                     (!!learner?.fatherName && !!learner?.fatherTel && !!learner?.fatherId) ||
                     (!!learner?.motherName && !!learner?.motherTel && !!learner?.motherId) ||
                     (!!learner?.guardianName && !!learner?.guardianTel && !!learner?.guardianId);
 
-                if (!completeContact) {
+                if (!completeContact && this.requiredExtras.includes('contacts')) {
                     ctx.addIssue({
                         code: z.ZodIssueCode.custom,
                         message: `At least one parent should have all contact details ie: name, phone number and id number.`
                     });
-                    return z.never;
+                    z.never();
+                }
+                const transferInfo =
+                    learner.transferredOn && learner.transferredFrom && learner.transferMethod
+                        ? {
+                              transferredOn: learner.transferredOn,
+                              institution: { name: learner.transferredFrom },
+                              method: learner.transferMethod,
+                              reason: learner.transferReason
+                          }
+                        : null;
+
+                if (!transferInfo && this.requiredExtras.includes('transfer')) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Transfer information not supplied.`
+                    });
+                    z.never();
                 }
 
-                const [countyNo, subCountyNo] = Array.isArray(countyNumber) ? countyNumber : [];
-
-                let contactDetails = {
+                const parentsContacts = {
                     father: {
                         name: learner?.fatherName,
                         tel: learner?.fatherTel,
@@ -139,17 +145,8 @@ export default class Learner {
                     address: learner.address
                 };
 
-                let transfer =
-                    learner.transferredOn && learner.transferredFrom && learner.transferMethod
-                        ? {
-                              transferredOn: learner.transferredOn,
-                              institution: { name: learner.transferredFrom },
-                              method: learner.transferMethod,
-                              reason: learner.transferReason
-                          }
-                        : null;
-
                 return {
+                    institutionId: this.req.institution._id,
                     adm: learner.adm,
                     name: learner.name,
                     gender: learner.gender,
@@ -164,10 +161,9 @@ export default class Learner {
                     indexNo: learner.indexNo,
                     marks: learner.marks,
 
-                    transfer: transfer,
+                    transfer: transferInfo,
                     isContinuing: learner?.continuing,
-                    contactDetails: contactDetails,
-
+                    contactDetails: parentsContacts,
                     geoLocationDetails: {
                         county: learner.county,
                         subCounty: learner.subCounty,
@@ -184,7 +180,7 @@ export default class Learner {
 
     constructor(req: Request) {
         this.req = req;
-        this.sendResponse = this.req.respond.sendResponse;
+        this.sendResponse = req.respond.sendResponse;
     }
 
     async addLearnerByFile() {
@@ -202,150 +198,151 @@ export default class Learner {
                 throw new CustomError(
                     `File validation failed. Expected and array but instead received ${typeof excelJson}`
                 );
-            // Validate requested fil
-            let validResults = [];
-            let invalidResults = [];
+            await this.learnerValidation(excelJson);
+        } catch (err: any) {
+            sendErrorMessage(this.req, err);
+        }
+    }
 
-            excelJson.forEach(learner => {
-                let res = this.validations.learner.safeParse(excelJson);
+    addLearnerIgnoreList(
+        requiredFields: DefaultLearnerValidationFields[],
+        requiredExtra: ExtraValidationFields[]
+    ) {
+        let userIgnoreList = this.req.query?.ignore;
+        if (!userIgnoreList) {
+            this.required = Object.fromEntries(requiredFields.map(field => [field, true]));
+            this.requiredExtras = requiredExtra;
+            return;
+        }
+
+        if (typeof userIgnoreList === 'string') {
+            let parsedIgnoreList = userIgnoreList.split(',');
+
+            let erroredElements: string[] = [],
+                ignoreExtras: ExtraValidationFields[] = [],
+                ignoreList = LEARNER_FIELDS.filter(element => !this.defaultRequiredFields.includes(element));
+
+            parsedIgnoreList.forEach((element: any) => {
+                if (!ignoreList.includes(element)) {
+                    if (requiredExtra?.includes(element)) {
+                        ignoreExtras.push(element);
+                    } else erroredElements.push(element);
+                }
+            });
+
+            let erroredElementsLength = erroredElements.length;
+            if (erroredElementsLength > 0) {
+                throw new CustomError(
+                    `${erroredElements.join(', ')} ${
+                        erroredElementsLength > 1 ? 'are' : 'is'
+                    } unsupported ignore field(s) or can not be ignored.`
+                );
+            }
+
+            requiredFields = requiredFields.filter(element => !parsedIgnoreList.includes(element));
+
+            Object.assign(this.required, Object.fromEntries(requiredFields.map(e => [e, true])));
+
+            // Check if user wants to skip check for contacts and county fields
+            this.requiredExtras = this.defaultExtraFields.filter(element => !ignoreExtras.includes(element));
+        }
+    }
+
+    async learnerValidation(learners: unknown[]) {
+        try {
+            let learnersArray = !Array.isArray(learners) ? [learners] : learners;
+
+            let validResults = [] as ValidLearner[],
+                invalidResults = [] as {
+                    validationError: string;
+                }[];
+            this.addLearnerIgnoreList(['grade', 'dob', 'gender', 'indexNo', 'marks'], ['county', 'contacts']);
+
+            learnersArray.forEach((learner: any) => {
+                learner.continuing = learner?.continuing ?? this.req.url.includes('continuing');
+                let res = this.validations.learner.safeParse(learner);
                 if (res.success) validResults.push(res.data);
-                else
+                else {
+                    let errorMessage = fromZodError(res.error);
                     invalidResults.push({
-                        invalidObject: learner,
-                        errorMessage: fromZodError(res.error)
+                        ...learner,
+                        validationError: errorMessage.message
                     });
+                }
             });
 
             if (invalidResults.length > 0) {
-                this.req.respond.sendError(403, 'validation failed', validationResults);
+                this.req.respond.sendError(
+                    403,
+                    `Validation failed. ${invalidResults.length} learner failed validation.`,
+                    invalidResults
+                );
             }
-
-            // await this.handleValidatedData(learnerJson);
-        } catch (err: any) {
-            sendErrorMessage(this.req, err);
-        }
-    }
-
-    async addLearnerByJson() {
-        try {
-            // Validate requested learner
-            let validatedLearner = Array.isArray(this.req.body)
-                ? z.array(this.validations.learner).safeParse(learner)
-                : this.validations.learner.safeParse(this.req.body);
-
-            await this.handleValidatedData([]);
-        } catch (err: any) {
-            sendErrorMessage(this.req, err);
-        }
-    }
-
-    async handleValidatedData(validatedJson: any[]) {
-        let validationError = validatedJson.filter(x => !!x.validationError);
-        if (validationError.length > 0) {
-            throw new CustomError(
-                'Validation error.' +
-                    'One or more fields failed to validate. Please check the following errors',
-                400,
-                validationError
+            await this.addLearnerToDatabase(validResults);
+            this.req.respond.sendResponse(
+                validResults,
+                `${validResults.length} learner(s) added to database.`
             );
+        } catch (err: any) {
+            sendErrorMessage(this.req, err);
         }
-
-        let insertedDocs = await Promise.all(
-            validatedJson.map(learner =>
-                learnerModel.findOneAndUpdate(
-                    { adm: { $eq: learner.adm } },
-                    {
-                        ...learner,
-                        institutionId: this.req.institution._id,
-                        continuing: learner.continuing
-                            ? learner.continuing
-                            : this.req.url.includes('continuing'),
-                        archived: false
-                    },
-                    {
-                        upsert: true,
-                        returnDocument: 'after'
-                    }
-                )
-            )
-        );
-        this.sendResponse(insertedDocs, `${insertedDocs.length} learners added to the database.`);
     }
 
     async listLearner() {
         try {
-            // Validatethis.req.query
-            let query = z
-                .object({
-                    limit: z.coerce
-                        .number({ invalid_type_error: 'Limit must be a number.' })
-                        .multipleOf(10, 'Limit must be multiple of 10'),
-                    grade: Z_GRADE,
-                    gender: Z_GENDER,
-                    transferred: z.enum(['in', 'out']),
-                    stream: z.coerce.string(),
-                    withUpi: z.coerce
-                        .string()
-                        .toLowerCase()
-                        .transform(arg => arg === 'true'),
-                    withError: z.coerce
-                        .string()
-                        .toLowerCase()
-                        .transform(arg => arg === 'true'),
-                    name: z.coerce.string().min(3, 'Name string must be at least 3 letters long.'),
-                    age: z.coerce.number().min(3, 'Minimum age is 3 years')
-                })
-                .partial()
-                .transform(value => {
-                    Object.assign(value, { upi: value.withUpi, error: value.withError });
-                    return value;
-                })
+            let query = this.validations.listLearnerQuery.parse(this.req.query);
+            let queryObject = { institutionId: this.req.institution._id, 'archived.isArchived': false };
 
-                .parse(this.req.query);
-            // Construct a database query from req.query
-            let queryObject = { institutionId: this.req.institution._id, archived: false };
-
-            Object.entries(query).forEach(keyValue => {
-                switch (keyValue[0]) {
+            for (const [key, value] of Object.entries(query) as [
+                keyof typeof query,
+                (typeof query)[keyof typeof query]
+            ][]) {
+                switch (key) {
                     case 'grade':
                     case 'gender':
-                    case 'stream':
-                        Object.assign(queryObject, { [keyValue[0]]: { $eq: keyValue[1] } });
+                    case 'stream': {
+                        if (Array.isArray(value)) Object.assign(queryObject, { [key]: { $in: value } });
                         break;
-
-                    case 'error':
-                    case 'upi':
-                        if (keyValue[1] !== undefined)
+                    }
+                    case 'withUpi':
+                        if (typeof value === 'boolean')
                             Object.assign(queryObject, {
-                                [keyValue[0]]: keyValue[1]
-                                    ? {
-                                          $exists: true,
-                                          $nin: [null, undefined, '']
-                                      }
+                                upi: value
+                                    ? { $exists: true, $nin: [null, undefined, ''] }
+                                    : { $exists: false, $in: [null, undefined, ''] }
+                            });
+                        break;
+                    case 'withError':
+                        if (typeof value === 'boolean')
+                            Object.assign(queryObject, {
+                                error: value
+                                    ? { $exists: true, $nin: [null, undefined, ''] }
                                     : { $exists: false, $in: [null, undefined, ''] }
                             });
                         break;
                     case 'age':
-                        if (query.age)
+                        if (typeof value === 'number')
                             Object.assign(queryObject, {
                                 dob: {
-                                    $lte: sub(new Date(), { years: query.age - 1, months: 6 }),
-                                    $gte: sub(new Date(), { years: query.age, months: 6 })
+                                    $lte: sub(new Date(), { years: value - 1, months: 6 }),
+                                    $gte: sub(new Date(), { years: value, months: 6 })
                                 }
                             });
                         break;
                     case 'transferred':
-                        if (query.transferred === 'in') {
-                            Object.assign(queryObject, { transferred: { $exists: true } });
-                        }
+                        if (value)
+                            Object.assign(queryObject, {
+                                transfer: { $exists: true },
+                                'transfer.method': { $in: value }
+                            });
                 }
-            });
+            }
 
             let data = query?.limit
                 ? await learnerModel.find(queryObject).limit(query.limit)
-                : await learnerModel.find(queryObject);
+                : await learnerModel.find(queryObject).limit(50);
 
-            this.sendResponse(data);
+            this.req.respond.sendResponse(data, `Query returned ${data.length} learners`);
         } catch (err) {
             sendErrorMessage(this.req, err);
         }
@@ -356,8 +353,8 @@ export default class Learner {
             let id = z
                 .string({
                     required_error:
-                        'Unique identifier missing.To delete a learner, a unique identifier must be provided. The identifier can be either the UPI, birth certificate number, or admission number.',
-                    invalid_type_error: ' Unique identifier must be a string.'
+                        'Unique identifier missing. In order to search a learner, an unique identifier must be provided which can either be: UPI, birth certificate number, or admission number.',
+                    invalid_type_error: 'Unique identifier must be a string.'
                 })
                 .max(15, ' expected a string of less than 15 characters.')
                 .parse(this.req.params?.id);
@@ -368,6 +365,7 @@ export default class Learner {
                     [field]: { $eq: id }
                 }))
             });
+
             if (!searchLearner) {
                 throw new CustomError(
                     'No active learner found with the provided adm, birth certificate number or upi.' +
@@ -375,7 +373,7 @@ export default class Learner {
                     404
                 );
             }
-            this.sendResponse(
+            this.req.respond.sendResponse(
                 searchLearner,
                 (searchLearner?.archived?.isArchived ? 'An archived learner ' : 'Learner ') +
                     'with the provided adm, birth certificate or upi was found.'
@@ -387,9 +385,9 @@ export default class Learner {
 
     async syncLearnerDatabase() {
         try {
-            this.sendResponse(
+            this.req.respond.sendResponse(
                 undefined,
-                'Database sync has been initiated. This might take a while, depending on how responsive the Nemis website is. '
+                'Database sync has been initiated. This might take a while, depending on how responsive the NEMIS website is. '
             );
             await sync(this.req.institution);
         } catch (err) {
@@ -408,7 +406,6 @@ export default class Learner {
                     reason: z.string({ required_error: 'Archive reason was not provided.' })
                 })
                 .parse(this.req.query);
-            await learnerModel.updateMany({}, { archived: null });
 
             let learner = await learnerModel.find({
                 institutionId: this.req.institution._id,
@@ -424,9 +421,8 @@ export default class Learner {
                 );
             }
             if (learner.length > 1) {
-                throw new CustomError('More than one learner was returned with the provided id.', 400);
+                throw new CustomError('More than one learner was returned with the provided id. ', 400);
             }
-            let f = formatInTimeZone(new Date(), 'Africa/Nairobi', 'yyyy-MM-dd HH:mm:ss zzz');
             let archivedLearner = await Object.assign(learner[0], {
                 archived: {
                     isArchived: true,
@@ -435,14 +431,24 @@ export default class Learner {
                 }
             }).save();
 
-            /*await learner[0].updateOne(
-                { archived: { archivedOn: Date.now(), isArchived: true, reason: queryParams.reason } },
-                { returnDocument: 'after' }
-            );*/
-
-            this.sendResponse(archivedLearner.toObject(), 'This learners were successfully archived.');
+            this.req.respond.sendResponse(
+                archivedLearner.toObject(),
+                'This learners were successfully archived.'
+            );
         } catch (err) {
             sendErrorMessage(this.req, err);
+        }
+    }
+
+    private addLearnerToDatabase(validLearners: ValidLearner[]) {
+        try {
+            return Promise.all(
+                validLearners.map(learner =>
+                    learnerModel.updateOne({ adm: learner.adm }, learner, { upsert: true })
+                )
+            );
+        } catch (err) {
+            throw err;
         }
     }
 }

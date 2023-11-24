@@ -7,6 +7,7 @@ import { NextFunction, Request } from "express";
 import CustomError from "@libs/error_handler";
 import { ZodError } from "zod";
 import { AxiosError } from "axios";
+import { fromZodError } from "zod-validation-error";
 
 export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     // If no error and next is not undefined, call next()
@@ -23,14 +24,13 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     }
 
     if (err instanceof AxiosError) {
-        let nemisErrorFormat = formatNemisErrors(err);
         message = err?.message;
         statusCode = err?.response?.status || 500;
     }
 
     if (err instanceof ZodError) {
         statusCode = 422;
-        message = `Validation error. ${JSON.stringify(err.flatten().fieldErrors)}`;
+        message = fromZodError(err).message;
     }
 
     if (err instanceof SyntaxError) {
@@ -47,5 +47,3 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
 
     return req.respond.sendError(statusCode, message, cause);
 }
-
-const formatNemisErrors = (error: any) => {};

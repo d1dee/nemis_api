@@ -6,6 +6,9 @@ import { Document, InferSchemaType } from "mongoose";
 import { learnerSchema } from "@database/learner";
 import ApiHandler from "@libs/nemis/api_handler";
 import LearnerHandler from "@libs/nemis/learner_handler";
+import { z } from "zod";
+import MiddlewareLearner from "@middleware/learner";
+import { LEARNER_FIELDS } from "@libs/constants";
 
 // Learner as returned by the database.
 export type Learner = InferSchemaType<typeof learnerSchema>;
@@ -28,3 +31,9 @@ export type ListAdmittedLearners = Exclude<
 export type RequestedJoiningLearner = Awaited<ReturnType<LearnerHandler['getApprovedJoiningLearners']>>;
 export type AdmittedLearners = Awaited<ReturnType<LearnerHandler['listAdmittedJoiningLearners']>>;
 export type SelectedLearner = Awaited<ReturnType<LearnerHandler['getSelectedLearners']>>;
+
+type ValidLearner = z.infer<typeof MiddlewareLearner.prototype.validations.learner>;
+type ExtraValidationFields = 'county' | 'contacts' | 'transfer';
+type DefaultLearnerValidationFields = (typeof LEARNER_FIELDS)[number];
+
+export type LearnerValidationFields = { [k in DefaultLearnerValidationFields]?: true };

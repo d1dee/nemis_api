@@ -3,14 +3,13 @@
  */
 
 import { z } from "zod";
-import { utcToZonedTime } from "date-fns-tz";
+import { dateTime } from "@libs/converts";
 
-export const Z_NEMIS_DATE = z.date().pipe(
-    z.string().transform(x => {
-        let dob = x.split('-');
-        return utcToZonedTime([dob[1], dob[0], dob[2]].join('-'), 'Africa/Nairobi');
-    })
-);
+export const Z_NEMIS_DATE = z.string().transform(x => {
+    let dob = x.split('-');
+    return dateTime(new Date([dob[1], dob[0], dob[2]].join('-')));
+});
+
 export const INSTITUTION_OWNER_TYPE = ['GOK', 'Mission', 'Private'] as const;
 export const OWNERSHIP_DOCUMENT_TYPE = ['Lease', 'Title Deed', 'Agreement'] as const;
 export const INSTITUTION_TYPE = ['Public', 'Private'] as const;

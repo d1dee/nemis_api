@@ -31,25 +31,23 @@ type SchoolSelected = {
     category: string;
 };
 
-const apiAuthorization = process.env.NEMIS_API_AUTH;
 const homeDir = process.env.HOME_DIR;
 const debugDir = homeDir + '/debug';
-const nemisBaseUrl = process.env.BASE_URL;
 
 // noinspection SpellCheckingInspection
 export default class extends NemisWebService {
     learnerValidations = {
         listLearnerSchema: z
             .object({
-                'Learner UPI': Z_STRING.trim().toLowerCase(),
-                'Learner Name': Z_STRING.trim().toLowerCase(),
-                Gender: Z_STRING.trim().toLowerCase(),
+                'Learner UPI': Z_STRING,
+                'Learner Name': Z_STRING,
+                Gender: Z_GENDER,
                 'Date of Birth': Z_NEMIS_DATE,
-                AGE: z.coerce.number(),
-                'Birth Cert No': Z_STRING.trim().toLowerCase(),
+                AGE: Z_NUMBER,
+                'Birth Cert No': Z_STRING,
                 Disability: z.coerce.boolean(),
-                'Medical Condition': Z_STRING.trim().toLowerCase(),
-                'Home Phone': Z_STRING.trim().toLowerCase(),
+                'Medical Condition': Z_STRING,
+                'Home Phone': Z_STRING,
                 'NHIF No': Z_STRING
             })
             .transform(learner => ({

@@ -329,6 +329,7 @@ class NemisWebService {
     async changeResultsPerPage(url: string, gradeOrForm?: Grade) {
         try {
             let getResponse = await this.axiosInstance.get(url);
+
             // Check if we all getting the entire list
             let table = htmlParser(getResponse?.data)?.querySelector(
                 '#ctl00_ContentPlaceHolder1_grdLearners'
