@@ -6,7 +6,7 @@ import { Router } from "express";
 import authRouter from "./auth";
 import institutionRouter from "./institution";
 import learner_router from "./learner";
-import { nemisRoute } from "./nemis/nemis_router";
+import { nemisRoute } from "@routes/nemis";
 
 const apiRouter = Router();
 

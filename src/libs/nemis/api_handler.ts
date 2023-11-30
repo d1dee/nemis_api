@@ -9,7 +9,7 @@ import CustomError from "@libs/error_handler";
 import axios from "axios";
 import { lowerCaseAllValues, medicalConditionDesc, nationalities } from "@libs/converts";
 import { z } from "zod";
-import { Z_GENDER } from "@libs/constants";
+import { Z_GENDER, Z_NUMBER, Z_NUMBER_STRING, Z_STRING } from "@libs/constants";
 
 const apiAuthorization = process.env.NEMIS_API_AUTH;
 const apiBaseUrl = 'http://nemis.education.go.ke/generic2/api'; // https is not supported
@@ -18,138 +18,140 @@ export default class {
     apiValidation = {
         searchLearnerSchema: z
             .object({
-                xcat: z.string(),
-                xcatdesc: z.string(),
-                upi: z.string(),
-                names: z.string().transform(x => x.replaceAll(',', '')),
-                surname: z.string(),
-                firstname: z.string(),
-                othernames: z.string(),
-                institution_name: z.string(),
-                phone_number: z.string(),
-                email_address: z.string(),
-                postal_address: z.string(),
-                father_upi: z.string(),
-                mother_upi: z.string(),
-                guardian_upi: z.string(),
-                father_name: z.string(),
-                father_idno: z.string(),
-                father_contacts: z.string(),
-                mother_name: z.string(),
-                mother_idno: z.string(),
-                mother_contacts: z.string(),
-                guardian_contacts: z.string(),
-                guardian_idno: z.string(),
-                guardian_name: z.string(),
-                special_medical_condition: z.string(),
-                any_special_medical_condition: z.string(),
-                institution_code: z.string(),
-                sub_county_code: z.string(),
-                nationality: z.string(),
-                gender: z.string(),
-                lgender: z.string(),
-                dob2: z.string(),
-                birth_cert_no: z.string(),
-                id_no: z.string(),
-                disability_code: z.string(),
-                class_code: z.string(),
-                county_code: z.string(),
-                county_learner: z.string(),
-                sub_county_learner: z.string(),
-                special_needs_list: z.string(),
-                father_email: z.string(),
-                mother_email: z.string(),
-                guardian_email: z.string(),
-                institution_type: z.string(),
-                institution_level_code: z.string(),
-                nhif_no: z.string(),
-                class_name: z.string(),
-                level_name: z.string()
+                xCat: Z_STRING.nullish(),
+                xCatDesc: Z_STRING.nullish(),
+                upi: Z_STRING.nullish(),
+                names: Z_STRING.transform(x => x.replaceAll(',', '')),
+                surname: Z_STRING.nullish(),
+                firstName: Z_STRING.nullish(),
+                otherNames: Z_STRING.nullish(),
+                institution_Name: Z_STRING.nullish(),
+                phone_Number: Z_STRING.nullish(),
+                email_Address: Z_STRING.nullish(),
+                postal_Address: Z_STRING.nullish(),
+                father_UPI: Z_STRING.nullish(),
+                mother_UPI: Z_STRING.nullish(),
+                guardian_UPI: Z_STRING.nullish(),
+                father_Name: Z_STRING.nullish(),
+                father_IDNo: Z_STRING.nullish(),
+                father_Contacts: Z_STRING.nullish(),
+                mother_Name: Z_STRING.nullish(),
+                mother_IDNo: Z_STRING.nullish(),
+                mother_Contacts: Z_STRING.nullish(),
+                guardian_Contacts: Z_STRING.nullish(),
+                guardian_IDNo: Z_STRING.nullish(),
+                guardian_Name: Z_STRING.nullish(),
+                special_Medical_Condition: Z_STRING.nullish(),
+                any_Special_Medical_Condition: Z_STRING.nullish(),
+                institution_Code: Z_STRING.nullish(),
+                sub_County_Code: Z_STRING.nullish(),
+                nationality: Z_STRING.nullish(),
+                gender: Z_STRING.nullish(),
+                lGender: Z_STRING.nullish(),
+                dob: Z_STRING.nullish(),
+                doB2: Z_STRING.nullish(),
+                isDateDOB: Z_NUMBER_STRING.nullish(),
+                birth_Cert_No: Z_STRING.nullish(),
+                iD_No: Z_STRING.nullish(),
+                disability_Code: Z_STRING.nullish(),
+                class_Code: Z_STRING.nullish(),
+                county_Code: Z_STRING.nullish(),
+                county_Learner: Z_STRING.nullish(),
+                sub_County_Learner: Z_STRING.nullish(),
+                special_Needs_List: Z_STRING.nullish(),
+                father_Email: Z_STRING.nullish(),
+                mother_Email: Z_STRING.nullish(),
+                guardian_Email: Z_STRING.nullish(),
+                institution_Type: Z_STRING.nullish(),
+                institution_Level_Code: Z_STRING.nullish(),
+                nhiF_No: Z_STRING.nullish(),
+                class_Name: Z_STRING.nullish(),
+                level_Name: Z_STRING
             })
-
+            .partial()
             .transform(res => ({
                 name: res.names,
-                dob: res.dob2,
-                gender: res.gender || res.lgender,
-                grade: res.class_name,
+                dob: res.doB2,
+                gender: res.gender || res.lGender,
+                grade: res.class_Name,
                 upi: res.upi,
-                phoneNumber: res.phone_number,
-                email: res.email_address,
-                address: res.postal_address,
-                birthCertificateNo: res.birth_cert_no,
-                nhifNo: res.nhif_no,
+                phoneNumber: res.phone_Number,
+                email: res.email_Address,
+                address: res.postal_Address,
+                birthCertificateNo: res.birth_Cert_No,
+                nhifNo: res.nhiF_No,
                 learnerCategory: {
-                    code: res.xcat,
-                    description: res.xcatdesc
+                    code: res.xCat,
+                    description: res.xCatDesc
                 },
                 currentInstitution: {
-                    name: res.institution_name,
-                    code: res.institution_code,
-                    type: res.institution_type,
-                    level: res.institution_level_code
+                    name: res.institution_Name,
+                    code: res.institution_Code,
+                    type: res.institution_Type,
+                    level: res.institution_Level_Code
                 },
                 father: {
-                    upi: res.father_upi,
-                    name: res.father_name,
-                    email: res.father_email,
-                    tel: res.father_contacts,
-                    id: res.father_idno
+                    upi: res.father_UPI,
+                    name: res.father_Name,
+                    email: res.father_Email,
+                    tel: res.father_Contacts,
+                    id: res.father_IDNo
                 },
                 mother: {
-                    upi: res.mother_upi,
-                    name: res.mother_name,
-                    email: res.mother_email,
-                    tel: res.mother_contacts,
-                    id: res.mother_idno
+                    upi: res.mother_UPI,
+                    name: res.mother_Name,
+                    email: res.mother_Email,
+                    tel: res.mother_Contacts,
+                    id: res.mother_IDNo
                 },
                 guardian: {
-                    upi: res.guardian_upi,
-                    name: res.guardian_name,
-                    email: res.guardian_email,
-                    tel: res.guardian_contacts,
-                    id: res.guardian_idno
+                    upi: res.guardian_UPI,
+                    name: res.guardian_Name,
+                    email: res.guardian_Email,
+                    tel: res.guardian_Contacts,
+                    id: res.guardian_IDNo
                 },
                 medicalCondition: {
-                    code: Number(res?.special_medical_condition || 0),
-                    description: medicalConditionDesc(Number(res?.special_medical_condition || 0))
+                    code: Number(res?.special_Medical_Condition || 0),
+                    description: medicalConditionDesc(Number(res?.special_Medical_Condition || 0))
                 },
-                otherSpecialConditions: res.any_special_medical_condition,
-                countyCode: res.county_code,
-                subCountyCode: res.sub_county_learner,
+                otherSpecialConditions: res.any_Special_Medical_Condition,
+                countyCode: res.county_Code,
+                subCountyCode: res.sub_County_Learner,
                 nationality: nationalities(Number(res.nationality) || 0),
-                disabilityCode: res.disability_code,
-                idNo: res.id_no,
-                specialNeeds: res.special_needs_list
+                disabilityCode: res.disability_Code,
+                idNo: res.iD_No,
+                specialNeeds: res.special_Needs_List
             })),
         resultsSchema: z
             .object({
-                index_no: z.string().trim(),
+                index_no: Z_STRING,
                 ge: Z_GENDER,
-                name: z.string().trim(),
-                school_name: z.string().trim(),
-                tot: z.string().trim(),
-                district_code: z.string().trim(),
-                district_name: z.string().trim(),
-                ns1: z.string().trim(),
-                ns2: z.string().trim(),
-                ns3: z.string().trim(),
-                ns4: z.string().trim(),
-                xs1: z.string().trim(),
-                xs2: z.string().trim(),
-                xs3: z.string().trim(),
-                cs1: z.string().trim(),
-                cs2: z.string().trim(),
-                ss1: z.string().trim(),
-                ss2: z.string().trim(),
-                disability_l: z.string().trim(),
-                disability_b: z.string().trim(),
-                disability_d: z.string().trim(),
-                disability_p: z.string().trim(),
-                yob: z.string().trim(),
-                citizenship: z.string().trim(),
-                school_code: z.string().trim(),
-                school_category: z.string().trim(),
-                selected_school: z.string().trim()
+                name: Z_STRING,
+                school_name: Z_STRING,
+                tot: Z_STRING,
+                district_code: Z_STRING,
+                district_name: Z_STRING,
+                ns1: Z_STRING,
+                ns2: Z_STRING,
+                ns3: Z_STRING,
+                ns4: Z_STRING,
+                xs1: Z_STRING,
+                xs2: Z_STRING,
+                xs3: Z_STRING,
+                cs1: Z_STRING,
+                cs2: Z_STRING,
+                ss1: Z_STRING,
+                ss2: Z_STRING,
+                disability_l: Z_STRING,
+                disability_b: Z_STRING,
+                disability_d: Z_STRING,
+                disability_p: Z_STRING,
+                yob: Z_STRING,
+                citizenship: Z_STRING,
+                school_code: Z_STRING,
+                school_category: Z_STRING,
+                selected_school: Z_STRING
             })
             .transform(res => ({
                 name: res.name,
@@ -196,11 +198,12 @@ export default class {
                     knecCode: res.selected_school
                 }
             })),
+
         schoolAdmittedSchema: z
             .object({
-                method: z.string().trim().optional(),
-                schooladmitted: z.string().trim().optional(),
-                category2: z.string().trim().optional()
+                method: Z_STRING,
+                schooladmitted: Z_STRING,
+                category2: Z_STRING
             })
             .partial()
             .transform(res => ({
@@ -214,16 +217,17 @@ export default class {
                     type: string;
                 })
             })),
+
         reportedSchema: z
             .object({
-                index_no: z.string().trim(),
-                institution_code: z.string().trim(),
-                upi: z.string().trim(),
-                birthcert: z.string().trim(),
-                datereported: z.union([z.coerce.date(), z.string().trim()]),
-                capturedby: z.string().trim(),
-                name: z.string().trim(),
-                institutionname: z.string().trim()
+                index_no: Z_STRING,
+                institution_code: Z_STRING,
+                upi: Z_STRING,
+                birthcert: Z_STRING,
+                datereported: z.union([z.coerce.date(), Z_STRING]),
+                capturedby: Z_STRING,
+                name: Z_STRING,
+                institutionname: Z_STRING
             })
             .partial()
             .transform(res => ({
@@ -238,9 +242,10 @@ export default class {
                     code: res.institution_code
                 }
             })),
+
         reportedCapturedSchema: z
             .object({
-                reportedlabel: z.string().toLowerCase().trim().optional()
+                reportedlabel: Z_STRING
             })
             .partial()
             .transform(res => ({
@@ -249,29 +254,31 @@ export default class {
                     /(?<code>^\d+): (?<name>.+), type: (?<type>.*), category: (?<category>.*), upi: (?<upi>.*)/i
                 )?.groups
             })),
+
         schoolDashboard: z.array(
             z
                 .object({
-                    institution_Code: z.coerce.string().toLowerCase().trim(),
-                    class_Code: z.coerce.number(),
-                    class_Name: z.coerce.string().toLowerCase().trim(),
-                    bC_Boys: z.coerce.number(),
-                    bC_Girls: z.coerce.number(),
-                    bC_Unk: z.coerce.number(),
-                    bC_Total: z.coerce.number(),
-                    wbC_Boys: z.coerce.number(),
-                    wbC_Girls: z.coerce.number(),
-                    wbC_Unk: z.coerce.number(),
-                    wbC_Total: z.coerce.number(),
-                    boys: z.coerce.number(),
-                    girls: z.coerce.number(),
-                    unk: z.coerce.number(),
-                    total: z.coerce.number(),
-                    m: z.coerce.number(),
-                    f: z.coerce.number(),
-                    unknown: z.coerce.number(),
-                    uN_KNOWN: z.coerce.number()
+                    institution_Code: Z_STRING,
+                    class_Code: Z_NUMBER,
+                    class_Name: Z_STRING,
+                    bC_Boys: Z_NUMBER,
+                    bC_Girls: Z_NUMBER,
+                    bC_Unk: Z_NUMBER,
+                    bC_Total: Z_NUMBER,
+                    wbC_Boys: Z_NUMBER,
+                    wbC_Girls: Z_NUMBER,
+                    wbC_Unk: Z_NUMBER,
+                    wbC_Total: Z_NUMBER,
+                    boys: Z_NUMBER,
+                    girls: Z_NUMBER,
+                    unk: Z_NUMBER,
+                    total: Z_NUMBER,
+                    m: Z_NUMBER,
+                    f: Z_NUMBER,
+                    unknown: Z_NUMBER,
+                    uN_KNOWN: Z_NUMBER
                 })
+                .partial()
                 .transform(gradeData => ({
                     institutionCode: gradeData.institution_Code,
                     code: gradeData.class_Code,
@@ -346,9 +353,7 @@ export default class {
                 throw new CustomError('Nemis api did not return a valid learner object', 500);
             }
 
-            return this.apiValidation.searchLearnerSchema.parse(
-                lowerCaseAllValues(apiResponse, { keys: true })
-            );
+            return this.apiValidation.searchLearnerSchema.parse(apiResponse);
         } catch (err) {
             throw err;
         }
