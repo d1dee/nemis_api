@@ -8,13 +8,13 @@ import Nemis from "@middleware/nemis";
 const nemisRoute = Router();
 
 nemisRoute.get('/search', (req: Request) => new Nemis(req).searchLearner());
-
+nemisRoute.get('/list', (req: Request) => new Nemis(req).listLearners());
 nemisRoute.post('/admit/joining', (req: Request) => new Nemis(req).admitJoiningLearner);
-nemisRoute.post('/admit/joining/:id', (req: Request) => new Nemis(req).admitSingleJoiningLearner);
-nemisRoute.post('/capture/joining', (req: Request) => new Nemis(req).captureJoiningLearner);
-nemisRoute.post('/capture/joining/:id', (req: Request) => new Nemis(req).captureSingleJoiningLearner);
+nemisRoute.post('/admit/joining/:id', (req: Request) => new Nemis(req).admitJoiningLearner());
+nemisRoute.post('/capture/joining', (req: Request) => new Nemis(req).captureJoiningLearner());
+nemisRoute.post('/capture/joining/:id', (req: Request) => new Nemis(req).captureJoiningLearner());
 
-nemisRoute.post('/capture/continuing', (req: Request) => new Nemis(req).captureContinuingLearner);
-nemisRoute.post('/capture/continuing/:id', (req: Request) => new Nemis(req).captureSingleContinuingLearner);
+nemisRoute.post('/capture/continuing', (req: Request) => new Nemis(req).captureContinuingLearner());
+nemisRoute.post('/capture/continuing/:id', (req: Request) => new Nemis(req).captureContinuingLearner());
 
 export { nemisRoute };

@@ -2,21 +2,21 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { NemisWebService } from "@libs/nemis";
-import { parse as htmlParser } from "node-html-parser";
-import { Tabletojson as tableToJson } from "tabletojson/dist/lib/Tabletojson";
-import CustomError from "@libs/error_handler";
-import qs from "qs";
-import { writeFileSync } from "fs";
-import { Admission, AdmittedLearners, Learner, ListLearners, Results } from "types/nemisApiTypes/learner";
-import buffer from "buffer";
-import { gradeToNumber, medicalConditionCode, nationalities, splitNames } from "@libs/converts";
-import FormData from "form-data";
-import { z } from "zod";
-import { format } from "date-fns";
-import { Z_NEMIS_DATE } from "@libs/nemis/constants";
-import { Z_GENDER, Z_NUMBER, Z_STRING } from "@libs/constants";
-import { Grade } from "../../../types/nemisApiTypes/institution";
+import { NemisWebService } from '@libs/nemis';
+import { parse as htmlParser } from 'node-html-parser';
+import { Tabletojson as tableToJson } from 'tabletojson/dist/lib/Tabletojson';
+import CustomError from '@libs/error_handler';
+import qs from 'qs';
+import { writeFileSync } from 'fs';
+import { Admission, AdmittedLearners, Learner, ListLearners, Results } from 'types/nemisApiTypes/learner';
+import buffer from 'buffer';
+import { gradeToNumber, medicalConditionCode, nationalities, splitNames } from '@libs/converts';
+import FormData from 'form-data';
+import { z } from 'zod';
+import { format } from 'date-fns';
+import { Z_NEMIS_DATE } from '@libs/nemis/constants';
+import { Z_GENDER, Z_NUMBER, Z_STRING } from '@libs/constants';
+import { Grade } from '../../../types/nemisApiTypes/institution';
 
 type RequestedBy = {
     requestString: string;
@@ -178,7 +178,9 @@ export default class extends NemisWebService {
             let listLearnersHtml = (
                 await this.changeResultsPerPage('/Learner/Listlearners.aspx', gradeOrForm)
             )?.data;
-
+            let selectedGrade = htmlParser(listLearnersHtml).querySelector(
+                '#SelectCat > option:checked'
+            )?.innerText;
             // Convert table to json
             const listLearnerTable = htmlParser(listLearnersHtml).querySelector(
                 '#ctl00_ContentPlaceHolder1_grdLearners'
@@ -198,7 +200,7 @@ export default class extends NemisWebService {
                 .flat()
                 .filter(e => !!e['No.']);
 
-            if (listLearnerJson.length === 0) return null;
+            if (listLearnerJson?.length === 0) return null;
 
             let firstViewElementNumber = Number(firstViewElement?.match(/(?<=_ctl)[0-9]./)?.shift());
 
@@ -210,7 +212,7 @@ export default class extends NemisWebService {
                 return {
                     ...this.learnerValidations.listLearnerSchema.parse(element),
                     postback: postback.replaceAll(/_/g, '$'),
-                    grade: gradeOrForm
+                    grade: selectedGrade
                 };
             });
         } catch (err) {
@@ -333,7 +335,7 @@ export default class extends NemisWebService {
                 })
                 .flat();
 
-            if (!admittedLearnerJson || admittedLearnerJson.length === 0) return [];
+            if (!admittedLearnerJson || admittedLearnerJson?.length === 0) return [];
 
             return admittedLearnerJson.map((x, i) => {
                 return this.learnerValidations.listAdmittedLearnerSchema.parse({
@@ -643,15 +645,35 @@ export default class extends NemisWebService {
             const medicalCode = medicalConditionCode(learner.medicalCondition);
             const nationality = nationalities(locationDetails?.nationality ?? 'kenya');
 
-            if (!parentContacts) throw new CustomError('No parents contacts associated with the learner.');
+            if (!parentContacts) throw new CustomError('No parent contacts found.', 400);
 
-            if (!learner?.birthCertificateNo)
-                throw new CustomError(
-                    'Learner birth certificate number was not provided. ' +
-                        "Can not capture biodata without learners' birth certificate number",
-                    400
-                );
-            if (!learner.dob) throw new CustomError('Date of birth was not submitted for the learner', 400);
+            // Drop incomplete parent contact info
+            let { father, mother, guardian } = parentContacts;
+            if (!father?.id || !father?.tel || !father?.tel) {
+                father = undefined;
+            }
+            if (!mother?.id || !mother?.tel || !mother?.tel) {
+                mother = undefined;
+            }
+            if (!guardian?.id || !guardian?.tel || !guardian?.tel) {
+                guardian = undefined;
+            }
+
+            // Validate parameters
+            switch (true) {
+                case !father && !mother && !guardian:
+                    throw new CustomError('No complete parent contacts found.', 400);
+                case !learner.gender as boolean:
+                    throw new CustomError('Learner gender was not provided.', 400);
+                case !learner.birthCertificateNo:
+                    throw new CustomError(
+                        'Learner birth certificate number was not provided. ' +
+                            "Can not capture biodata without learners' birth certificate number",
+                        400
+                    );
+                case !learner.dob?.UTCTimestamp as boolean:
+                    throw new CustomError('Date of birth was not submitted for the learner', 400);
+            }
 
             // Initial POST to set county
             await this.axiosInstance.get('/Learner/alearner.aspx');
@@ -685,54 +707,55 @@ export default class extends NemisWebService {
             Object.assign(formDataObject, {
                 __EVENTARGUMENT: '',
                 __EVENTTARGET: '',
-                __EVENTVALIDATION: this.stateObject?.__EVENTVALIDATION,
-                __VIEWSTATE: this.stateObject?.__VIEWSTATE,
-                __VIEWSTATEGENERATOR: this.stateObject?.__VIEWSTATEGENERATOR,
+                __EVENTVALIDATION: this.stateObject?.__EVENTVALIDATION ?? '',
+                __VIEWSTATE: this.stateObject?.__VIEWSTATE ?? '',
+                __VIEWSTATEGENERATOR: this.stateObject?.__VIEWSTATEGENERATOR ?? '',
                 __LASTFOCUS: '',
                 __VIEWSTATEENCRYPTED: '',
-                ctl00$ContentPlaceHolder1$Birth_Cert_No: learner.birthCertificateNo,
+                ctl00$ContentPlaceHolder1$Birth_Cert_No: learner.birthCertificateNo ?? '',
                 ctl00$ContentPlaceHolder1$DOB$ctl00: format(learner.dob.UTCTimestamp, 'MM/dd/yyyy'),
-                ctl00$ContentPlaceHolder1$Gender: learner.gender.split('')[0].toUpperCase(),
-                ctl00$ContentPlaceHolder1$FirstName: names.firstname,
-                ctl00$ContentPlaceHolder1$Nationality: nationality,
-                ctl00$ContentPlaceHolder1$OtherNames: names.otherName,
-                ctl00$ContentPlaceHolder1$Surname: names.surname,
+                ctl00$ContentPlaceHolder1$Gender: learner.gender.at(0)?.toUpperCase() ?? '',
+                ctl00$ContentPlaceHolder1$FirstName: names.firstname ?? '',
+                ctl00$ContentPlaceHolder1$Nationality: nationality ?? '',
+                ctl00$ContentPlaceHolder1$OtherNames: names.otherName ?? '',
+                ctl00$ContentPlaceHolder1$Surname: names.surname ?? '',
                 ctl00$ContentPlaceHolder1$UPI: '',
-                ctl00$ContentPlaceHolder1$ddlcounty: locationDetails?.countyNo,
-                ctl00$ContentPlaceHolder1$ddlmedicalcondition: medicalCode,
-                ctl00$ContentPlaceHolder1$ddlsubcounty: locationDetails?.subCountyNo,
+                ctl00$ContentPlaceHolder1$ddlcounty: locationDetails?.countyNo ?? '',
+                ctl00$ContentPlaceHolder1$ddlmedicalcondition: medicalCode ?? '',
+                ctl00$ContentPlaceHolder1$ddlsubcounty: locationDetails?.subCountyNo ?? '',
                 ctl00$ContentPlaceHolder1$mydob: '',
                 ctl00$ContentPlaceHolder1$myimage: '',
-                ctl00$ContentPlaceHolder1$txtPostalAddress: parentContacts?.address || '',
+                ctl00$ContentPlaceHolder1$txtPostalAddress: parentContacts?.address ?? '',
                 ctl00$ContentPlaceHolder1$txtSearch: '',
                 ctl00$ContentPlaceHolder1$txtmobile: '',
                 ctl00$ContentPlaceHolder1$optspecialneed: learner.isSpecial ? 'optspecialneed' : 'optneedsno',
                 ctl00$ContentPlaceHolder1$txtEmailAddress: ''
             });
 
-            if (parentContacts.father) {
+            if (father) {
                 Object.assign(formDataObject, {
-                    ctl00$ContentPlaceHolder1$txtFatherContacts: parentContacts.father.tel,
-                    ctl00$ContentPlaceHolder1$txtFatherIDNO: parentContacts.father.id,
-                    ctl00$ContentPlaceHolder1$txtFatherName: parentContacts.father.name,
+                    ctl00$ContentPlaceHolder1$txtFatherContacts: father?.tel,
+                    ctl00$ContentPlaceHolder1$txtFatherIDNO: father?.id,
+                    ctl00$ContentPlaceHolder1$txtFatherName: father?.name,
                     ctl00$ContentPlaceHolder1$txtFatherUPI: ''
                 });
             }
 
-            if (parentContacts.guardian) {
+            if (guardian) {
                 Object.assign(formDataObject, {
-                    ctl00$ContentPlaceHolder1$txtGuardianIDNO: parentContacts.guardian.id,
-                    ctl00$ContentPlaceHolder1$txtGuardianname: parentContacts.guardian.name,
+                    ctl00$ContentPlaceHolder1$txtGuardianIDNO: guardian?.id,
+                    ctl00$ContentPlaceHolder1$txtGuardianname: guardian?.name,
                     ctl00$ContentPlaceHolder1$txtGuardianUPI: '',
-                    ctl00$ContentPlaceHolder1$txtGuardiancontacts: parentContacts.guardian.tel
+                    ctl00$ContentPlaceHolder1$txtGuardiancontacts: guardian?.tel
                 });
             }
-            if (parentContacts.mother) {
+
+            if (mother) {
                 Object.assign(formDataObject, {
-                    ctl00$ContentPlaceHolder1$txtMotherIDNo: parentContacts.mother.id,
-                    ctl00$ContentPlaceHolder1$txtMotherName: parentContacts.mother.name,
+                    ctl00$ContentPlaceHolder1$txtMotherIDNo: mother?.id,
+                    ctl00$ContentPlaceHolder1$txtMotherName: mother?.name,
                     ctl00$ContentPlaceHolder1$txtMotherUPI: '',
-                    ctl00$ContentPlaceHolder1$txtMothersContacts: parentContacts.mother.tel
+                    ctl00$ContentPlaceHolder1$txtMothersContacts: mother?.tel
                 });
             }
 
@@ -1053,7 +1076,7 @@ export default class extends NemisWebService {
         }
     }
 
-    async addContinuingLearner(learner: Learner) {
+    async captureContinuing(learner: Learner) {
         try {
             await this.listLearners(learner.grade);
 
@@ -1072,14 +1095,13 @@ export default class extends NemisWebService {
                     ctl00$ContentPlaceHolder1$Button1: '[ ADD NEW STUDENT (WITH BC)]'
                 })
             );
-            writeFileSync('debug/getalearner.html', addLearnerBC?.data);
+            //writeFileSync('debug/getalearner.html', addLearnerBC?.data);
 
             if (addLearnerBC?.data === '1|#||4|26|pageRedirect||%2fLearner%2fAlearner.aspx|') {
                 return this.captureBioData(learner);
             }
-            throw new CustomError('Failed to redirect to alearner.aps```AAAAAAAAAAA', 400);
+            throw new CustomError('Failed to redirect to alearner.apsx', 400);
         } catch (err) {
-            console.error(err);
             throw err;
         }
     }

@@ -2,10 +2,10 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import mongoose from "mongoose";
-import { GRADES, MEDICAL_CONDITIONS } from "@libs/constants";
-import { archiveSchema, dateTimeSchema, geoLocationSchema } from "@database/shared_schemas";
-import { dateTime } from "@libs/converts";
+import mongoose from 'mongoose';
+import { GRADES, MEDICAL_CONDITIONS } from '@libs/constants';
+import { archiveSchema, dateTimeSchema, geoLocationSchema } from '@database/shared_schemas';
+import { dateTime } from '@libs/converts';
 
 export const parentInfoSchema = {
     name: {
@@ -147,9 +147,15 @@ export const learnerSchema = new mongoose.Schema({
     nhifNo: Number,
     archived: archiveSchema,
     error: {
-        type: String,
-        index: true,
-        collation: { locale: 'en', strength: 2 }
+        message: {
+            type: String,
+            index: true,
+            collation: {
+                locale: 'en',
+                strength: 2
+            }
+        },
+        timestamp: dateTimeSchema
     }
 });
 export default mongoose.model('learner', learnerSchema);

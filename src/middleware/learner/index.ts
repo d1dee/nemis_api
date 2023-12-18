@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
-import { z } from "zod";
+import { z } from 'zod';
 import {
     LEARNER_FIELDS,
     Z_DATE_TIME,
@@ -15,24 +15,24 @@ import {
     Z_NUMBER_STRING,
     Z_STRING,
     Z_TRANSFER_METHOD
-} from "@libs/constants";
-import { countyToNo, dateTime } from "@libs/converts";
-import CustomError from "@libs/error_handler";
-import { validateExcel } from "@libs/import_excel";
-import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
-import { Request } from "express";
-import learnerModel from "@database/learner";
-import learner from "@database/learner";
-import { sub } from "date-fns";
-import { sync } from "@libs/sync_api_database";
-import { fromZodError } from "zod-validation-error";
-import { Z_PARENT_CONTACTS, Z_STRING_TO_ARRAY, Z_TRANSFER } from "@middleware/constants";
+} from '@libs/constants';
+import { countyToNo, dateTime } from '@libs/converts';
+import CustomError from '@libs/error_handler';
+import { validateExcel } from '@libs/import_excel';
+import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
+import { Request } from 'express';
+import learnerModel from '@database/learner';
+import learner from '@database/learner';
+import { sub } from 'date-fns';
+import { sync } from '@libs/sync_api_database';
+import { fromZodError } from 'zod-validation-error';
+import { Z_PARENT_CONTACTS, Z_STRING_TO_ARRAY, Z_TRANSFER } from '@middleware/constants';
 import {
     DefaultLearnerValidationFields,
     ExtraValidationFields,
     LearnerValidationFields,
     ValidLearner
-} from "../../../types/nemisApiTypes/learner";
+} from '../../../types/nemisApiTypes/learner';
 
 export default class Learner {
     private req;
@@ -54,6 +54,7 @@ export default class Learner {
                 stream: Z_STRING_TO_ARRAY,
                 withUpi: Z_STRING.transform(arg => arg === 'true'),
                 withError: Z_STRING.transform(arg => arg === 'true'),
+                isArchived: Z_STRING.transform(arg => arg === 'true'),
                 name: Z_STRING.min(3, 'Name string must be at least 3 letters long.'),
                 age: Z_NUMBER.min(3, 'Minimum age is 3 years')
             })
@@ -272,7 +273,7 @@ export default class Learner {
             });
 
             if (invalidResults.length > 0) {
-                this.req.respond.sendError(
+                return this.req.respond.sendError(
                     403,
                     `Validation failed. ${invalidResults.length} learner failed validation.`,
                     invalidResults
@@ -308,16 +309,22 @@ export default class Learner {
                         if (typeof value === 'boolean')
                             Object.assign(queryObject, {
                                 upi: value
-                                    ? { $exists: true, $nin: [null, undefined, ''] }
-                                    : { $exists: false, $in: [null, undefined, ''] }
+                                    ? { $exists: true, $nin: [null, ''] }
+                                    : { $exists: false, $in: [null, ''] }
                             });
                         break;
                     case 'withError':
                         if (typeof value === 'boolean')
                             Object.assign(queryObject, {
                                 error: value
-                                    ? { $exists: true, $nin: [null, undefined, ''] }
-                                    : { $exists: false, $in: [null, undefined, ''] }
+                                    ? { $exists: true, $nin: [null, ''] }
+                                    : { $exists: false, $in: [null, ''] }
+                            });
+                        break;
+                    case 'isArchived':
+                        if (typeof value === 'boolean')
+                            Object.assign(queryObject, {
+                                'archived.isArchived': value
                             });
                         break;
                     case 'age':
@@ -335,6 +342,7 @@ export default class Learner {
                                 transfer: { $exists: true },
                                 'transfer.method': { $in: value }
                             });
+                        break;
                 }
             }
 

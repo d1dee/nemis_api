@@ -153,6 +153,7 @@ export default class {
                 school_category: Z_STRING,
                 selected_school: Z_STRING
             })
+            .partial()
             .transform(res => ({
                 name: res.name,
                 gender: res.ge,
@@ -327,8 +328,7 @@ export default class {
         try {
             let schoolDashboard = (await this.axiosInstance.get('/SchDashboard/' + encodeURIComponent(code)))
                 .data;
-            let k = this.apiValidation.schoolDashboard.parse(schoolDashboard);
-            return k;
+            return this.apiValidation.schoolDashboard.parse(schoolDashboard);
         } catch (err) {
             throw new CustomError('Failed to get homepage apis. Try again later.', 500);
         }

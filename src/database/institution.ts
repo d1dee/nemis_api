@@ -147,8 +147,8 @@ export default mongoose.model(
             if (this.password) this.password = encryptString(this.password);
             return next();
         })
-        .post('findOne', function (doc, next) {
-            if (doc) {
+        .post(new RegExp('find', 'i'), function (doc, next) {
+            if (doc && doc?.password) {
                 // Decrypt password before returning doc
                 doc.password = decryptString(doc.password);
             }

@@ -2,13 +2,13 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { Document, InferSchemaType } from "mongoose";
-import { learnerSchema } from "@database/learner";
-import ApiHandler from "@libs/nemis/api_handler";
-import LearnerHandler from "@libs/nemis/learner_handler";
-import { z } from "zod";
-import MiddlewareLearner from "@middleware/learner";
-import { LEARNER_FIELDS } from "@libs/constants";
+import { Document, InferSchemaType } from 'mongoose';
+import { learnerSchema } from '@database/learner';
+import ApiHandler from '@libs/nemis/api_handler';
+import LearnerHandler from '@libs/nemis/learner_handler';
+import { z } from 'zod';
+import MiddlewareLearner from '@middleware/learner';
+import { LEARNER_FIELDS } from '@libs/constants';
 
 // Learner as returned by the database.
 export type Learner = InferSchemaType<typeof learnerSchema>;
@@ -19,10 +19,8 @@ export type Results = Awaited<ReturnType<ApiHandler['results']>>;
 export type Admission = Awaited<ReturnType<ApiHandler['admission']>>;
 export type ReportedCaptured = Awaited<ReturnType<ApiHandler['reportedCaptured']>>;
 export type SearchLearner = Awaited<ReturnType<ApiHandler['searchLearner']>>;
+export type CaptureBiodata = Awaited<ReturnType<LearnerHandler['captureBioData']>>;
 
-/**
- * Learner returned by http://nemis.education.go.ke/Learner/Listlearners.aspx on the NEMIS website
- */
 export type ListLearners = Exclude<Awaited<ReturnType<LearnerHandler['listLearners']>>, null>;
 export type ListAdmittedLearners = Exclude<
     Awaited<ReturnType<LearnerHandler['listAdmittedJoiningLearners']>>,

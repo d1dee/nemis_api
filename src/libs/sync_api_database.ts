@@ -7,7 +7,6 @@ import learnerModule from "@database/learner";
 import { InstitutionDocument } from "../../types/nemisApiTypes/institution";
 import LearnerHandler from "@libs/nemis/learner_handler";
 import { ListLearners } from "../../types/nemisApiTypes/learner";
-import { decryptString } from "@libs/crypt";
 
 const sync = async (institution: InstitutionDocument) => {
     try {
@@ -19,7 +18,7 @@ const sync = async (institution: InstitutionDocument) => {
             // Use a new instance of NemisWebService to avoid state conflict
             let learnerHandler = new LearnerHandler();
             return learnerHandler
-                .login(institution.username, decryptString(institution.password))
+                .login(institution.username, institution.password)
                 .then(_ => learnerHandler.listLearners(grade));
         });
 
