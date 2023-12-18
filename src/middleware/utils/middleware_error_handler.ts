@@ -2,13 +2,12 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Request } from "express";
 
-import CustomError from '@libs/error_handler';
-import { ZodError } from 'zod';
-import { stat } from 'fs';
-import { AxiosError } from 'axios';
-import { log } from 'console';
+import CustomError from "@libs/error_handler";
+import { ZodError } from "zod";
+import { AxiosError } from "axios";
+import { fromZodError } from "zod-validation-error";
 
 export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     // If no error and next is not undefined, call next()
@@ -25,31 +24,26 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     }
 
     if (err instanceof AxiosError) {
-        let nemisErrorFormat = formatNemisErrors(err);
         message = err?.message;
         statusCode = err?.response?.status || 500;
     }
 
     if (err instanceof ZodError) {
         statusCode = 422;
-        message = `Validation error. ${JSON.stringify(err.flatten().fieldErrors)}`;
+        message = fromZodError(err).message;
     }
 
-    if (err instanceof  SyntaxError){
+    if (err instanceof SyntaxError) {
         // @ts-ignore
-        if(err?.body){
-            message = err?.message
+        if (err?.body) {
+            message = err?.message;
             // @ts-ignore
-            statusCode= err?.statusCode
+            statusCode = err?.statusCode;
         }
-
-
     }
     // Any other error return an 'Internal server error'
     !statusCode ? (statusCode = 500) : undefined;
-    !message ? (message = 'Internal server error, an unknown error has occured.') : undefined;
+    !message ? (message = 'Internal server error, an unknown error has occurred.') : undefined;
 
-    return req.sendResponse.error(statusCode, message, cause);
+    return req.respond.sendError(statusCode, message, cause);
 }
-
-const formatNemisErrors = (error: any) => {};

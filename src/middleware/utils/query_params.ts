@@ -2,29 +2,10 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { NextFunction, Request, Response } from "express";
-import { sendErrorMessage } from "./middleware_error_handler";
-import { z as zod } from "zod";
 import CustomError from "@libs/error_handler";
 import institutionModel from "@database/institution";
 import { usernamePasswordSchema } from "@libs/zod_validation";
 import { decryptString } from "@libs/crypt";
-
-const queryParameterSchema = zod.object({
-    transfer: zod
-        .enum(['true', 'false'])
-        .transform(x => x === 'true')
-        .optional()
-});
-
-const queryParametersMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    try {
-        req.queryParams = queryParameterSchema.parse(req.query);
-        next();
-    } catch (err) {
-        sendErrorMessage(req, err);
-    }
-};
 
 // Validate username and password provided by client as a JSON body aganist stored username and password
 const validateUsernamePassword = async (requestBody: any) => {
@@ -60,4 +41,4 @@ const validateUsernamePassword = async (requestBody: any) => {
     return institution[0];
 };
 
-export { queryParametersMiddleware, queryParameterSchema, validateUsernamePassword };
+export { validateUsernamePassword };

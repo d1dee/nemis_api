@@ -2,21 +2,37 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { Router } from "express";
-import addLearnerRoute from "./add_learner";
-import { searchLearner } from "@middleware/learner/search_learner";
-import { syncLearnerDatabase } from "@middleware/learner/sync_learner";
-import { deleteSingleLearner } from "@middleware/learner/delete_learner";
-import listLearners from "@middleware/learner/list_learners";
+import { Request, Router } from "express";
+import fileUpload from "express-fileupload";
+import verify_excel_upload from "@middleware/utils/verify_excel_upload";
+import Learner from "@middleware/learner";
 
 const learnerRoute = Router();
 
-learnerRoute.use('/add', addLearnerRoute);
-learnerRoute.get('/list', listLearners);
-learnerRoute.use('/sync', syncLearnerDatabase);
+// Add continuing and joining learners
+learnerRoute.post(['/add/joining/json', '/add/continuing/json'], (req: Request) =>
+    new Learner(req).learnerValidation(req.body)
+);
+learnerRoute.post(
+    ['/add/joining/excel', '/add/continuing/excel'],
+    fileUpload({
+        useTempFiles: true,
+        tempFileDir: `${process.cwd()}/uploads/temp/`,
+        preserveExtension: true,
+        debug: true,
+        parseNested: true,
+        createParentPath: true
+    }),
+    verify_excel_upload,
+    async (req: Request) => await new Learner(req).addLearnerByFile()
+);
 
-learnerRoute.get('/search/:uniqueIdentifier', searchLearner);
+learnerRoute.get('/list', (req: Request) => new Learner(req).listLearner());
 
-learnerRoute.delete('/delete/:uniqueIdentifier', deleteSingleLearner);
+learnerRoute.get('/sync', (req: Request) => new Learner(req).syncLearnerDatabase());
+
+learnerRoute.get('/search/:id', (req: Request) => new Learner(req).searchLearner());
+
+learnerRoute.delete('/delete', (req: Request) => new Learner(req).deleteLearner());
 
 export default learnerRoute;

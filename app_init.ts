@@ -2,27 +2,34 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import CustomError from './src/libs/error_handler';
-import connectDb from './src/database/index';
-import logger from './src/libs/logger';
+import connectDb from "./src/database/index";
 
 export default async () => {
-	try {
-		let dbUrl = process.env.DB_URL,
-			nemisApiAuth = process.env.NEMIS_API_AUTH,
-			encryptionKey = process.env.ENCRYPTION_KEY;
-		// check all env variables are set
-		if (!dbUrl || !nemisApiAuth || !encryptionKey) {
-			throw new CustomError(
-				'Ensure all env fields are set. Not all environment variables are sent.',
-				1,
-				'init_failed'
-			);
-		}
-		// Wait database to connect
-		await connectDb(dbUrl);
-		logger.info('Connected to database');
-	} catch (err) {
-		throw err;
-	}
+    try {
+        switch (true) {
+            case !process.env.HOME_DIR:
+                process.env.HOME_DIR = `${process.cwd()}/data`;
+                break;
+
+            case !process.env.BASE_URL:
+                process.env.BASE_URL = 'http://nemis.education.go.ke'; // https is not supported
+                break;
+
+            case !process.env.DATABASE_URL:
+                throw new Error('Database URL is not defined. Exiting...');
+
+            case !process.env.NEMIS_API_AUTH:
+                throw new Error('NEMIS API authorization key is not defined. Exiting...');
+
+            case !process.env.ENCRYPTION_KEY:
+                throw new Error('Encryption Key is not defined. Exiting...');
+        }
+
+        // Wait database to connect
+        await connectDb(process.env.DATABASE_URL!);
+
+        console.info('Database connected ✨');
+    } catch (err) {
+        throw err;
+    }
 };

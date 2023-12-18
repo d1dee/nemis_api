@@ -2,11 +2,11 @@
  * Copyright (c) 2023. MIT License. Maina Derrick.
  */
 
-import { Router } from 'express';
-import authRouter from './auth';
-import institution from './institution/institution';
-import learner_router from './learner';
-import { nemisRoute } from './nemis/nemis_router';
+import { Router } from "express";
+import authRouter from "./auth";
+import institutionRouter from "./institution";
+import learner_router from "./learner";
+import { nemisRoute } from "@routes/nemis";
 
 const apiRouter = Router();
 
@@ -14,7 +14,7 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/nemis', nemisRoute);
 apiRouter.use('/learner', learner_router);
 
-apiRouter.use('/institution', institution);
+apiRouter.use('/institution', institutionRouter);
 
 export default apiRouter;
 
