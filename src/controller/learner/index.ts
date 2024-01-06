@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 import { z } from 'zod';
 import {
@@ -13,20 +13,20 @@ import {
     Z_NATIONALITIES,
     Z_NUMBER,
     Z_NUMBER_STRING,
-    Z_STRING,
+    Z_STRING, Z_STRING_TO_BOOLEAN,
     Z_TRANSFER_METHOD
-} from '@libs/constants';
+} from "@libs/constants";
 import { countyToNo, dateTime } from '@libs/converts';
 import CustomError from '@libs/error_handler';
-import { validateExcel } from '@libs/import_excel';
-import { sendErrorMessage } from '@middleware/utils/middleware_error_handler';
+
+import { sendErrorMessage } from '../utils/middleware_error_handler';
 import { Request } from 'express';
 import learnerModel from '@database/learner';
 import learner from '@database/learner';
 import { sub } from 'date-fns';
 import { sync } from '@libs/sync_api_database';
 import { fromZodError } from 'zod-validation-error';
-import { Z_PARENT_CONTACTS, Z_STRING_TO_ARRAY, Z_TRANSFER } from '@middleware/constants';
+import { Z_PARENT_CONTACTS, Z_STRING_TO_ARRAY, Z_TRANSFER } from '../constants';
 import {
     DefaultLearnerValidationFields,
     ExtraValidationFields,
@@ -52,11 +52,12 @@ export default class Learner {
                 gender: Z_STRING_TO_ARRAY.pipe(z.array(Z_GENDER)),
                 transferred: Z_STRING_TO_ARRAY.pipe(z.array(Z_TRANSFER_METHOD)),
                 stream: Z_STRING_TO_ARRAY,
-                withUpi: Z_STRING.transform(arg => arg === 'true'),
-                withError: Z_STRING.transform(arg => arg === 'true'),
-                isArchived: Z_STRING.transform(arg => arg === 'true'),
+                withUpi: Z_STRING_TO_BOOLEAN,
+                withError: Z_STRING_TO_BOOLEAN,
+                isArchived: Z_STRING_TO_BOOLEAN,
                 name: Z_STRING.min(3, 'Name string must be at least 3 letters long.'),
-                age: Z_NUMBER.min(3, 'Minimum age is 3 years')
+                age: Z_NUMBER.min(3, 'Minimum age is 3 years'),
+                incompleteData:Z_STRING_TO_BOOLEAN
             })
             .partial(),
         learner: z
@@ -193,13 +194,12 @@ export default class Learner {
                     400
                 );
             }
-
-            let excelJson = validateExcel(this.req.body.file);
-            if (!Array.isArray(excelJson))
+            
+            if (!Array.isArray(this.req.parsedExcel))
                 throw new CustomError(
-                    `File validation failed. Expected and array but instead received ${typeof excelJson}`
+                    `File validation failed. Expected and array but instead received ${typeof this.req.parsedExcel}`
                 );
-            await this.learnerValidation(excelJson);
+            await this.learnerValidation(this.req.parsedExcel);
         } catch (err: any) {
             sendErrorMessage(this.req, err);
         }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { Document, InferSchemaType } from 'mongoose';
@@ -7,7 +7,7 @@ import { learnerSchema } from '@database/learner';
 import ApiHandler from '@libs/nemis/api_handler';
 import LearnerHandler from '@libs/nemis/learner_handler';
 import { z } from 'zod';
-import MiddlewareLearner from '@middleware/learner';
+import MiddlewareLearner from '../../src/controller/learner';
 import { LEARNER_FIELDS } from '@libs/constants';
 
 // Learner as returned by the database.

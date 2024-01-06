@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { json, Router } from "express";
-import { deleteInstitution, getInstitution, updateInstitution } from "@middleware/institution/";
+import { deleteInstitution, getInstitution, updateInstitution } from "../../controller/institution/";
 
 const index = Router().use(json());
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { z } from "zod";
@@ -79,6 +79,7 @@ export const Z_INDEX_NUMBER = Z_NUMBER_STRING.pipe(
 );
 export const Z_TRANSFER_METHOD = Z_STRING.pipe(z.enum(['in', 'out']));
 export const Z_NATIONALITIES = Z_STRING.default('kenya').pipe(z.enum(NATIONALITY));
+export const Z_STRING_TO_BOOLEAN = Z_STRING.transform(arg => arg === 'true')
 export const Z_CONTACTS = z.object({
     name: Z_STRING,
     tel: Z_STRING,

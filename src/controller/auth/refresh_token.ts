@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { Request } from "express";
-import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
+import { sendErrorMessage } from "../utils/middleware_error_handler";
 import JWT from "@libs/JWT";
 
 export default async (req: Request) => {

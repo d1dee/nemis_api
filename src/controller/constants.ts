@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { z } from "zod";
@@ -28,4 +28,4 @@ export const Z_TRANSFER = z.object({
 
 );*/
 
-export const Z_STRING_TO_ARRAY = Z_STRING.transform(g => g.split(','));
+export const Z_STRING_TO_ARRAY = Z_STRING.transform((val) => val.split(","));

@@ -1,13 +1,13 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { Request } from "express";
 import CustomError from "@libs/error_handler";
 import { usernamePasswordSchema } from "@libs/zod_validation";
-import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
+import { sendErrorMessage } from "../utils/middleware_error_handler";
 import { NemisWebService } from "@libs/nemis";
-import { validateUsernamePassword } from "@middleware/utils/query_params";
+import { validateUsernamePassword } from "../utils/query_params";
 import { archiver } from "@libs/converts";
 
 const getInstitution = (req: Request) => {

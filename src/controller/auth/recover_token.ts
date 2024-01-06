@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import CustomError from "@libs/error_handler";
-import { sendErrorMessage } from "@middleware/utils/middleware_error_handler";
+import { sendErrorMessage } from "../utils/middleware_error_handler";
 import { Request } from "express";
-import { validateUsernamePassword } from "@middleware/utils/query_params";
+import { validateUsernamePassword } from "../utils/query_params";
 import tokenModel from "@database/token";
 
 export default async (req: Request) => {

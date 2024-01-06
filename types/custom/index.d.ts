@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
-import Respond from "@middleware/utils/send_response";
+import Respond from "../../src/controller/utils/send_response";
 import { TokenDocument } from "../nemisApiTypes/token";
 import { InstitutionDocument } from "../nemisApiTypes/institution";
+import { utils } from "xlsx";
+
 
 declare module 'express-serve-static-core' {
     export interface Request {
@@ -14,5 +16,6 @@ declare module 'express-serve-static-core' {
         token: TokenDocument;
         // A custom class used to format  error messages and responses before sending them to the client
         respond: Respond;
+        parsedExcel: any[]
     }
 }

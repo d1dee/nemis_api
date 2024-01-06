@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import { NextFunction, Request, Response } from "express";
 import CustomError from "@libs/error_handler";
-import { sendErrorMessage } from "./middleware_error_handler";
+import { sendErrorMessage } from "@controller/utils/middleware_error_handler";
 
 export default (req: Request, res: Response, next: NextFunction) => {
     try {
