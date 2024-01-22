@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 //converts county names adn sub county names to their respective code as per nemis
-import { Grade } from "types/nemisApiTypes/institution";
-import { formatInTimeZone } from "date-fns-tz";
+import { Grade } from 'types/nemisApiTypes/institution';
+import { formatInTimeZone } from 'date-fns-tz';
 
 export const countyToNo = (county?: string, subCounty?: string) => {
     county = String(county).trim();
@@ -1445,7 +1445,7 @@ export const countyToNo = (county?: string, subCounty?: string) => {
             break;
         //if not matched return undefined to be handled by the calling function
         default:
-            return new Error('An unknown county was supplied.');
+            throw new Error('An unknown county was supplied.');
     }
     return [countyNo, subCountyNo];
 };
@@ -1572,14 +1572,14 @@ export const splitNames = (name: string) => {
                 };
             case 2:
                 return {
-                    surname: ' ',
+                    surname: undefined,
                     firstname: nameArray[0],
                     otherName: nameArray[1]
                 };
             default:
                 return {
-                    surname: nameArray.shift() || ' ',
-                    otherName: nameArray.pop() || ' ',
+                    surname: nameArray.shift() || undefined,
+                    otherName: nameArray.pop() || undefined,
                     firstname: nameArray.join(' ')
                 };
         }
@@ -1590,23 +1590,69 @@ export const splitNames = (name: string) => {
 
 export const medicalConditionCode = (medicalCondition: string): number => {
     //set medical condition
-    // 1 = anemia, 2 = asthma, 3 = convulsions, 4 = diabetes, 5 = epilepsy, 0 = none
+    //"1" = Anemia, "2" = Asthma, "3" = Convulsions (Fits and Seizures), "4" = Diabetes, "5" = Epilepsy, "0" = None
+    // "6" = Sickle Cell Anaemia "7" = Haemophilia, "8" = Cancer, "9" = HIV AIds "11" = Heart Condition,
+    // "12" = Bowel/Bladder Disorder, "13" = Ulcers, "14" = Liver Disease, "15" = Lung Disease, "16" = Brain Tumors
+    // "17" = Severe Burns, "18" = Paralysis, "19" = Stroke "20" = Pulmonary Disease
+
     let condition = 0;
     switch (true) {
-        case /an/g.test(medicalCondition):
+        case /ane/i.test(medicalCondition):
             condition = 1;
             break;
-        case /as/g.test(medicalCondition):
+        case /ast/i.test(medicalCondition):
             condition = 2;
             break;
-        case /con/g.test(medicalCondition):
+        case /convu/i.test(medicalCondition):
             condition = 3;
             break;
-        case /dia/g.test(medicalCondition):
+        case /diab/i.test(medicalCondition):
             condition = 4;
             break;
-        case /epi/g.test(medicalCondition):
+        case /epi/i.test(medicalCondition):
             condition = 5;
+            break;
+        case /sic/i.test(medicalCondition):
+            condition = 6;
+            break;
+        case /haem/i.test(medicalCondition):
+            condition = 7;
+            break;
+        case /can/i.test(medicalCondition):
+            condition = 8;
+            break;
+        case /hiv/i.test(medicalCondition):
+            condition = 9;
+            break;
+        case /heart/i.test(medicalCondition):
+            condition = 11;
+            break;
+        case /bow/i.test(medicalCondition):
+            condition = 12;
+            break;
+        case /ulc/i.test(medicalCondition):
+            condition = 13;
+            break;
+        case /liv/i.test(medicalCondition):
+            condition = 14;
+            break;
+        case /lung/i.test(medicalCondition):
+            condition = 15;
+            break;
+        case /brain/i.test(medicalCondition):
+            condition = 16;
+            break;
+        case /sever/i.test(medicalCondition):
+            condition = 17;
+            break;
+        case /para/i.test(medicalCondition):
+            condition = 18;
+            break;
+        case /stroke/i.test(medicalCondition):
+            condition = 19;
+            break;
+        case /pulmo/i.test(medicalCondition):
+            condition = 20;
             break;
     }
     return condition;

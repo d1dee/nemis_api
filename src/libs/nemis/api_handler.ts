@@ -1,18 +1,21 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 /**
  *  Class used to interact with NEMIS public api
  */
-import CustomError from "@libs/error_handler";
-import axios from "axios";
-import { lowerCaseAllValues, medicalConditionDesc, nationalities } from "@libs/converts";
-import { z } from "zod";
-import { Z_GENDER, Z_NUMBER, Z_NUMBER_STRING, Z_STRING } from "@libs/constants";
+import CustomError from '@libs/error_handler';
+import axios from 'axios';
+import { lowerCaseAllValues, medicalConditionDesc, nationalities } from '@libs/converts';
+import { z } from 'zod';
+import { Z_NUMBER, Z_NUMBER_STRING, Z_PARSE_SCHOOL_ADMITTED, Z_STRING } from '@libs/constants';
+import { Z_ADMISSION, Z_RESULTS, Z_RESULTS_SHAPE } from '@libs/nemis/constants';
+import { Admission } from '../../../types/nemisApiTypes/api';
 
 const apiAuthorization = process.env.NEMIS_API_AUTH;
 const apiBaseUrl = 'http://nemis.education.go.ke/generic2/api'; // https is not supported
+
 // noinspection SpellCheckingInspection
 export default class {
     apiValidation = {
@@ -123,102 +126,9 @@ export default class {
                 idNo: res.iD_No,
                 specialNeeds: res.special_Needs_List
             })),
-        resultsSchema: z
-            .object({
-                index_no: Z_STRING,
-                ge: Z_GENDER,
-                name: Z_STRING,
-                school_name: Z_STRING,
-                tot: Z_STRING,
-                district_code: Z_STRING,
-                district_name: Z_STRING,
-                ns1: Z_STRING,
-                ns2: Z_STRING,
-                ns3: Z_STRING,
-                ns4: Z_STRING,
-                xs1: Z_STRING,
-                xs2: Z_STRING,
-                xs3: Z_STRING,
-                cs1: Z_STRING,
-                cs2: Z_STRING,
-                ss1: Z_STRING,
-                ss2: Z_STRING,
-                disability_l: Z_STRING,
-                disability_b: Z_STRING,
-                disability_d: Z_STRING,
-                disability_p: Z_STRING,
-                yob: Z_STRING,
-                citizenship: Z_STRING,
-                school_code: Z_STRING,
-                school_category: Z_STRING,
-                selected_school: Z_STRING
-            })
-            .partial()
-            .transform(res => ({
-                name: res.name,
-                gender: res.ge,
-                yearOfBirth: res.yob,
-                citizenship: res.citizenship,
-                indexNo: res.index_no,
-                marks: res.tot,
-                primarySchool: {
-                    name: res.school_name,
-                    knecCode: res.school_code,
-                    districtName: res.district_name,
-                    districtCode: res.district_code
-                },
-                disability: {
-                    l: res.disability_l,
-                    b: res.disability_b,
-                    d: res.disability_d,
-                    p: res.disability_p
-                },
-                preferredSecondarySchools: {
-                    nationals: {
-                        ns1: res.ns1,
-                        ns2: res.ns2,
-                        ns3: res.ns3,
-                        ns4: res.ns4
-                    },
-                    extraCounty: {
-                        xc1: res.xs1,
-                        xc2: res.xs2,
-                        xc3: res.xs3
-                    },
-                    county: {
-                        cs1: res.cs1,
-                        cs2: res.cs2
-                    },
-                    secondary: {
-                        ss1: res.ss1,
-                        ss2: res.ss2
-                    }
-                },
-                selectedSchool: {
-                    category: res.school_category,
-                    knecCode: res.selected_school
-                }
-            })),
 
-        schoolAdmittedSchema: z
-            .object({
-                method: Z_STRING,
-                schooladmitted: Z_STRING,
-                category2: Z_STRING
-            })
-            .partial()
-            .transform(res => ({
-                method: res.method,
-                originalString: res.schooladmitted,
-                category: res.category2,
-                ...(res.schooladmitted?.match(
-                    /(?<code>\d+).+(?<name>(?<=\d )[a-zA-Z ].+)School Type:(?<type>[a-zA-Z]+).School Category:(?<category>[a-zA-Z].+)/
-                )?.groups as {
-                    code: string;
-                    type: string;
-                })
-            })),
-
+        resultsSchema: Z_RESULTS,
+        schoolAdmittedSchema: Z_ADMISSION,
         reportedSchema: z
             .object({
                 index_no: Z_STRING,
@@ -246,15 +156,9 @@ export default class {
 
         reportedCapturedSchema: z
             .object({
-                reportedlabel: Z_STRING
+                reportedlabel: Z_PARSE_SCHOOL_ADMITTED
             })
-            .partial()
-            .transform(res => ({
-                originalString: res.reportedlabel,
-                ...res?.reportedlabel?.match(
-                    /(?<code>^\d+): (?<name>.+), type: (?<type>.*), category: (?<category>.*), upi: (?<upi>.*)/i
-                )?.groups
-            })),
+            .partial(),
 
         schoolDashboard: z.array(
             z
@@ -370,22 +274,21 @@ export default class {
             )?.data;
 
             // Valid and transform results
-            return this.apiValidation.resultsSchema.parse(lowerCaseAllValues(rawResults));
+            return this.apiValidation.resultsSchema.parse(rawResults);
         } catch (err) {
             throw err;
         }
     }
 
     // Gets where the learner is placed for admission by calling http://nemis.education.go.ke/generic2/api/FormOne/Admission/{index_number}
-    async admission(indexNumber: string) {
+    async admission(indexNumber: string): Promise<Admission> {
         try {
-            if (!indexNumber) throw new Error('Index number not supplied');
-            let results = (
-                await this.axiosInstance.get(`/FormOne/Admission/${encodeURIComponent(indexNumber)}`)
-            )?.data;
-
-            return this.apiValidation.schoolAdmittedSchema.parse(lowerCaseAllValues(results));
-        } catch (err) {
+            return (await this.axiosInstance.get(`/FormOne/Admission/${encodeURIComponent(indexNumber)}`))
+                ?.data;
+        } catch (err: any) {
+            if (err.code === 'ERR_BAD_REQUEST' && err?.response?.data) {
+                throw new CustomError(err.response.data, 400);
+            }
             throw err;
         }
     }
@@ -424,5 +327,14 @@ export default class {
         } catch (err) {
             throw err;
         }
+    }
+
+    // Returns selection status cookie
+    async selectionStatusCookie(institutionKnecCode: string, originalInstitutionKnecCode: string) {
+        return (
+            await this.axiosInstance.get(
+                `/FormOne/SelectionStatus/${institutionKnecCode}/${originalInstitutionKnecCode}`
+            )
+        ).headers['set-cookie'];
     }
 }

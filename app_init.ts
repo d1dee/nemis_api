@@ -1,14 +1,18 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
-import connectDb from "./src/database/index";
+import connectDb from './src/database/index';
+import { mkdir } from 'fs/promises';
+import * as process from 'process';
 
 export default async () => {
+    let homeDir = process.env.HOME_DIR;
     try {
         switch (true) {
-            case !process.env.HOME_DIR:
-                process.env.HOME_DIR = `${process.cwd()}/data`;
+            case !homeDir:
+                homeDir = `${process.cwd()}/data`;
+                process.env.HOME_DIR = homeDir;
                 break;
 
             case !process.env.BASE_URL:
@@ -27,8 +31,17 @@ export default async () => {
 
         // Wait database to connect
         await connectDb(process.env.DATABASE_URL!);
-
         console.info('Database connected ✨');
+
+        // Check if the data directory is available.
+        console.log('Creating data directory.');
+        await mkdir(homeDir! + '/debug', { recursive: true }).catch(err => {
+            if (err.code === 'EEXIST') console.log(err.message);
+            else throw err;
+        });
+
+        process.env.DATA_DIR = homeDir;
+        process.env.DEBUG_DIR = `${homeDir}/debug`;
     } catch (err) {
         throw err;
     }

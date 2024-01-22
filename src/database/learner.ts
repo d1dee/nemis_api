@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
 import mongoose from 'mongoose';
@@ -154,8 +154,7 @@ export const learnerSchema = new mongoose.Schema({
                 locale: 'en',
                 strength: 2
             }
-        },
-        timestamp: dateTimeSchema
+        }
     }
 });
 export default mongoose.model('learner', learnerSchema);

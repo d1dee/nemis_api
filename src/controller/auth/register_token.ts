@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
-import { Request } from "express";
-import { newInstitutionSchema } from "@libs/zod_validation";
-import { sendErrorMessage } from "../utils/middleware_error_handler";
-import institutionModel from "@database/institution";
-import { NemisWebService } from "@libs/nemis";
-import JWT from "@libs/JWT";
-import mongoose from "mongoose";
+import { Request } from 'express';
+import { newInstitutionSchema } from '@libs/zod_validation';
+import { sendErrorMessage } from '../utils/middleware_error_handler';
+import institutionModel from '@database/institution';
+import NemisWebService from '@libs/nemis';
+import JWT from '@libs/JWT';
+import mongoose from 'mongoose';
 
 export default async (req: Request) => {
     try {

@@ -1,13 +1,13 @@
 /*
- * Copyright (c) 2023. MIT License. Maina Derrick.
+ * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
-import { NextFunction, Request } from "express";
+import { NextFunction, Request } from 'express';
 
-import CustomError from "@libs/error_handler";
-import { ZodError } from "zod";
-import { AxiosError } from "axios";
-import { fromZodError } from "zod-validation-error";
+import CustomError from '@libs/error_handler';
+import { ZodError } from 'zod';
+import { AxiosError } from 'axios';
+import { fromZodError } from 'zod-validation-error';
 
 export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     // If no error and next is not undefined, call next()
@@ -30,7 +30,9 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
 
     if (err instanceof ZodError) {
         statusCode = 422;
-        message = fromZodError(err).message;
+        message = fromZodError(err, {
+            maxIssuesInMessage: 1
+        }).message;
     }
 
     if (err instanceof SyntaxError) {
@@ -43,7 +45,7 @@ export function sendErrorMessage(req: Request, err: any, next?: NextFunction) {
     }
     // Any other error return an 'Internal server error'
     !statusCode ? (statusCode = 500) : undefined;
-    !message ? (message = 'Internal server error, an unknown error has occurred.') : undefined;
+    !message ? (message = err.message || 'Internal server error, an unknown error has occurred.') : undefined;
 
     return req.respond.sendError(statusCode, message, cause);
 }

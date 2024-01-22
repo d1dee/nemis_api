@@ -13,9 +13,10 @@ import {
     Z_NATIONALITIES,
     Z_NUMBER,
     Z_NUMBER_STRING,
-    Z_STRING, Z_STRING_TO_BOOLEAN,
+    Z_STRING,
+    Z_STRING_TO_BOOLEAN,
     Z_TRANSFER_METHOD
-} from "@libs/constants";
+} from '@libs/constants';
 import { countyToNo, dateTime } from '@libs/converts';
 import CustomError from '@libs/error_handler';
 
@@ -57,7 +58,7 @@ export default class Learner {
                 isArchived: Z_STRING_TO_BOOLEAN,
                 name: Z_STRING.min(3, 'Name string must be at least 3 letters long.'),
                 age: Z_NUMBER.min(3, 'Minimum age is 3 years'),
-                incompleteData:Z_STRING_TO_BOOLEAN
+                incompleteData: Z_STRING_TO_BOOLEAN
             })
             .partial(),
         learner: z
@@ -194,10 +195,11 @@ export default class Learner {
                     400
                 );
             }
-            
+
             if (!Array.isArray(this.req.parsedExcel))
                 throw new CustomError(
-                    `File validation failed. Expected and array but instead received ${typeof this.req.parsedExcel}`
+                    `File validation failed. Expected and array but instead received ${typeof this.req
+                        .parsedExcel}`
                 );
             await this.learnerValidation(this.req.parsedExcel);
         } catch (err: any) {
@@ -254,10 +256,9 @@ export default class Learner {
             let learnersArray = !Array.isArray(learners) ? [learners] : learners;
 
             let validResults = [] as ValidLearner[],
-                invalidResults = [] as {
-                    validationError: string;
-                }[];
-            this.addLearnerIgnoreList(['grade', 'dob', 'gender', 'indexNo', 'marks'], ['county', 'contacts']);
+                invalidResults = [] as Array<{
+                    error: string;
+                }>;
 
             learnersArray.forEach((learner: any) => {
                 learner.continuing = learner?.continuing ?? this.req.url.includes('continuing');
@@ -267,7 +268,7 @@ export default class Learner {
                     let errorMessage = fromZodError(res.error);
                     invalidResults.push({
                         ...learner,
-                        validationError: errorMessage.message
+                        error: errorMessage.message
                     });
                 }
             });
@@ -279,7 +280,17 @@ export default class Learner {
                     invalidResults
                 );
             }
-            await this.addLearnerToDatabase(validResults);
+
+            invalidResults = await this.addLearnerToDatabase(validResults);
+
+            if (invalidResults.length > 0) {
+                return this.req.respond.sendError(
+                    403,
+                    `Error while saving learners to database. ${invalidResults.length} learner failed to save.`,
+                    invalidResults
+                );
+            }
+
             this.req.respond.sendResponse(
                 validResults,
                 `${validResults.length} learner(s) added to database.`
@@ -431,30 +442,43 @@ export default class Learner {
             if (learner.length > 1) {
                 throw new CustomError('More than one learner was returned with the provided id. ', 400);
             }
-            let archivedLearner = await Object.assign(learner[0], {
+            let archivedLearner = Object.assign(learner[0], {
                 archived: {
                     isArchived: true,
                     reason: queryParams.reason,
                     archivedOn: dateTime()
                 }
-            }).save();
+            }).toObject();
 
-            this.req.respond.sendResponse(
-                archivedLearner.toObject(),
-                'This learners were successfully archived.'
-            );
+            // @todo: push learner to an archive database
+
+            await learnerModel.findByIdAndDelete(archivedLearner._id);
+
+            this.req.respond.sendResponse(archivedLearner, 'This learners were successfully archived.');
         } catch (err) {
             sendErrorMessage(this.req, err);
         }
     }
 
-    private addLearnerToDatabase(validLearners: ValidLearner[]) {
+    private async addLearnerToDatabase(validLearners: ValidLearner[]) {
         try {
-            return Promise.all(
+            let promiseResults = await Promise.allSettled(
                 validLearners.map(learner =>
                     learnerModel.updateOne({ adm: learner.adm }, learner, { upsert: true })
                 )
             );
+            let error = [] as Array<ValidLearner & { error: string }>;
+
+            promiseResults.forEach(
+                (res, i) =>
+                    res.status === 'rejected' &&
+                    error.push({
+                        ...validLearners[i],
+                        error: res.reason.message
+                    })
+            );
+
+            return error;
         } catch (err) {
             throw err;
         }
