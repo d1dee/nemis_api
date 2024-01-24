@@ -16,9 +16,12 @@ export default async (req: Request) => {
 
         const nemis = new NemisWebService();
 
+        await nemis.init()
+
         await nemis.login(username, password);
         // Get institution details from NEMIS
         let institution = await nemis.getInstitution(username);
+        await nemis.close()
 
         // Create a token _id
         let tokenId = new mongoose.Types.ObjectId();

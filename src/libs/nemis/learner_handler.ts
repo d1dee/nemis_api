@@ -19,6 +19,7 @@ import * as process from 'process';
 import { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
 import { Z_REQUEST_JOINING_lEARNER } from '@controller/constants';
 import { countyToNo, medicalConditionCode, nationalities, splitNames } from '@libs/converts';
+import ms from 'ms';
 
 // noinspection SpellCheckingInspection
 export default class extends Nemis {
@@ -235,7 +236,7 @@ export default class extends Nemis {
                 if (!errorMessageElement) throw new Error('Error message was not painted on the screen');
 
                 if (
-                    await errorMessageElement.$eval('#ctl00_ContentPlaceHolder1_ErrorMessage', val =>
+                    await errorMessageElement.evaluate(val =>
                         val.outerHTML.startsWith('You Can Not Capture Bio-Data Twice')
                     )
                 )
@@ -260,9 +261,9 @@ export default class extends Nemis {
 
     async requestJoiningLearner(requestDetails: RequestJoiningLearnerDetails[number]) {
         try {
-            await this.page.goto('http://nemis.education.go.ke/Learner/Studindex.aspx');
-
-            await this.page.waitForSelector('#txtSearch');
+            await this.page.goto('http://nemis.education.go.ke/Learner/Studindex.aspx', {
+                waitUntil: 'domcontentloaded'
+            });
 
             let doc = htmlParser(await this.page.content());
 
@@ -273,11 +274,9 @@ export default class extends Nemis {
 
             if (!canRequest) return 'Requesting learners is currently disabled on the Nemis website.';
 
-            this.page.locator('#txtSearch').setEnsureElementIsInTheViewport(true);
+            await this.page.locator('#txtSearch').fill(String(requestDetails.indexNo));
 
-            await this.page.type('#txtSearch', String(requestDetails.indexNo));
-
-            await this.page.click('#SearchCmd');
+            await this.page.locator('#SearchCmd').click();
 
             await this.page.waitForResponse(
                 response =>
@@ -286,7 +285,6 @@ export default class extends Nemis {
                         .startsWith(`http://nemis.education.go.ke/generic2/api/FormOne/Admission/`) &&
                     response.status() === 200
             );
-            await this.page.waitForNetworkIdle({ idleTime: 500 });
 
             // Wait for Request Placement button
             let requestBtn = await this.page.$eval('#BtnAdmit', val => (val as HTMLButtonElement).value);
@@ -296,51 +294,30 @@ export default class extends Nemis {
 
             await this.page.locator('#BtnAdmit').click();
 
-            await this.page.locator('#ctl00_ContentPlaceHolder1_txtPhone').click();
-
             await this.page.locator('#ctl00_ContentPlaceHolder1_txtPhone').fill(requestDetails.tel);
-
-            await this.page.locator('#ctl00_ContentPlaceHolder1_txtIDNo').click();
-
             await this.page.locator('#ctl00_ContentPlaceHolder1_txtIDNo').fill(String(requestDetails.id));
-
-            await this.page.locator('#ctl00_ContentPlaceHolder1_txtWReq').click();
-
-            await this.page.locator('#ctl00_ContentPlaceHolder1_txtWReq').fill(String('Chania High School'));
-
-            await this.page.locator('#ctl00_ContentPlaceHolder1_txtFileNo').click();
-
+            await this.page
+                .locator('#ctl00_ContentPlaceHolder1_txtWReq')
+                .fill(String(requestDetails.requestedBy));
             await this.page.locator('#ctl00_ContentPlaceHolder1_txtFileNo').fill(String(requestDetails.adm));
 
             await this.page.locator('#ctl00_ContentPlaceHolder1_BtnAdmit').click();
 
-            await this.page.waitForSelector('#ctl00_ContentPlaceHolder1_ErrorMessage');
+            await this.page.waitForNetworkIdle({ timeout: ms('60s') });
 
             let doc2 = htmlParser(await this.page.content());
 
             let [message, slotsLeft] = [
-                doc2.querySelector('#ctl00_ContentPlaceHolder1_ErrorMessage')?.textContent,
+                doc2.querySelector('#ctl00_ContentPlaceHolder1_ErrorMessage')?.innerText,
                 doc2.querySelector('#ctl00_ContentPlaceHolder1_LblCap')?.innerText
             ];
 
             console.debug(message);
             console.warn(slotsLeft);
 
-            await this.page
-                .locator('#Menu1 > li:nth-of-type(2) > a')
-                //.setTimeout(2000)
-                .click();
-
-            await this.page.locator('li:nth-of-type(2) li:nth-of-type(1) > a').click();
-
-            await this.page.waitForSelector('#txtSearch');
-
-            await this.browser.close();
-
             if (message?.includes('Successfully Saved!!')) return 'Request Successfully Saved!!';
             else throw new Error(message);
         } catch (e) {
-            await this.browser.close();
             throw e;
         }
     }
@@ -378,13 +355,7 @@ export default class extends Nemis {
             if (!requestedTable) return [];
 
             let requestedLearnerJson = tableToJson
-                .convert(
-                    await requestedTable.$eval(
-                        '#ctl00_ContentPlaceHolder1_grdLearners',
-                        val => val.outerHTML
-                    ),
-                    { stripHtmlFromCells: false }
-                )
+                .convert(await requestedTable.evaluate(val => val.outerHTML), { stripHtmlFromCells: false })
                 ?.flat()
                 .toSpliced(-1, 1);
             return this.learnerValidations.requestedLeanerSchema.parse(requestedLearnerJson);

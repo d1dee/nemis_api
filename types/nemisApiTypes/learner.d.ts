@@ -9,7 +9,7 @@ import LearnerHandler from '@libs/nemis/learner_handler';
 import { z } from 'zod';
 import MiddlewareLearner from '../../src/controller/learner';
 import { LEARNER_FIELDS } from '@libs/constants';
-import { Z_REQUEST_JOINING_lEARNERS } from '@controller/constants';
+import { Z_REQUEST_JOINING_lEARNERS } from '@controller/constants'; // Learner as returned by the database.
 
 // Learner as returned by the database.
 export type Learner = InferSchemaType<typeof learnerSchema>;
@@ -18,6 +18,7 @@ export interface LearnerDocument extends Learner, Document {}
 
 export type Results = Awaited<ReturnType<ApiHandler['results']>>;
 export type ReportedCaptured = Awaited<ReturnType<ApiHandler['reportedCaptured']>>;
+export type Reported = Awaited<ReturnType<ApiHandler['reported']>>;
 export type SearchLearner = Awaited<ReturnType<ApiHandler['searchLearner']>>;
 //export type CaptureBiodata = Awaited<ReturnType<LearnerHandler['captureBioData']>>;
 

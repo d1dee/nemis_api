@@ -56,7 +56,7 @@ export const Z_NUMBER_STRING = z.union([
     Z_STRING,
     Z_NUMBER.pipe(z.coerce.string().min(1, 'Birth certificate number can not be an empty string.'))
 ]);
-export const Z_GRADE = Z_STRING.pipe(z.enum(GRADES));
+export const Z_GRADE = Z_STRING.toLowerCase().pipe(z.enum(GRADES));
 export const Z_PHONE_NUMBER = Z_NUMBER_STRING.transform(val =>
     val.length === 9 && val.startsWith('7') ? val.padStart(10, '0') : val
 ).refine(val => /^0([712])[0-9]{7,8}$/.test(val) || /^\+(?:[0-9] ?){6,14}[0-9]$/.test(val), {

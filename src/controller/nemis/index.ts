@@ -138,6 +138,8 @@ export default class Nemis {
     }
 
     async requestJoiningLearner() {
+        // Get list of already requested learners
+        const learnerService = new LearnerHandler();
         try {
             let requestData: any[] = [];
 
@@ -225,6 +227,8 @@ export default class Nemis {
             // Get API response for the remainder learners
             const nemisApiService = new NemisApiService();
 
+            //@todo:check if learner has reported
+
             let reportingStatus: Array<Awaited<PromiseSettledResult<Admission>>> = await Promise.allSettled(
                 requestLearners.map(learner => nemisApiService.admission(learner.indexNo))
             );
@@ -237,6 +241,7 @@ export default class Nemis {
                 if (val.status === 'fulfilled')
                     if (val.value?.schoolAdmitted.includes(this.institution.nemisInstitutionData!.knecCode!))
                         return;
+                    //@todo: check gender aganist school gender
                     else requestLearnersWithResults.push(requestLearners[i]);
                 else erroredLearners.push({ ...requestLearners[i], error: val.reason.message });
             });
@@ -252,17 +257,17 @@ export default class Nemis {
                         }
                     });
                 } catch (err: any) {
-                    Object.assign(learner, {
-                        requested: {
-                            success: false,
-                            message: err.message
-                        }
-                    });
+                    erroredLearners.push(
+                        Object.assign(learner, {
+                            error: err.message
+                        })
+                    );
                 }
             }
 
             this.respond.sendResponse([erroredLearners, requestLearnersWithResults, matchedLearner]);
         } catch (err) {
+            if (learnerService.browser) await learnerService.close();
             sendErrorMessage(this.request, err);
         }
     }
@@ -450,11 +455,11 @@ export default class Nemis {
                             error: listLearner.message || 'Failed to list learner.'
                         });
                     } else {
-                        await learnerHandler.captureJoiningBiodata(learner.toObject(), listLearner);
-                        captureResults.push({ ...learner.toObject(), isAdmitted: true });
+                        await learnerHandler.captureJoiningBiodata(learner, listLearner);
+                        captureResults.push({ ...learner, isAdmitted: true });
                     }
                 } catch (err: any) {
-                    errors.push({ ...learner.toObject(), error: err.message });
+                    errors.push({ ...learner, error: err.message });
                 }
             }
 
