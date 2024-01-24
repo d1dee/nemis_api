@@ -87,7 +87,7 @@ let phoneNumberSchema = z.coerce
     .refine(
         value => {
             // Check if the phone number is a Kenyan phone number
-            if (/^0([71])[0-9]{7,8}$/.test(value)) {
+            if (/^0([712])[0-9]{7,8}$/.test(value)) {
                 return true;
             }
             // Check if the phone number is an international phone number
