@@ -428,22 +428,10 @@ export default class Nemis {
             ];
             let errors = [] as Array<Learner & { error: string }>;
 
-            if (learnerToCapture.length > 0) {
-                // Match learnerToCapture with their respective postback
-                let admittedLearner = await learnerHandler.listAdmittedJoiningLearners();
-
-                learnerToCapture.forEach(learner => {
-                    let admitted = admittedLearner.find(x => x.indexNo === learner.indexNo);
-
-                    if (admitted) {
-                        learnerWithPostback.push([learner.toObject(), admitted]);
-                        return;
-                    }
-                    errors.push({
-                        ...learner.toObject(),
-                        error: 'Learner is not admitted yet'
-                    });
-                });
+            let captureLearner = admittedLearners.filter(val => !populatedListLearners.some((v => v[0].indexNo === val.indexNo)))
+            if (captureLearner.length === 0) { // todo: send message here
+               await  learnerHandler.close()
+                return
             }
 
             // Capture bio-data for the filtered learners
