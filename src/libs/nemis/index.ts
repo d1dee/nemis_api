@@ -6,12 +6,12 @@
  *  Base class that sets up all axios interactions. It is from this class that all other Nemis classes are extended from.
  */
 import CustomError from '@libs/error_handler';
-import { parse as htmlParser } from 'node-html-parser';
-import { gradeToNumber } from '@libs/converts';
+import {parse as htmlParser} from 'node-html-parser';
+import {gradeToNumber} from '@libs/converts';
 import NemisApiService from './api_handler';
-import { Grade, RecordsPerPage } from '../../../types/nemisApiTypes/institution';
-import { Z_INSTITUTION } from '@libs/nemis/constants';
-import puppeteer, { Browser, Page, Protocol, PuppeteerLaunchOptions } from 'puppeteer';
+import {Grade, RecordsPerPage} from '../../../types/nemisApiTypes/institution';
+import {Z_INSTITUTION} from '@libs/nemis/constants';
+import puppeteer, {Browser, Page, Protocol, PuppeteerLaunchOptions} from 'puppeteer';
 
 /**
  * A class to handle all interactions with the NEMIS (National Education Management Information System) website
@@ -35,7 +35,8 @@ export default class Nemis {
     //@ts-expect-error
     page: Page;
 
-    constructor(opts?: PuppeteerLaunchOptions) {}
+    constructor(opts?: PuppeteerLaunchOptions) {
+    }
 
     /**
      * Logs in the user with the given username and password.
@@ -46,10 +47,7 @@ export default class Nemis {
             if (!username || !password) {
                 throw new CustomError('Username or password not provided', 401);
             }
-
-            await this.page.goto('http://nemis.education.go.ke/Login.aspx', {
-                waitUntil: 'domcontentloaded'
-            });
+            await this.page.goto('http://nemis.education.go.ke/')
 
             await this.page.locator('#ctl00_ContentPlaceHolder1_Login1_UserName').fill(username);
             await this.page.locator('#ctl00_ContentPlaceHolder1_Login1_Password').fill(password);
@@ -67,7 +65,7 @@ export default class Nemis {
     /**
      * Retrieves institution information by scraping the institution page,
      * /Institution/Institution.aspx, and parsing its html using node-html-parser.
-     
+
      */
     async getInstitution(institutionCode: string) {
         try {
@@ -256,12 +254,13 @@ export default class Nemis {
             let browser = await puppeteer.launch({
                 headless: false,
                 ignoreHTTPSErrors: true,
+                args: ["--disable-features=AutoupgradeMixedContent", "--disable-web-security", " --allow-running-insecure-content"],
                 ...opts
             });
 
             let page = await browser.newPage();
 
-            // Set viewport if we are not using headless mode
+            // Set viewport if we are not using headless modenpx puppeteer browsers install firefox
             if (!opts?.headless)
                 await page.setViewport({
                     width: 640,
@@ -270,12 +269,12 @@ export default class Nemis {
 
             [this.browser, this.page] = [browser, page] as const;
             return;
-        } catch (err) {
-            throw new Error('Error while initializing puppeteer.');
+        } catch (err: any) {
+            throw new Error(err.message || 'Error while initializing puppeteer.');
         }
     }
 
     async close() {
-        await this.browser.close();
+        if (this.browser) await this.browser.close();
     }
 }
