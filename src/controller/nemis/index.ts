@@ -2,37 +2,37 @@
  * Copyright (c) 2023-2024. MIT License. Maina Derrick.
  */
 
-import { Request } from 'express';
+import {Request} from 'express';
 import learnerModel from '@database/learner';
 import CustomError from '@libs/error_handler';
 import LearnerHandler from '@libs/nemis/learner_handler';
 import Learner_handler from '@libs/nemis/learner_handler';
 import {
     Learner,
-    ListAdmittedLearners,
     ListLearners,
     RequestedAndApprovedLearners,
     Results,
     SearchLearner
 } from '../../../types/nemisApiTypes/learner';
-import { Admission } from '../../../types/nemisApiTypes/api';
+import {Admission} from '../../../types/nemisApiTypes/api';
 import NemisApiService from '@libs/nemis/api_handler';
 import Api_handler from '@libs/nemis/api_handler';
-import { sendErrorMessage } from '../utils/middleware_error_handler';
-import { Z_GRADE, Z_INDEX_NUMBER, Z_NUMBER_STRING, Z_PARSE_SCHOOL_ADMITTED, Z_STRING } from '@libs/constants';
-import { z } from 'zod';
-import { Z_REQUEST_JOINING_lEARNERS, Z_STRING_TO_ARRAY } from '../constants';
-import { sync } from '@libs/sync_api_database';
-import { Promise } from 'mongoose';
-import { dateTime } from '@libs/converts';
+import {sendErrorMessage} from '../utils/middleware_error_handler';
+import {Z_GRADE, Z_INDEX_NUMBER, Z_NUMBER_STRING, Z_PARSE_SCHOOL_ADMITTED, Z_STRING} from '@libs/constants';
+import {z} from 'zod';
+import {Z_REQUEST_JOINING_lEARNERS, Z_STRING_TO_ARRAY} from '../constants';
+import {sync} from '@libs/sync_api_database';
+import {Promise} from 'mongoose';
+import {dateTime} from '@libs/converts';
 import Respond from '@controller/utils/send_response';
-import { Browser } from 'puppeteer';
+import {Browser} from 'puppeteer';
 
 export default class Nemis {
     private readonly respond: Respond;
     private readonly request: Request;
     private readonly institution;
     private readonly urlPath;
+    browser = undefined as undefined | Browser
     private validation = {
         searchLearner: z
             .object({
@@ -115,10 +115,12 @@ export default class Nemis {
                     'One of the provided grade is not supported by your institution. Check the selected grades before retrying.',
                     400
                 );
-
+// todo: rewrite for puppeteer
             let listLearnerResults = grades.map(grade =>
                 (async () => {
                     let learnerService = new LearnerHandler();
+                    await learnerService.init()
+                    this.browser = learnerService.browser
                     await learnerService.login(this.institution.username, this.institution.password);
                     return await learnerService.listLearners(grade);
                 })()
@@ -138,8 +140,6 @@ export default class Nemis {
     }
 
     async requestJoiningLearner() {
-        // Get list of already requested learners
-        const learnerService = new LearnerHandler();
         try {
             let requestData: any[] = [];
 
@@ -188,6 +188,7 @@ export default class Nemis {
             const learnerService = new LearnerHandler();
 
             await learnerService.init();
+            this.browser = await learnerService.browser
 
             await learnerService.login(this.institution.username, this.institution.password);
 
@@ -203,14 +204,14 @@ export default class Nemis {
             // Filter already requested learners
             let matchedLearner = [] as Array<
                 (typeof learnersArray)[number] & {
-                    requestResults: RequestedAndApprovedLearners[number];
-                }
+                requestResults: RequestedAndApprovedLearners[number];
+            }
             >;
             let requestLearners = learnersArray.filter(
                 learner =>
                     !requestedApprovedLearners.some(val => {
                         if (val.indexNo === learner.indexNo) {
-                            matchedLearner.push({ ...learner, requestResults: val });
+                            matchedLearner.push({...learner, requestResults: val});
                             return true;
                         }
                     })
@@ -243,7 +244,7 @@ export default class Nemis {
                         return;
                     //@todo: check gender aganist school gender
                     else requestLearnersWithResults.push(requestLearners[i]);
-                else erroredLearners.push({ ...requestLearners[i], error: val.reason.message });
+                else erroredLearners.push({...requestLearners[i], error: val.reason.message});
             });
 
             // Request learners
@@ -267,7 +268,7 @@ export default class Nemis {
 
             this.respond.sendResponse([erroredLearners, requestLearnersWithResults, matchedLearner]);
         } catch (err) {
-            if (learnerService.browser) await learnerService.close();
+            if (this.browser) await this.browser.close();
             sendErrorMessage(this.request, err);
         }
     }
@@ -278,11 +279,11 @@ export default class Nemis {
                 .find({
                     institutionId: this.request.institution._id,
                     isContinuing: false, // Only admit joining learners
-                    indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
-                    isAdmitted: { $in: [null, false] },
+                    indexNo: {$nin: [null, undefined, 0, '']}, // Learner must have an index number
+                    isAdmitted: {$in: [null, false]},
                     'archived.isArchived': false
                 })
-                .sort({ birthCertificateNo: 'asc' })
+                .sort({birthCertificateNo: 'asc'})
                 .lean();
 
             // Learner to admit should be an array of learners or an empty array if no learner is found
@@ -293,9 +294,11 @@ export default class Nemis {
                 );
 
             // Initialize NEMIS module and login
-            let learnerHandler = new LearnerHandler({ slowMo: 1000 });
+            let learnerHandler = new LearnerHandler();
 
             await learnerHandler.init();
+
+            this.browser = await learnerHandler.browser
 
             await learnerHandler.login(
                 this.request.institution?.username,
@@ -319,7 +322,7 @@ export default class Nemis {
             // We update database here to save progress in case of an error
             await Promise.all(
                 learnersToAdmit.map(x =>
-                    x.isAdmitted ? learnerModel.updateOne({ _id: x._id }, x) : Promise.resolve()
+                    x.isAdmitted ? learnerModel.updateOne({_id: x._id}, x) : Promise.resolve()
                 )
             );
             // Update database
@@ -354,14 +357,15 @@ export default class Nemis {
                     if (value.tot !== String(learner.marks)) throw new Error('Learner marks do not match, d');
                     await learnerHandler.admitJoiningLearner(learner);
 
-                    results.push({ ...learner, admitted: true });
+                    results.push({...learner, admitted: true});
                 } catch (err: any) {
-                    errors.push({ ...learner, admitted: false, error: err.message });
+                    errors.push({...learner, admitted: false, error: err.message});
                 }
             }
             await learnerHandler.close();
             this.request.respond.sendResponse([errors, results]);
         } catch (err) {
+            if (this.browser) await this.browser.close()
             sendErrorMessage(this.request, err);
         }
     }
@@ -493,7 +497,7 @@ export default class Nemis {
                 'All learners have already been captured'
             );
         } catch (err: any) {
-            browser?.close();
+            if (this.browser) await this.browser.close();
             sendErrorMessage(this.request, err);
         }
     }
@@ -509,13 +513,13 @@ export default class Nemis {
                 institutionId: this.institution._id,
                 'archived.isArchived': false,
                 isContinuing: true, // Only admit joining learners,
-                dob: { $exists: true },
-                hasReported: { $ne: true },
-                birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
-                upi: { $exists: false }
+                dob: {$exists: true},
+                hasReported: {$ne: true},
+                birthCertificateNo: {$exists: true, $nin: [null, undefined, 0, '']},
+                upi: {$exists: false}
             };
 
-            const { id, grade, update } = query;
+            const {id, grade, update} = query;
 
             if (grade?.includes('form 1'))
                 throw new CustomError(
@@ -523,13 +527,13 @@ export default class Nemis {
                 );
 
             id &&
-                Object.assign(mongoQuery, {
-                    $or: [{ birthCertificateNo: { $eq: id } }, { adm: { $eq: id } }]
-                });
+            Object.assign(mongoQuery, {
+                $or: [{birthCertificateNo: {$eq: id}}, {adm: {$eq: id}}]
+            });
 
             if (grade)
                 Object.assign(mongoQuery, {
-                    grade: { $in: grade }
+                    grade: {$in: grade}
                 });
             else
                 Object.assign(mongoQuery, {
@@ -551,8 +555,8 @@ export default class Nemis {
             if (continuingLearners.length === 0)
                 throw new CustomError(
                     'No learner found to capture. Learner may have already been captured. Use view learner' +
-                        " end-point to confirm learners status in the database. To update a learner send a request with learner's adm or " +
-                        'birth certificate as id with update set to true.',
+                    " end-point to confirm learners status in the database. To update a learner send a request with learner's adm or " +
+                    'birth certificate as id with update set to true.',
                     400
                 );
 
@@ -561,13 +565,13 @@ export default class Nemis {
                 if (continuingLearners.length > 1)
                     throw new CustomError(
                         'The provided if admission number or birth certificate number returned more than one ' +
-                            'learner. Provide a more specific id to continue.',
+                        'learner. Provide a more specific id to continue.',
                         400
                     );
                 if (continuingLearners[0].grade === 'form 1')
                     throw new CustomError(
                         'Form 1 learners can  not be ' +
-                            'captured as continuing learners. Use /admit_joining_learner to capture from one students'
+                        'captured as continuing learners. Use /admit_joining_learner to capture from one students'
                     );
                 if (continuingLearners[0].hasReported && !query.update)
                     throw new CustomError(
@@ -578,7 +582,7 @@ export default class Nemis {
 
             console.info(`Initializing capture of ${continuingLearners.length} learners`);
 
-            const { username, password } = this.institution;
+            const {username, password} = this.institution;
             let capturePromises = continuingLearners.map(learner =>
                 (async () => {
                     const learnerHandler = new Learner_handler();
@@ -600,7 +604,7 @@ export default class Nemis {
                         error: null
                     });
                 return Object.assign(continuingLearners[index], {
-                    error: { message: res.reason?.message, timestamp: dateTime() }
+                    error: {message: res.reason?.message, timestamp: dateTime()}
                 });
             });
 
