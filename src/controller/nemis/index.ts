@@ -371,62 +371,35 @@ export default class Nemis {
     }
 
     async captureJoiningLearner() {
-        let browser = undefined as Browser | undefined;
         try {
-            // Get learner who aren't captured from the database
-            const learnerNotCaptured = await learnerModel
-                .find({
-                    isContinuing: false, // Only admit joining learners,
-                    institutionId: this.request.institution._id,
-                    indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
-                    isAdmitted: true,
-                    upi: { $exists: false, $in: [null, undefined, 0, ''] },
-                    birthCertificateNo: { $exists: true, $nin: [null, undefined, 0, ''] },
-                    dob: { $exists: true },
-                    'archived.isArchived': false
-                })
-                .sort({ birthCertificateNo: 1 });
-
+            const errors: Array<any> = []
             // Get list of captured learners frm Nemis website
             let learnerHandler = new LearnerHandler();
 
             await learnerHandler.init();
             // Update browser so that we can close it in case we throw and error
-            browser = learnerHandler.browser;
+            this.browser = learnerHandler.browser;
 
             await learnerHandler.login(this.request.institution.username, this.request.institution.password);
 
-            let listCapturedLearners = (await learnerHandler.listLearners('form 1')) ?? [];
+            let listLearners = await learnerHandler.listLearners('form 1')
+            let admittedLearners = await learnerHandler.listAdmittedJoiningLearners();
 
-            // Sort to reduce search time
-            if (listCapturedLearners.length > 10) {
-                listCapturedLearners.sort((a, b) => a.birthCertificateNo.localeCompare(b.birthCertificateNo));
-            }
+            // Populate missing data on list learner
+            let populatedListLearners: Array<[Learner, ListLearners[number]]> = []
 
-            // Filter out learner who aren't captured on Nemis
-            let learnerToCapture: typeof learnerNotCaptured = [];
+            let populatePromise: Array<PromiseSettledResult<Learner>> = await Promise.allSettled(listLearners.map(val => learnerModel.findOne({
+                institutionId: this.request.institution._id,
+                birthCertificateNo: val.birthCertificateNo
+            })))
 
-            for (const learner of learnerNotCaptured) {
-                let listLearner = listCapturedLearners.find(
-                    x => x.birthCertificateNo === learner.birthCertificateNo
-                );
-                if (listLearner) {
-                    delete learner.error;
-                    learner.upi = listLearner.upi;
-                    learner.hasReported = true;
-                } else {
-                    learnerToCapture.push(learner);
-                }
-            }
+            populatePromise.forEach((val, i) => {
+                if (val.status === 'fulfilled')
+                    populatedListLearners.push([val.value, listLearners[i]])
+                else
+                    errors.push({...listLearners[i], error: 'Learner was not found in the database'})
 
-            // Update database to match with Nemis
-            await Promise.all(learnerNotCaptured.map(x => (x.hasReported ? x.save() : Promise.resolve())));
-
-            // Get list of admitted learner to get learner Postback values
-            let learnerWithPostback = [] as unknown as [
-                [(typeof learnerNotCaptured)[number], ListAdmittedLearners[number]]
-            ];
-            let errors = [] as Array<Learner & { error: string }>;
+            })
 
             let captureLearner = admittedLearners.filter(val => !populatedListLearners.some((v => v[0].indexNo === val.indexNo)))
             if (captureLearner.length === 0) { // todo: send message here
@@ -434,49 +407,23 @@ export default class Nemis {
                 return
             }
 
-            // Capture bio-data for the filtered learners
-            let captureResults = [] as Array<Learner>,
-                captureError = [] as Array<Learner & { error: string }>;
+            let captureResults = []
 
-            for await (const learnerArray of learnerWithPostback) {
-                const [learner, listLearner] = learnerArray;
+            for await (const learner of captureLearner) {
                 try {
-                    if (listLearner instanceof CustomError) {
-                        captureError.push({
-                            ...learner,
-                            error: listLearner.message || 'Failed to list learner.'
-                        });
-                    } else {
-                        await learnerHandler.captureJoiningBiodata(learner, listLearner);
-                        captureResults.push({ ...learner, isAdmitted: true });
-                    }
+                    let dbLearner = await learnerModel.findOne({
+                        institutionId: this.request.institution._id,
+                        indexNo: learner.indexNo
+                    })
+                    if (!dbLearner) throw new Error('Learner not save in the database.')
+
+                    await learnerHandler.captureJoiningBiodata(dbLearner, learner);
+                    captureResults.push({...learner, isAdmitted: true});
+
                 } catch (err: any) {
-                    errors.push({ ...learner, error: err.message });
+                    errors.push({...learner, error: err.message});
                 }
             }
-
-            // Check if we have learner without birth certificate and report to user before returning
-            let learnerWithoutBCert = await learnerModel
-                .find({
-                    continuing: false, // Only admit joining learners,
-                    institutionId: this.request.institution._id,
-                    indexNo: { $nin: [null, undefined, 0, ''] }, // Learner must have an index number
-                    admitted: true,
-                    upi: { $exists: false, $in: [null, undefined, 0, ''] },
-                    birthCertificateNo: { $exists: false, $in: [null, undefined, 0, ''] },
-                    archived: false
-                })
-                .lean();
-
-            if (learnerWithoutBCert.length > 0)
-                learnerWithoutBCert.forEach(learner =>
-                    errors.push({
-                        ...learner,
-                        error: 'Learner has no birth certificate'
-                    })
-                );
-
-            if (captureError.length > 0) errors = errors.concat(captureError);
 
             await learnerHandler.close();
 

@@ -3,22 +3,22 @@
  */
 
 import Nemis from '@libs//nemis';
-import { parse as htmlParser } from 'node-html-parser';
-import { Tabletojson as tableToJson } from 'tabletojson/dist/lib/Tabletojson';
+import {parse as htmlParser} from 'node-html-parser';
+import {Tabletojson as tableToJson} from 'tabletojson/dist/lib/Tabletojson';
 import CustomError from '@libs/error_handler';
-import { writeFileSync } from 'fs';
-import { AdmittedLearners, Learner, RequestJoiningLearnerDetails } from 'types/nemisApiTypes/learner';
+import {writeFileSync} from 'fs';
+import {AdmittedLearners, Learner, RequestJoiningLearnerDetails} from 'types/nemisApiTypes/learner';
 import {
     Z_LIST_ADMITTED_LEARNERS,
     Z_LIST_LEARNERS,
     Z_REQUESTED_LEARNERS,
     Z_SELECTED_LEARNER
 } from '@libs/nemis/constants';
-import { Grade } from '../../../types/nemisApiTypes/institution';
+import {Grade} from '../../../types/nemisApiTypes/institution';
 import * as process from 'process';
-import { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
-import { Z_REQUEST_JOINING_lEARNER } from '@controller/constants';
-import { countyToNo, medicalConditionCode, nationalities, splitNames } from '@libs/converts';
+import {Browser, Page, PuppeteerLaunchOptions} from 'puppeteer';
+import {Z_REQUEST_JOINING_lEARNER} from '@controller/constants';
+import {countyToNo, medicalConditionCode, nationalities, splitNames} from '@libs/converts';
 import ms from 'ms';
 
 // noinspection SpellCheckingInspection
@@ -70,7 +70,7 @@ export default class extends Nemis {
                 .flat()
                 .filter(e => !!e['No.']);
 
-            if (listLearnerJson?.length === 0) return null;
+            if (listLearnerJson?.length === 0) return [];
 
             let firstViewElementNumber = Number(firstViewElement?.match(/(?<=_ctl)[0-9]./)?.shift());
 
@@ -160,7 +160,7 @@ export default class extends Nemis {
 
             await this.page.locator('#ctl00_ContentPlaceHolder1_BtnAdmit').click();
 
-            await this.page.waitForNavigation({ waitUntil: 'load' });
+            await this.page.waitForNavigation({waitUntil: 'load'});
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             let message =
@@ -194,7 +194,7 @@ export default class extends Nemis {
 
             if (!tableHtml) return [];
 
-            let admittedLearnerJson = tableToJson.convert(tableHtml, { stripHtmlFromCells: false }).flat();
+            let admittedLearnerJson = tableToJson.convert(tableHtml, {stripHtmlFromCells: false}).flat();
 
             if (!admittedLearnerJson || admittedLearnerJson?.length === 0) return [];
 
@@ -222,8 +222,14 @@ export default class extends Nemis {
             await this.page.goto('http://nemis.education.go.ke/Admission/Listlearnersrep.aspx');
             await this.changeResultsPerPage();
 
-            await this.page.locator(`tr:nth-of-type(${listLearner.no - 1}) > td:nth-of-type(9) > a`).click();
-            await this.page.waitForNavigation({ waitUntil: 'load' });
+// If learner has upi, reset and capture
+            if (!!listLearner.upi) {
+                await this.page.locator(`tr:nth-of-type(${listLearner.no + 1}) > td:nth-of-type(10) > a`).click();
+                await this.page.waitForNavigation({waitUntil: 'load'});
+            }
+
+            await this.page.locator(`tr:nth-of-type(${listLearner.no + 1}) > td:nth-of-type(9) > a`).click();
+            await this.page.waitForNavigation({waitUntil: 'load'});
 
             if (this.page.url() === 'http://nemis.education.go.ke/Learner/alearner.aspx')
                 return await this.captureBioData(learner);
@@ -303,7 +309,7 @@ export default class extends Nemis {
 
             await this.page.locator('#ctl00_ContentPlaceHolder1_BtnAdmit').click();
 
-            await this.page.waitForNetworkIdle({ timeout: ms('60s') });
+            await this.page.waitForNetworkIdle({timeout: ms('60s')});
 
             let doc2 = htmlParser(await this.page.content());
 
@@ -355,7 +361,7 @@ export default class extends Nemis {
             if (!requestedTable) return [];
 
             let requestedLearnerJson = tableToJson
-                .convert(await requestedTable.evaluate(val => val.outerHTML), { stripHtmlFromCells: false })
+                .convert(await requestedTable.evaluate(val => val.outerHTML), {stripHtmlFromCells: false})
                 ?.flat()
                 .toSpliced(-1, 1);
             return this.learnerValidations.requestedLeanerSchema.parse(requestedLearnerJson);
@@ -395,7 +401,7 @@ export default class extends Nemis {
         try {
             const locationDetails = learner.geoLocationDetails;
             const parentContacts = learner.contactDetails;
-            let { surname, firstname, otherName } = splitNames(learner.name);
+            let {surname, firstname, otherName} = splitNames(learner.name);
             const medicalCode = medicalConditionCode(learner.medicalCondition);
             const nationality = nationalities(locationDetails?.nationality ?? 'kenya');
             const [county, subCounty] = countyToNo(locationDetails?.county, locationDetails?.subCounty);
@@ -403,7 +409,7 @@ export default class extends Nemis {
             if (!parentContacts) throw new CustomError('No parent contacts found.', 400);
 
             // Drop incomplete parent contact info
-            let { father, mother, guardian } = parentContacts;
+            let {father, mother, guardian} = parentContacts;
             if (!father?.id || !father?.tel || !father?.name) {
                 father = undefined;
             }
@@ -423,7 +429,7 @@ export default class extends Nemis {
                 case !learner.birthCertificateNo:
                     throw new CustomError(
                         'Learner birth certificate number was not provided. ' +
-                            "Can not capture biodata without learners' birth certificate number",
+                        "Can not capture biodata without learners' birth certificate number",
                         400
                     );
                 case !learner.dob?.UTCTimestamp as boolean:
@@ -489,7 +495,7 @@ export default class extends Nemis {
 
             // submit
             await this.page.locator('#btnUsers2').click();
-            await this.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+            await this.page.waitForNavigation({waitUntil: 'domcontentloaded', timeout: 60000});
 
             const parseLabels = async () => {
                 let aLearnerDocument = htmlParser(await this.page.content());
@@ -531,7 +537,7 @@ export default class extends Nemis {
                         await this.page.locator('#ctl00_ContentPlaceHolder1_optignoreyes').click();
 
                         await this.page.locator('#btnUsers2').click();
-                        await this.page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+                        await this.page.waitForNavigation({waitUntil: 'domcontentloaded', timeout: 60000});
 
                         await parseLabels();
                     } else throw new Error(message?.innerText);
@@ -601,7 +607,7 @@ export default class extends Nemis {
     /*  async captureContinuing(learner: Learner) {
           try {
               await this.listLearners(learner.grade);
-              
+
               let addLearnerBC = await this.axiosInstance.post(
                   "/Learner/Listlearners.aspx",
                   qs.stringify({
@@ -618,7 +624,7 @@ export default class extends Nemis {
                   })
               );
               //writeFileSync('debug/getalearner.html', addLearnerBC?.data);
-              
+
               if (addLearnerBC?.data === "1|#||4|26|pageRedirect||%2fLearner%2fAlearner.aspx|") {
                   return this.captureBioData(learner);
               }
