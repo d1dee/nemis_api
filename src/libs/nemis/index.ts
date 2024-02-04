@@ -12,6 +12,7 @@ import NemisApiService from './api_handler';
 import {Grade, RecordsPerPage} from '../../../types/nemisApiTypes/institution';
 import {Z_INSTITUTION} from '@libs/nemis/constants';
 import puppeteer, {Browser, Page, Protocol, PuppeteerLaunchOptions} from 'puppeteer';
+import {puppeteerDefaults} from "../../../configs";
 
 /**
  * A class to handle all interactions with the NEMIS (National Education Management Information System) website
@@ -252,10 +253,8 @@ export default class Nemis {
     async init(opts?: PuppeteerLaunchOptions) {
         try {
             let browser = await puppeteer.launch({
-                headless: false,
-                ignoreHTTPSErrors: true,
-                args: ["--disable-features=AutoupgradeMixedContent", "--disable-web-security", " --allow-running-insecure-content"],
-                ...opts
+                ...puppeteerDefaults,
+               ...opts
             });
 
             let page = await browser.newPage();
