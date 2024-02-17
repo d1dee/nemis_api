@@ -1,7 +1,7 @@
 import { PuppeteerLaunchOptions} from "puppeteer";
 
 export const puppeteerDefaults : PuppeteerLaunchOptions  = {
-    headless: 'new',
+    headless: false,
     ignoreHTTPSErrors: true,
     args: ["--disable-features=AutoupgradeMixedContent", "--disable-web-security", " --allow-running-insecure-content"],
 }
